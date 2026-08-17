@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DepthOfMarket } from "./DepthOfMarket";
 import { itemIcon } from "./hooks";
 import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
@@ -53,6 +54,7 @@ export function App() {
               ))}
             </select>
           </div>
+          <DepthOfMarket itemCode={selected} />
         </div>
       </div>
       <div className="mx-auto w-full max-w-6xl p-4 pt-0">
