@@ -16,7 +16,7 @@ export function itemIcon(code: string) {
 
 export async function fetchTransactionHistory(itemCode: string): Promise<Transaction[]> {
   const input = encodeURIComponent(JSON.stringify({ itemCode }));
-  const res = await fetch(`https://api2.warera.io/trpc/itemTrading.getItemTrading?input=${input}`);
+  const res = await fetch(`/api/trpc/itemTrading.getItemTrading?input=${input}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   return json.result.data.values ?? [];

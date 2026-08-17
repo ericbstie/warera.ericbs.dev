@@ -16,7 +16,7 @@ export type PriceLevel = { price: number; quantity: number };
 
 export async function fetchOrders(itemCode: string): Promise<OrderBook> {
   const input = encodeURIComponent(JSON.stringify({ itemCode }));
-  const res = await fetch(`https://api2.warera.io/trpc/tradingOrder.getTopOrders?input=${input}`);
+  const res = await fetch(`/api/trpc/tradingOrder.getTopOrders?input=${input}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   return {

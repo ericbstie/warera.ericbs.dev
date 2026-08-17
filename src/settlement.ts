@@ -23,7 +23,7 @@ export type Placement = {
 };
 
 export async function fetchCountries(): Promise<Country[]> {
-  const res = await fetch("https://api2.warera.io/trpc/country.getAllCountries?input=%7B%7D");
+  const res = await fetch("/api/trpc/country.getAllCountries?input=%7B%7D");
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   return Object.values(json.result.data);
@@ -40,7 +40,7 @@ export async function fetchIndustrialism(countries: Country[]): Promise<Record<s
         const country = specializing[next++]!;
         const input = encodeURIComponent(JSON.stringify({ partyId: country.rulingParty }));
         try {
-          const res = await fetch(`https://api2.warera.io/trpc/party.getById?input=${input}`);
+          const res = await fetch(`/api/trpc/party.getById?input=${input}`);
           const json = await res.json();
           levels[country._id] = json.result?.data?.ethics?.industrialism ?? 0;
         } catch {

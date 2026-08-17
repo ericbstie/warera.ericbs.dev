@@ -6,7 +6,7 @@ import { SettlementGrid } from "./SettlementGrid";
 import "./index.css";
 
 async function fetchItemCodes(): Promise<string[]> {
-  const res = await fetch("https://api2.warera.io/trpc/gameConfig.getGameConfig", {
+  const res = await fetch("/api/trpc/gameConfig.getGameConfig", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{}",
