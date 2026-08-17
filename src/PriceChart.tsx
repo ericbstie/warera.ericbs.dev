@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { usePriceHistory } from "./hooks";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toPriceHistory, useTransactionHistory } from "./hooks";
 
 const PADDING = { top: 30, right: 16, bottom: 28, left: 56 };
 const ROWS = 4;
@@ -8,6 +8,9 @@ const AXIS_TEXT = "#a8a29e";
 const SERIES = "#3987e5";
 const SURFACE = "#000000";
 const LABEL_TEXT = "#ede9e6";
+const UP = "#4ade80";
+const DOWN = "#f87171";
+const VOLUME_BAND_RATIO = 0.22;
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,9 +36,11 @@ function formatDate(date: string) {
 }
 
 export function PriceChart({ itemCode }: { itemCode: string }) {
-  const { prices, loading, error } = usePriceHistory(itemCode);
+  const { transactions, loading, error } = useTransactionHistory(itemCode);
+  const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   const { ref, width } = useContainerWidth();
   const [hovered, setHovered] = useState<number | null>(null);
+  const [view, setView] = useState<"line" | "candle">("line");
 
   const height = width < 480 ? 220 : 320;
   const message = loading
@@ -59,6 +64,12 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
     PADDING.left + (prices.length < 2 ? innerWidth / 2 : (index / (prices.length - 1)) * innerWidth);
   const y = (price: number) => PADDING.top + innerHeight - ((price - low) / (high - low)) * innerHeight;
 
+  const spacing = prices.length > 1 ? innerWidth / (prices.length - 1) : innerWidth;
+  const barWidth = Math.max(2, Math.min(spacing * 0.6, 24));
+  const maxVolume = Math.max(1, ...transactions.map(t => t.totalQuantity));
+  const volumeBandHeight = innerHeight * VOLUME_BAND_RATIO;
+  const baselineY = height - PADDING.bottom;
+
   const point = hovered === null ? undefined : prices[hovered];
   const label = point ? point.price.toFixed(decimals) : "";
   const labelWidth = label.length * 7 + 16;
@@ -67,10 +78,22 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
     : 0;
 
   return (
-    <div ref={ref} style={{ height }} className="w-full">
-      {message ? (
-        <p className="flex h-full items-center justify-center text-sm text-[#a8a29e]">{message}</p>
-      ) : (
+    <div className="w-full">
+      <div className="mb-2 flex justify-end">
+        <select
+          value={view}
+          onChange={event => setView(event.target.value as "line" | "candle")}
+          className="rounded border border-[#3a322e] bg-[#211c19] px-2 py-1 text-xs text-[#ede9e6]"
+          aria-label="Chart view"
+        >
+          <option value="line">Line</option>
+          <option value="candle">Candles</option>
+        </select>
+      </div>
+      <div ref={ref} style={{ height }} className="w-full">
+        {message ? (
+          <p className="flex h-full items-center justify-center text-sm text-[#a8a29e]">{message}</p>
+        ) : (
         width > 0 && (
           <svg
             width={width}
@@ -134,6 +157,22 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
               );
             })}
 
+            {prices.map((p, i) => {
+              const volume = transactions[i]?.totalQuantity ?? 0;
+              const barHeight = (volume / maxVolume) * volumeBandHeight;
+              return (
+                <rect
+                  key={p.date}
+                  x={x(i) - barWidth / 2}
+                  y={baselineY - barHeight}
+                  width={barWidth}
+                  height={barHeight}
+                  fill={SERIES}
+                  fillOpacity="0.4"
+                />
+              );
+            })}
+
             {point && (
               <line
                 x1={x(hovered!)}
@@ -146,14 +185,46 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
               />
             )}
 
-            <path
-              d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
-              fill="none"
-              stroke={SERIES}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            {view === "line" ? (
+              <path
+                d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
+                fill="none"
+                stroke={SERIES}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : (
+              prices.map((p, i) => {
+                const candleWidth = Math.max(2, barWidth * 0.8);
+                if (i === 0) {
+                  return (
+                    <rect
+                      key={p.date}
+                      x={x(i) - candleWidth / 2}
+                      y={y(p.price) - 1}
+                      width={candleWidth}
+                      height="2"
+                      fill={AXIS_TEXT}
+                    />
+                  );
+                }
+                const prev = prices[i - 1]!.price;
+                const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
+                const top = y(Math.max(prev, p.price));
+                const bottom = y(Math.min(prev, p.price));
+                return (
+                  <rect
+                    key={p.date}
+                    x={x(i) - candleWidth / 2}
+                    y={top}
+                    width={candleWidth}
+                    height={Math.max(bottom - top, 2)}
+                    fill={color}
+                  />
+                );
+              })
+            )}
 
             {point && (
               <g>
@@ -188,6 +259,12 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
             )}
           </svg>
         )
+        )}
+      </div>
+      {view === "candle" && !message && (
+        <p className="mt-1 text-xs text-[#a8a29e]">
+          Candles show the change between each day's average price — the API has no intraday open/high/low.
+        </p>
       )}
     </div>
   );
