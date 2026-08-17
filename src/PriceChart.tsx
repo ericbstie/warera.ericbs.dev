@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { usePriceHistory } from "./hooks";
 
-const PADDING = { top: 12, right: 16, bottom: 28, left: 56 };
+const PADDING = { top: 30, right: 16, bottom: 28, left: 56 };
 const ROWS = 4;
 const GRID = "#262626";
 const AXIS_TEXT = "#a3a3a3";
 const SERIES = "#3987e5";
+const SURFACE = "#0a0a0a";
+const LABEL_TEXT = "#e5e5e5";
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,6 +35,7 @@ function formatDate(date: string) {
 export function PriceChart({ itemCode }: { itemCode: string }) {
   const { prices, loading, error } = usePriceHistory(itemCode);
   const { ref, width } = useContainerWidth();
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const height = width < 480 ? 220 : 320;
   const message = loading
@@ -56,13 +59,32 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
     PADDING.left + (prices.length < 2 ? innerWidth / 2 : (index / (prices.length - 1)) * innerWidth);
   const y = (price: number) => PADDING.top + innerHeight - ((price - low) / (high - low)) * innerHeight;
 
+  const point = hovered === null ? undefined : prices[hovered];
+  const label = point ? point.price.toFixed(decimals) : "";
+  const labelWidth = label.length * 7 + 16;
+  const labelX = point
+    ? Math.min(Math.max(x(hovered!) - labelWidth / 2, PADDING.left), width - PADDING.right - labelWidth)
+    : 0;
+
   return (
     <div ref={ref} style={{ height }} className="w-full">
       {message ? (
         <p className="flex h-full items-center justify-center text-sm text-neutral-400">{message}</p>
       ) : (
         width > 0 && (
-          <svg width={width} height={height} role="img" aria-label={`${itemCode} price history`}>
+          <svg
+            width={width}
+            height={height}
+            role="img"
+            aria-label={`${itemCode} price history`}
+            onPointerMove={event => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const ratio = (event.clientX - bounds.left - PADDING.left) / innerWidth;
+              const index = Math.round(ratio * (prices.length - 1));
+              setHovered(Math.min(Math.max(index, 0), prices.length - 1));
+            }}
+            onPointerLeave={() => setHovered(null)}
+          >
             {Array.from({ length: ROWS + 1 }, (_, row) => {
               const price = low + ((high - low) * row) / ROWS;
               return (
@@ -112,6 +134,18 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
               );
             })}
 
+            {point && (
+              <line
+                x1={x(hovered!)}
+                x2={x(hovered!)}
+                y1={PADDING.top}
+                y2={height - PADDING.bottom}
+                stroke={AXIS_TEXT}
+                strokeOpacity="0.5"
+                strokeDasharray="4 4"
+              />
+            )}
+
             <path
               d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
               fill="none"
@@ -120,6 +154,38 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+
+            {point && (
+              <g>
+                <circle
+                  cx={x(hovered!)}
+                  cy={y(point.price)}
+                  r="4"
+                  fill={SERIES}
+                  stroke={SURFACE}
+                  strokeWidth="2"
+                />
+                <rect
+                  x={labelX}
+                  y="4"
+                  width={labelWidth}
+                  height="20"
+                  rx="4"
+                  fill={SURFACE}
+                  stroke={GRID}
+                />
+                <text
+                  x={labelX + labelWidth / 2}
+                  y="15"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="12"
+                  fill={LABEL_TEXT}
+                >
+                  {label}
+                </text>
+              </g>
+            )}
           </svg>
         )
       )}
