@@ -3,11 +3,11 @@ import { usePriceHistory } from "./hooks";
 
 const PADDING = { top: 30, right: 16, bottom: 28, left: 56 };
 const ROWS = 4;
-const GRID = "#262626";
-const AXIS_TEXT = "#a3a3a3";
+const GRID = "#2e2825";
+const AXIS_TEXT = "#a8a29e";
 const SERIES = "#3987e5";
-const SURFACE = "#0a0a0a";
-const LABEL_TEXT = "#e5e5e5";
+const SURFACE = "#14110f";
+const LABEL_TEXT = "#ede9e6";
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -69,7 +69,7 @@ export function PriceChart({ itemCode }: { itemCode: string }) {
   return (
     <div ref={ref} style={{ height }} className="w-full">
       {message ? (
-        <p className="flex h-full items-center justify-center text-sm text-neutral-400">{message}</p>
+        <p className="flex h-full items-center justify-center text-sm text-[#a8a29e]">{message}</p>
       ) : (
         width > 0 && (
           <svg

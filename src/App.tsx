@@ -41,7 +41,7 @@ export function App() {
         <select
           value={selected}
           onChange={event => setSelected(event.target.value)}
-          className="bg-neutral-900 text-neutral-100 border border-neutral-700 rounded px-3 py-2 text-sm"
+          className="bg-[#211c19] text-[#ede9e6] border border-[#3a322e] rounded px-3 py-2 text-sm"
         >
           {items.map(item => (
             <option key={item} value={item}>
