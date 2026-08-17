@@ -9,6 +9,12 @@ function trim(value: number) {
   return Number(value.toFixed(2)).toString();
 }
 
+function bonusColor(totalBonus: number) {
+  if (totalBonus >= 50) return "#4ade80";
+  if (totalBonus > 30) return "#bef264";
+  return undefined;
+}
+
 function PlacementTable({ itemCode, placements }: { itemCode: string; placements: Placement[] }) {
   return (
     <div className="rounded border border-[#3a322e] bg-[#1a1613] p-2">
@@ -31,11 +37,10 @@ function PlacementTable({ itemCode, placements }: { itemCode: string; placements
                 <td className="truncate pr-1" title={placement.country}>
                   {placement.country}
                 </td>
-                <td className="text-right tabular-nums">+{trim(placement.totalBonus)}%</td>
-                <td className="text-right tabular-nums text-[#a8a29e]">
-                  {trim(placement.taxes.income)}/{trim(placement.taxes.market)}/
-                  {trim(placement.taxes.selfWork)}
+                <td className="text-right tabular-nums" style={{ color: bonusColor(placement.totalBonus) }}>
+                  +{trim(placement.totalBonus)}%
                 </td>
+                <td className="text-right tabular-nums text-[#a8a29e]">{trim(placement.taxes.income)}%</td>
               </tr>
             ))}
           </tbody>
@@ -59,7 +64,7 @@ export function SettlementGrid({ items }: { items: string[] }) {
   return (
     <section className="flex flex-col gap-2">
       <p className="text-xs text-[#a8a29e]">
-        Best countries to settle a company, by production bonus. Tax is income/market/self-work.
+        Best countries to settle a company, by production bonus. Tax is income tax.
       </p>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
         {rankings.map(({ item, placements }) => (
