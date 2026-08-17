@@ -15,6 +15,10 @@ async function fetchItemCodes(): Promise<string[]> {
     .sort();
 }
 
+function itemIcon(code: string) {
+  return `https://media.warera.io/images/items/${code}.png?v=33`;
+}
+
 export function App() {
   const [items, setItems] = useState<string[]>([]);
   const [selected, setSelected] = useState("");
@@ -30,17 +34,22 @@ export function App() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
-      <select
-        value={selected}
-        onChange={event => setSelected(event.target.value)}
-        className="self-start bg-neutral-900 text-neutral-100 border border-neutral-700 rounded px-3 py-2 text-sm"
-      >
-        {items.map(item => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center gap-3">
+        {selected && (
+          <img src={itemIcon(selected)} alt="" width={32} height={32} className="shrink-0" />
+        )}
+        <select
+          value={selected}
+          onChange={event => setSelected(event.target.value)}
+          className="bg-neutral-900 text-neutral-100 border border-neutral-700 rounded px-3 py-2 text-sm"
+        >
+          {items.map(item => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
       <PriceChart itemCode={selected} />
     </div>
   );
