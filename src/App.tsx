@@ -31,27 +31,33 @@ export function App() {
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4">
-      <div className="flex items-center gap-3">
-        {selected && (
-          <img src={itemIcon(selected)} alt="" width={32} height={32} className="shrink-0" />
-        )}
-        <select
-          value={selected}
-          onChange={event => setSelected(event.target.value)}
-          className="bg-[#211c19] text-[#ede9e6] border border-[#3a322e] rounded px-3 py-2 text-sm"
-        >
-          {items.map(item => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
+    <div className="flex flex-col gap-6">
+      <div className="bg-black">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4">
+          <div className="max-w-3xl">
+            <PriceChart itemCode={selected} />
+          </div>
+          <div className="flex items-center gap-3">
+            {selected && (
+              <img src={itemIcon(selected)} alt="" width={32} height={32} className="shrink-0" />
+            )}
+            <select
+              value={selected}
+              onChange={event => setSelected(event.target.value)}
+              className="bg-[#211c19] text-[#ede9e6] border border-[#3a322e] rounded px-3 py-2 text-sm"
+            >
+              {items.map(item => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
-      <div className="max-w-3xl">
-        <PriceChart itemCode={selected} />
+      <div className="mx-auto w-full max-w-6xl p-4 pt-0">
+        <SettlementGrid items={items} />
       </div>
-      <SettlementGrid items={items} />
     </div>
   );
 }

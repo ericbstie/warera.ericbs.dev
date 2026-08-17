@@ -6,7 +6,7 @@ const ROWS = 4;
 const GRID = "#2e2825";
 const AXIS_TEXT = "#a8a29e";
 const SERIES = "#3987e5";
-const SURFACE = "#14110f";
+const SURFACE = "#000000";
 const LABEL_TEXT = "#ede9e6";
 
 function useContainerWidth() {
