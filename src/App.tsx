@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { itemIcon } from "./hooks";
+import { PriceChart } from "./PriceChart";
+import { SettlementGrid } from "./SettlementGrid";
 import "./index.css";
 
 async function fetchItemCodes(): Promise<string[]> {
@@ -8,28 +11,47 @@ async function fetchItemCodes(): Promise<string[]> {
     body: "{}",
   });
   const json = await res.json();
-  const items = json.result.data.items as Record<string, unknown>;
-  return Object.keys(items).sort();
+  const items = json.result.data.items as Record<string, { isTradable?: boolean }>;
+  return Object.keys(items)
+    .filter(code => items[code]?.isTradable)
+    .sort();
 }
 
 export function App() {
   const [items, setItems] = useState<string[]>([]);
+  const [selected, setSelected] = useState("");
 
   useEffect(() => {
     fetchItemCodes()
-      .then(setItems)
+      .then(codes => {
+        setItems(codes);
+        setSelected(codes[0] ?? "");
+      })
       .catch(() => setItems([]));
   }, []);
 
   return (
-    <div>
-      <select className="absolute top-4 left-4 bg-neutral-900 text-neutral-100 border border-neutral-700 rounded px-3 py-2 text-sm">
-        {items.map(item => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4">
+      <div className="flex items-center gap-3">
+        {selected && (
+          <img src={itemIcon(selected)} alt="" width={32} height={32} className="shrink-0" />
+        )}
+        <select
+          value={selected}
+          onChange={event => setSelected(event.target.value)}
+          className="bg-[#211c19] text-[#ede9e6] border border-[#3a322e] rounded px-3 py-2 text-sm"
+        >
+          {items.map(item => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="max-w-3xl">
+        <PriceChart itemCode={selected} />
+      </div>
+      <SettlementGrid items={items} />
     </div>
   );
 }
