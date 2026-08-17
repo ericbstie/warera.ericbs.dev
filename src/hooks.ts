@@ -10,6 +10,10 @@ export type Transaction = {
 
 export type PricePoint = { date: string; price: number };
 
+export function itemIcon(code: string) {
+  return `https://media.warera.io/images/items/${code}.png?v=33`;
+}
+
 export async function fetchTransactionHistory(itemCode: string): Promise<Transaction[]> {
   const input = encodeURIComponent(JSON.stringify({ itemCode }));
   const res = await fetch(`https://api2.warera.io/trpc/itemTrading.getItemTrading?input=${input}`);

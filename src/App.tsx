@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { itemIcon } from "./hooks";
 import { PriceChart } from "./PriceChart";
+import { SettlementGrid } from "./SettlementGrid";
 import "./index.css";
 
 async function fetchItemCodes(): Promise<string[]> {
@@ -13,10 +15,6 @@ async function fetchItemCodes(): Promise<string[]> {
   return Object.keys(items)
     .filter(code => items[code]?.isTradable)
     .sort();
-}
-
-function itemIcon(code: string) {
-  return `https://media.warera.io/images/items/${code}.png?v=33`;
 }
 
 export function App() {
@@ -33,7 +31,7 @@ export function App() {
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4">
       <div className="flex items-center gap-3">
         {selected && (
           <img src={itemIcon(selected)} alt="" width={32} height={32} className="shrink-0" />
@@ -50,7 +48,10 @@ export function App() {
           ))}
         </select>
       </div>
-      <PriceChart itemCode={selected} />
+      <div className="max-w-3xl">
+        <PriceChart itemCode={selected} />
+      </div>
+      <SettlementGrid items={items} />
     </div>
   );
 }
