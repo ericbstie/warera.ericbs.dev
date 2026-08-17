@@ -9,8 +9,10 @@ async function fetchItemCodes(): Promise<string[]> {
     body: "{}",
   });
   const json = await res.json();
-  const items = json.result.data.items as Record<string, unknown>;
-  return Object.keys(items).sort();
+  const items = json.result.data.items as Record<string, { isTradable?: boolean }>;
+  return Object.keys(items)
+    .filter(code => items[code]?.isTradable)
+    .sort();
 }
 
 export function App() {
