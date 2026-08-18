@@ -1,3 +1,4 @@
+import { Ticker } from "./Ticker";
 import { itemIcon, itemLabel } from "./hooks";
 import { formatCompact, formatDay, formatPrice, type Quote } from "./stats";
 import { useTheme } from "./theme";
@@ -123,6 +124,8 @@ export function Header({
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-2.5">
         <p className="text-xl font-semibold sm:text-2xl">War Era Market</p>
+
+        <Ticker items={items.map(item => item.code)} />
 
         <ItemPicker items={items} selected={selected} onSelect={onSelect} />
 

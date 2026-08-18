@@ -42,6 +42,67 @@ export async function fetchTransactionHistory(itemCode: string): Promise<Transac
   return usableTransactions(json.result.data.values ?? []);
 }
 
+/** Upstream takes tRPC calls in batches, so every item's history costs one request. */
+export function tradingBatchPath(itemCodes: string[]): string {
+  const procedures = Array(itemCodes.length).fill("itemTrading.getItemTrading").join(",");
+  const input = JSON.stringify(Object.fromEntries(itemCodes.map((code, index) => [index, { itemCode: code }])));
+  return `${procedures}?batch=1&input=${encodeURIComponent(input)}`;
+}
+
+export type Mover = { code: string; changePct: number };
+
+/**
+ * Days are only recorded when an item traded, so "seven days ago" is the record
+ * a week back rather than seven entries back. Anything without both ends of the
+ * window has no move to report.
+ */
+export function weeklyChangePct(transactions: Transaction[], days = 7): number | null {
+  const last = transactions[transactions.length - 1];
+  if (!last) return null;
+
+  const cutoff = Date.parse(last.valueAt) - days * 24 * 60 * 60 * 1000;
+  const earlier = transactions.filter(t => Date.parse(t.valueAt) <= cutoff).pop() ?? transactions[0];
+  if (!earlier || earlier === last || !earlier.avgValue) return null;
+
+  return ((last.avgValue - earlier.avgValue) / earlier.avgValue) * 100;
+}
+
+export async function fetchWeeklyMovers(itemCodes: string[]): Promise<Mover[]> {
+  if (!itemCodes.length) return [];
+
+  const res = await fetch(`/api/trpc/${tradingBatchPath(itemCodes)}`);
+  const entries = await res.json();
+  if (!Array.isArray(entries)) throw new Error("Batched price history came back in an unexpected shape");
+
+  return itemCodes.flatMap((code, index) => {
+    const changePct = weeklyChangePct(usableTransactions(entries[index]?.result?.data?.values));
+    return changePct === null ? [] : [{ code, changePct }];
+  });
+}
+
+export function useWeeklyMovers(itemCodes: string[]): Mover[] {
+  const [movers, setMovers] = useState<Mover[]>([]);
+  const key = itemCodes.join(",");
+
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+
+    fetchWeeklyMovers(key.split(","))
+      .then(values => {
+        if (!cancelled) setMovers(values);
+      })
+      // The ticker is a garnish; a failure leaves it empty rather than shouting.
+      .catch(err => console.error("[ticker] weekly movers failed to load:", err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+
+  return movers;
+}
+
 export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
   return transactions.map(t => ({ date: t.valueAt, price: t.avgValue }));
 }
