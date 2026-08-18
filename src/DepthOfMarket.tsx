@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { groupOrdersByPrice, useTransactions, type Order } from "./orders";
 
 const ASK_COLOR = "#f87171";
@@ -53,28 +53,38 @@ function Side({
   color,
   maxQuantity,
   side,
+  open,
 }: {
   cell: Cell;
   color: string;
   maxQuantity: number;
   side: "bid" | "ask";
+  open: boolean;
 }) {
   const pct = maxQuantity > 0 ? (cell.quantity / maxQuantity) * 100 : 0;
   const bid = side === "bid";
   const align = bid ? "text-left" : "text-right";
   // The bid half is laid out in reverse so both halves read outward-in: price,
-  // quantity, then a bar track flush against the centre line.
+  // then a bar track flush against the centre line.
   return (
     <div className={`flex flex-1 items-center gap-1 sm:gap-2 ${bid ? "flex-row-reverse" : ""}`}>
       <div
-        className={`h-4 flex-1 overflow-hidden rounded-sm ${bid ? "flex justify-end" : ""}`}
+        className={`relative h-4 flex-1 overflow-hidden rounded-sm ${bid ? "flex justify-end" : ""}`}
         style={{ backgroundColor: cell.price === null ? "transparent" : TRACK }}
       >
         <div className="h-full rounded-sm" style={{ width: `${pct}%`, backgroundColor: color }} />
+        {cell.quantity > 0 && (
+          // Sits over the far end of the track, so it never shifts the row when it appears.
+          <span
+            className={`pointer-events-none absolute inset-y-0 flex items-center rounded-sm px-1 tabular-nums ${
+              bid ? "left-0" : "right-0"
+            } ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            style={{ color: TEXT, backgroundColor: "rgba(0, 0, 0, 0.65)" }}
+          >
+            {formatQuantity(cell.quantity)}
+          </span>
+        )}
       </div>
-      <span className={`w-10 shrink-0 tabular-nums sm:w-16 ${align}`} style={{ color: MUTED }}>
-        {cell.quantity > 0 ? formatQuantity(cell.quantity) : ""}
-      </span>
       <span
         className={`w-10 shrink-0 tabular-nums sm:w-16 ${align}`}
         style={{ color: cell.quantity > 0 ? color : MUTED }}
@@ -85,18 +95,35 @@ function Side({
   );
 }
 
-function Row({ bid, ask, maxQuantity }: { bid: Cell; ask: Cell; maxQuantity: number }) {
+function Row({
+  bid,
+  ask,
+  maxQuantity,
+  open,
+  onToggle,
+}: {
+  bid: Cell;
+  ask: Cell;
+  maxQuantity: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <div className="flex items-center gap-1 text-[10px] sm:gap-2 sm:text-sm">
-      <Side cell={bid} color={BID_COLOR} maxQuantity={maxQuantity} side="bid" />
+    <div
+      className="group flex cursor-pointer items-center gap-1 text-[10px] sm:gap-2 sm:text-sm"
+      onClick={onToggle}
+    >
+      <Side cell={bid} color={BID_COLOR} maxQuantity={maxQuantity} side="bid" open={open} />
       <div className="w-px shrink-0 self-stretch" style={{ backgroundColor: BORDER }} />
-      <Side cell={ask} color={ASK_COLOR} maxQuantity={maxQuantity} side="ask" />
+      <Side cell={ask} color={ASK_COLOR} maxQuantity={maxQuantity} side="ask" open={open} />
     </div>
   );
 }
 
 export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   const { buyOrders, sellOrders, loading, error } = useTransactions(itemCode);
+  // Hover reveals the amounts on a pointer; tapping pins a row open for touch.
+  const [pinnedRow, setPinnedRow] = useState<number | null>(null);
 
   // Each side walks away from its best price one tick at a time, so row n is
   // always 0.001 further out than row n - 1 whether or not orders rest there.
@@ -140,7 +167,14 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
           {/* Both halves live in the same rows, so one scroller moves them together. */}
           <div className="flex max-h-72 flex-col gap-1 overflow-y-auto sm:max-h-96">
             {Array.from({ length: rowCount }, (_, row) => (
-              <Row key={row} bid={cellAt(bids, row)} ask={cellAt(asks, row)} maxQuantity={maxQuantity} />
+              <Row
+                key={row}
+                bid={cellAt(bids, row)}
+                ask={cellAt(asks, row)}
+                maxQuantity={maxQuantity}
+                open={pinnedRow === row}
+                onToggle={() => setPinnedRow(current => (current === row ? null : row))}
+              />
             ))}
           </div>
         </div>
