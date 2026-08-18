@@ -201,7 +201,7 @@ export function App() {
           <DepthOfMarket itemCode={selected} />
         </Panel>
 
-        <hr className="border-edge" />
+        <hr className="my-2 border-t-2 border-edge" />
 
         <Panel label="settlement bonuses">
           <SettlementGrid items={codes} />
