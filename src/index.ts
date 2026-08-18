@@ -6,6 +6,8 @@ import {
   chunk,
   cacheControl,
   COUNTRIES_PATH,
+  etagFor,
+  etagMatches,
   industrialismByParty,
   INDUSTRIALISM_SWR_MS,
   INDUSTRIALISM_TTL_MS,
@@ -54,7 +56,7 @@ const contentTypeFor = (name: string, fallback = "application/octet-stream"): st
 
 const TRPC_UPSTREAM = "https://api2.warera.io/trpc";
 
-type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number };
+type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number; etag: string };
 type TrpcFailure = { status: number; body: string; contentType: string };
 
 const trpcCache = new Map<string, TrpcEntry>();
@@ -117,7 +119,7 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
   if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
 
   const procedure = pathAndQuery.split("?")[0]!;
-  return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure) };
+  return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure), etag: etagFor(text) };
 }
 
 function hasTrpcError(body: string): boolean {
@@ -128,14 +130,22 @@ function hasTrpcError(body: string): boolean {
   }
 }
 
-function trpcResponse(entry: TrpcEntry, cacheStatus: CacheStatus, staleWhileRevalidate = 0): Response {
+function trpcResponse(req: Request, entry: TrpcEntry, cacheStatus: CacheStatus, staleWhileRevalidate = 0): Response {
+  const validators = {
+    "X-Cache": cacheStatus,
+    "Cache-Control": cacheControl(cacheStatus, entry.expiresAt, { staleWhileRevalidate }),
+    ETag: entry.etag,
+  };
+
+  // The body the browser already holds is still the current one, so say so
+  // rather than sending it again.
+  if (etagMatches(req.headers.get("If-None-Match"), entry.etag)) {
+    return new Response(null, { status: 304, headers: validators });
+  }
+
   return new Response(entry.body, {
     status: entry.status,
-    headers: {
-      "Content-Type": entry.contentType,
-      "X-Cache": cacheStatus,
-      "Cache-Control": cacheControl(cacheStatus, entry.expiresAt, { staleWhileRevalidate }),
-    },
+    headers: { ...validators, "Content-Type": entry.contentType },
   });
 }
 
@@ -160,7 +170,7 @@ async function proxyTrpc(req: Request): Promise<Response> {
 
   try {
     const { entry, status } = await cached(key, () => fetchTrpc(pathAndQuery, method, body));
-    return trpcResponse(entry, status);
+    return trpcResponse(req, entry, status);
   } catch (err) {
     return upstreamFailure(err);
   }
@@ -193,18 +203,20 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
     Object.assign(byParty, await fetchPartyLevels(group));
   }
 
+  const body = JSON.stringify(levelsByCountry(specializing, byParty));
   return {
     status: 200,
-    body: JSON.stringify(levelsByCountry(specializing, byParty)),
+    body,
     contentType: "application/json",
     expiresAt: Date.now() + INDUSTRIALISM_TTL_MS,
+    etag: etagFor(body),
   };
 }
 
-async function serveIndustrialism(): Promise<Response> {
+async function serveIndustrialism(req: Request): Promise<Response> {
   try {
     const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism, { staleWhileRevalidate: true });
-    return trpcResponse(entry, status, INDUSTRIALISM_SWR_MS / 1000);
+    return trpcResponse(req, entry, status, INDUSTRIALISM_SWR_MS / 1000);
   } catch (err) {
     return upstreamFailure(err);
   }

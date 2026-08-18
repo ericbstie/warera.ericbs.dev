@@ -72,6 +72,27 @@ export function lruSet<T>(cache: Map<string, T>, key: string, value: T, maxEntri
   }
 }
 
+/**
+ * A cheap content hash, so a revalidated response that hasn't changed costs a
+ * few headers rather than the whole body — the country list alone is ~500KB.
+ */
+export function etagFor(body: string): string {
+  return `"${Bun.hash(body).toString(36)}"`;
+}
+
+/**
+ * If-None-Match carries a list, may be `*`, and compares weakly — W/"x" and
+ * "x" are the same entity as far as a conditional GET is concerned.
+ */
+export function etagMatches(ifNoneMatch: string | null | undefined, etag: string): boolean {
+  if (!ifNoneMatch) return false;
+
+  const withoutWeakPrefix = (value: string) => value.trim().replace(/^W\//, "");
+  return ifNoneMatch
+    .split(",")
+    .some(candidate => candidate.trim() === "*" || withoutWeakPrefix(candidate) === withoutWeakPrefix(etag));
+}
+
 export function chunk<T>(items: T[], size: number): T[][] {
   const groups: T[][] = [];
   for (let i = 0; i < items.length; i += size) groups.push(items.slice(i, i + size));

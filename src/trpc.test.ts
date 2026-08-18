@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import {
   cacheControl,
   chunk,
+  etagFor,
+  etagMatches,
   industrialismByParty,
   levelsByCountry,
   lruGet,
@@ -83,6 +85,35 @@ test("a missing key reads as undefined without disturbing the order", () => {
 
   expect(lruGet(cache, "missing")).toBeUndefined();
   expect([...cache.keys()]).toEqual(["a", "b"]);
+});
+
+test("the same body always tags the same, a changed one does not", () => {
+  expect(etagFor('{"a":1}')).toBe(etagFor('{"a":1}'));
+  expect(etagFor('{"a":1}')).not.toBe(etagFor('{"a":2}'));
+});
+
+test("an etag is quoted, as the header syntax requires", () => {
+  expect(etagFor("anything")).toMatch(/^"[^"]+"$/);
+});
+
+test("a browser sending back the tag it was given counts as a match", () => {
+  const etag = etagFor("body");
+  expect(etagMatches(etag, etag)).toBe(true);
+  expect(etagMatches(`W/${etag}`, etag)).toBe(true);
+  expect(etagMatches("*", etag)).toBe(true);
+});
+
+test("one match anywhere in the list is enough", () => {
+  const etag = etagFor("body");
+  expect(etagMatches(`"stale", ${etag}, "older"`, etag)).toBe(true);
+});
+
+test("a different or absent tag is not a match", () => {
+  const etag = etagFor("body");
+  expect(etagMatches('"something-else"', etag)).toBe(false);
+  expect(etagMatches(null, etag)).toBe(false);
+  expect(etagMatches(undefined, etag)).toBe(false);
+  expect(etagMatches("", etag)).toBe(false);
 });
 
 test("chunk splits into full groups plus the remainder", () => {
