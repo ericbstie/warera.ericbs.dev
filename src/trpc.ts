@@ -10,6 +10,33 @@ export const TRPC_TTL_MS: Record<string, number> = {
   "tradingOrder.getTopOrders": 45 * 1000,
 };
 
+/**
+ * The proxy forwards whatever procedure it is handed, so without this any tRPC
+ * call on the upstream — mutations the app never makes included — could be
+ * invoked through this server by anyone, unauthenticated. Only the calls the
+ * app itself makes get relayed, by the method it makes them with.
+ *
+ * Deliberately its own map rather than a read of TRPC_TTL_MS: that one is cache
+ * tuning, and adding an entry to it should never widen what the proxy relays.
+ */
+export const TRPC_ALLOWED_METHODS: Record<string, "GET" | "POST"> = {
+  "country.getAllCountries": "GET",
+  "party.getById": "GET",
+  "itemTrading.getItemTrading": "GET",
+  "tradingOrder.getTopOrders": "GET",
+  "gameConfig.getGameConfig": "POST",
+};
+
+/**
+ * undefined for anything off the allowlist, which includes a batched
+ * `party.getById,party.getById?batch=1` path: nothing reaches the proxy in that
+ * shape — the aggregate calls upstream directly — and its comma-joined name
+ * matches no procedure here, the same reason ttlFor() would not match it either.
+ */
+export function allowedMethodFor(pathAndQuery: string): "GET" | "POST" | undefined {
+  return TRPC_ALLOWED_METHODS[pathAndQuery.split("?")[0] ?? ""];
+}
+
 export const INDUSTRIALISM_TTL_MS = 60 * 60 * 1000;
 
 // How long a stale aggregate stays usable while a fresh one is being built.
@@ -19,6 +46,19 @@ export const INDUSTRIALISM_SWR_MS = 10 * 60 * 1000;
 // would otherwise keep every party, item and order book it has ever been
 // asked for. Past this many entries the least recently used ones go.
 export const TRPC_CACHE_MAX_ENTRIES = 500;
+
+// An allowlisted POST carries an `input` payload and nothing else — the one the
+// app sends is literally `{}` — so anything larger is not a call this proxy
+// serves. Without a cap of its own the whole body rides on Bun's 128MB default:
+// buffered here, embedded in the cache key, and forwarded upstream.
+export const TRPC_MAX_BODY_BYTES = 4 * 1024;
+
+// Every part of the cache key is caller-controlled, so unlimited distinct keys
+// can be minted; the cache bounds itself, and this bounds the in-flight map
+// beside it. It counts requests in flight at once rather than history, and
+// evicting one costs only the coalescing of later callers onto it.
+export const TRPC_INFLIGHT_MAX_ENTRIES = 500;
+
 export const COUNTRIES_PATH = "country.getAllCountries?input=%7B%7D";
 
 // One request per country would put 150+ party ids in the URL; upstream takes

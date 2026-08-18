@@ -3,6 +3,7 @@ import plugin from "bun-plugin-tailwind";
 import path from "path";
 import index from "./index.html";
 import {
+  allowedMethodFor,
   chunk,
   cacheControl,
   COUNTRIES_PATH,
@@ -16,6 +17,8 @@ import {
   lruSet,
   partyBatchPath,
   PARTY_BATCH_SIZE,
+  TRPC_INFLIGHT_MAX_ENTRIES,
+  TRPC_MAX_BODY_BYTES,
   ttlFor,
   type CacheStatus,
 } from "./trpc";
@@ -70,16 +73,26 @@ const trpcInFlight = new Map<string, Promise<TrpcEntry>>();
 
 /** One upstream refresh per key, however many callers are waiting on it. */
 function refresh(key: string, produce: () => Promise<TrpcEntry>): Promise<TrpcEntry> {
-  let pending = trpcInFlight.get(key);
-  if (!pending) {
-    pending = produce().then(entry => {
-      lruSet(trpcCache, key, entry);
-      return entry;
-    });
-    trpcInFlight.set(key, pending);
-    // .finally() returns its own promise; catch on it so a rejection isn't left unhandled.
-    pending.finally(() => trpcInFlight.delete(key)).catch(() => {});
-  }
+  const existing = trpcInFlight.get(key);
+  if (existing) return existing;
+
+  const pending = produce().then(entry => {
+    lruSet(trpcCache, key, entry);
+    return entry;
+  });
+  // Bounded like the cache beside it: an entry only lives as long as its
+  // upstream call, but nothing stops a caller opening keys faster than they
+  // settle. Evicting the oldest costs coalescing, never an answer — whoever is
+  // already waiting holds the promise itself.
+  lruSet(trpcInFlight, key, pending, TRPC_INFLIGHT_MAX_ENTRIES);
+  // .finally() returns its own promise; catch on it so a rejection isn't left unhandled.
+  pending
+    .finally(() => {
+      // Only if this is still the entry under that key: an evicted call whose
+      // key has since been reopened would otherwise delete its replacement.
+      if (trpcInFlight.get(key) === pending) trpcInFlight.delete(key);
+    })
+    .catch(() => {});
   return pending;
 }
 
@@ -206,16 +219,43 @@ function upstreamFailure(err: unknown, context: string): Response {
   });
 }
 
+/**
+ * A request this proxy does not serve, in the shape every other failure here
+ * takes: JSON, no-store, and thrown so it leaves through the same catch. It
+ * never reaches upstream and never reaches the cache.
+ *
+ * The message stays generic. The caller's own path is the one thing not worth
+ * reflecting back, and the log line already carries it.
+ */
+function refuse(status: number, message: string): TrpcFailure {
+  return { status, body: JSON.stringify({ error: { message } }), contentType: "application/json" };
+}
+
 async function proxyTrpc(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const method = req.method;
   const pathAndQuery = url.pathname.replace(/^\/api\/trpc\//, "") + url.search;
 
   try {
+    // The route value is a bare function, so Bun hands this every method there
+    // is — each of which used to be forwarded upstream. Procedure and method
+    // are checked together because they are one question: is this a call the
+    // app makes?
+    const allowed = allowedMethodFor(pathAndQuery);
+    if (!allowed) throw refuse(404, "No such tRPC procedure is served here");
+    if (allowed !== method) throw refuse(405, `This procedure is only served over ${allowed}`);
+
+    // Cheap to refuse on the client's own count before reading a byte; a
+    // request that declares nothing, or lies, is caught on the next line.
+    if (Number(req.headers.get("Content-Length")) > TRPC_MAX_BODY_BYTES) {
+      throw refuse(413, "Request body is too large");
+    }
+
     // Reading the body belongs inside the try: a client that disconnects
     // mid-upload throws here, and outside it that escapes the route handler
     // entirely rather than becoming the 502 every other failure returns.
     const body = method === "POST" ? await req.text() : "";
+    if (Buffer.byteLength(body) > TRPC_MAX_BODY_BYTES) throw refuse(413, "Request body is too large");
     const { entry, status } = await cached(trpcCacheKey(method, pathAndQuery, body), () =>
       fetchTrpc(pathAndQuery, method, body),
     );

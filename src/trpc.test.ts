@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  allowedMethodFor,
   cacheControl,
   chunk,
   etagFor,
@@ -12,6 +13,32 @@ import {
   ttlFor,
   TRPC_DEFAULT_TTL_MS,
 } from "./trpc";
+
+test("the proxy relays the five calls the app makes, by the method it makes them with", () => {
+  expect(allowedMethodFor("country.getAllCountries?input=%7B%7D")).toBe("GET");
+  expect(allowedMethodFor("party.getById?input=%7B%7D")).toBe("GET");
+  expect(allowedMethodFor("itemTrading.getItemTrading?input=%7B%7D")).toBe("GET");
+  expect(allowedMethodFor("tradingOrder.getTopOrders?input=%7B%7D")).toBe("GET");
+  expect(allowedMethodFor("gameConfig.getGameConfig")).toBe("POST");
+});
+
+test("anything the app does not call is off the allowlist, mutations included", () => {
+  expect(allowedMethodFor("user.updateProfile?input=%7B%7D")).toBeUndefined();
+  expect(allowedMethodFor("")).toBeUndefined();
+  expect(allowedMethodFor("?input=%7B%7D")).toBeUndefined();
+});
+
+test("a batched path is not a procedure this proxy serves", () => {
+  expect(allowedMethodFor(partyBatchPath(["a", "b"]))).toBeUndefined();
+  expect(allowedMethodFor("country.getAllCountries,party.getById?batch=1")).toBeUndefined();
+});
+
+test("a procedure only counts spelled exactly, however the path is dressed up", () => {
+  expect(allowedMethodFor("/party.getById")).toBeUndefined();
+  expect(allowedMethodFor("party.getById/")).toBeUndefined();
+  expect(allowedMethodFor("PARTY.getById")).toBeUndefined();
+  expect(allowedMethodFor("party.getById%3Fx")).toBeUndefined();
+});
 
 test("known procedures keep their own ttl, everything else takes the default", () => {
   expect(ttlFor("tradingOrder.getTopOrders")).toBe(45 * 1000);
