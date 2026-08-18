@@ -68,9 +68,6 @@ export function SettlementGrid({ items }: { items: string[] }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <p className="text-xs text-muted">
-        Best countries to settle a company, by production bonus. Tax is income tax.
-      </p>
       {!industrialism.complete && (
         <p className="text-xs text-down">
           Some specialization data didn't load, so a few countries may be ranked lower than they should be.

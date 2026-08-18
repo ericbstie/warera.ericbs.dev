@@ -9,7 +9,7 @@ import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
 import { Toolbar, type Overlay } from "./Toolbar";
 import { ToolRail } from "./ToolRail";
-import { toolLabel, type Drawing, type ToolId } from "./tools";
+import { type Drawing, type ToolId } from "./tools";
 import "./index.css";
 
 const DEFAULT_OVERLAYS: Overlay[] = ["sma10", "vwap"];
@@ -194,9 +194,6 @@ export function App() {
               </Panel>
             </div>
           </div>
-          <p className="border-t border-edge bg-panel px-3 py-1.5 text-[11px] text-muted">
-            Tool: <span className="text-ink">{toolLabel(tool)}</span>
-          </p>
         </section>
 
         {/* The order book draws its own card, so it needs no wrapper of its own. */}

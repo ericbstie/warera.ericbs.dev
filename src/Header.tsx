@@ -126,10 +126,7 @@ export function Header({
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-accent text-sm font-bold text-white">
             WE
           </span>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold">War Era Market</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Market terminal</p>
-          </div>
+          <p className="text-sm font-semibold">War Era Market</p>
         </div>
 
         <ItemPicker items={items} selected={selected} onSelect={onSelect} />
@@ -159,12 +156,6 @@ export function Header({
 
         <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
-          {quote && (
-            <span className="hidden items-center gap-2 rounded-full border border-edge px-3 py-1.5 text-xs text-muted lg:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-up" />
-              Data through {formatDay(quote.date)}
-            </span>
-          )}
         </div>
       </div>
     </header>

@@ -49,15 +49,6 @@ function Group({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
-function Hint({ keys, action }: { keys: string; action: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <kbd className="rounded border border-edge px-1.5 py-0.5 text-[10px]">{keys}</kbd>
-      <span className="text-muted">{action}</span>
-    </span>
-  );
-}
-
 export function Toolbar({
   range,
   onRange,
@@ -148,12 +139,6 @@ export function Toolbar({
           })}
         </div>
 
-        <div className="ml-auto hidden items-center gap-3 text-[11px] lg:flex">
-          <Hint keys="Ctrl K" action="search" />
-          <Hint keys="I" action="indicators" />
-          <Hint keys="R" action="reset" />
-          <Hint keys="←→" action="move crosshair" />
-        </div>
       </div>
     </div>
   );

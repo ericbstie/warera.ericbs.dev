@@ -702,11 +702,6 @@ export function PriceChart({
           )
         )}
       </div>
-      {view === "candle" && !message && (
-        <p className="mt-1 text-xs text-muted">
-          Candles show the change between each day's average price — the API has no intraday open/high/low.
-        </p>
-      )}
     </div>
   );
 }
