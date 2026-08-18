@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/*
+ * Every colour is a token so the theme toggle can repaint the page by swapping
+ * one attribute. The SVG charts read the same custom properties directly.
+ */
+@theme {
+  --color-surface: var(--surface);
+  --color-panel: var(--panel);
+  --color-canvas: var(--canvas);
+  --color-edge: var(--edge);
+  --color-grid: var(--grid);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-mid: var(--mid);
+  --color-up: var(--up);
+  --color-down: var(--down);
+}
+
+@layer base {
+  :root {
+    --surface: #14110f;
+    --panel: #211c19;
+    --canvas: #0a0806;
+    --edge: #3a322e;
+    --grid: #2e2825;
+    --ink: #ede9e6;
+    --muted: #a8a29e;
+    --accent: #3987e5;
+    --mid: #bef264;
+    --up: #4ade80;
+    --down: #f87171;
+    color-scheme: dark;
+    @apply bg-surface text-ink font-sans;
+  }
+
+  :root[data-theme="light"] {
+    --surface: #f4f1ed;
+    --panel: #ffffff;
+    --canvas: #fdfbf9;
+    --edge: #d8cfc6;
+    --grid: #e6ded6;
+    --ink: #1c1917;
+    --muted: #6d635c;
+    --accent: #1d5fb8;
+    --mid: #6f8f1c;
+    --up: #157a4a;
+    --down: #b32d2e;
+    color-scheme: light;
+  }
+
+  body {
+    @apply min-h-screen m-0;
+  }
+}
