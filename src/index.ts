@@ -7,8 +7,11 @@ import {
   cacheControl,
   COUNTRIES_PATH,
   industrialismByParty,
+  INDUSTRIALISM_SWR_MS,
   INDUSTRIALISM_TTL_MS,
   levelsByCountry,
+  lruGet,
+  lruSet,
   partyBatchPath,
   PARTY_BATCH_SIZE,
   ttlFor,
@@ -57,26 +60,44 @@ type TrpcFailure = { status: number; body: string; contentType: string };
 const trpcCache = new Map<string, TrpcEntry>();
 const trpcInFlight = new Map<string, Promise<TrpcEntry>>();
 
-/**
- * TTL cache plus in-flight coalescing, shared by the raw proxy and the
- * industrialism aggregate so both read and fill the same entries.
- */
-async function cached(key: string, produce: () => Promise<TrpcEntry>): Promise<{ entry: TrpcEntry; status: CacheStatus }> {
-  const hit = trpcCache.get(key);
-  if (hit && hit.expiresAt > Date.now()) return { entry: hit, status: "HIT" };
-
+/** One upstream refresh per key, however many callers are waiting on it. */
+function refresh(key: string, produce: () => Promise<TrpcEntry>): Promise<TrpcEntry> {
   let pending = trpcInFlight.get(key);
   if (!pending) {
-    pending = produce();
+    pending = produce().then(entry => {
+      lruSet(trpcCache, key, entry);
+      return entry;
+    });
     trpcInFlight.set(key, pending);
     // .finally() returns its own promise; catch on it so a rejection isn't left unhandled.
     pending.finally(() => trpcInFlight.delete(key)).catch(() => {});
   }
+  return pending;
+}
+
+/**
+ * TTL cache plus in-flight coalescing, shared by the raw proxy and the
+ * industrialism aggregate so both read and fill the same entries.
+ *
+ * With staleWhileRevalidate an expired entry is handed over straight away and
+ * rebuilt behind the request, so an expensive rebuild costs whoever triggers
+ * it nothing.
+ */
+async function cached(
+  key: string,
+  produce: () => Promise<TrpcEntry>,
+  { staleWhileRevalidate = false } = {},
+): Promise<{ entry: TrpcEntry; status: CacheStatus }> {
+  const hit = lruGet(trpcCache, key);
+  if (hit && hit.expiresAt > Date.now()) return { entry: hit, status: "HIT" };
+
+  if (hit && staleWhileRevalidate) {
+    refresh(key, produce).catch(() => {}); // a failed rebuild leaves the copy we are about to serve in place
+    return { entry: hit, status: "REVALIDATING" };
+  }
 
   try {
-    const entry = await pending;
-    trpcCache.set(key, entry);
-    return { entry, status: "MISS" };
+    return { entry: await refresh(key, produce), status: "MISS" };
   } catch (err) {
     if (hit) return { entry: hit, status: "STALE" }; // upstream is down/erroring — serve the last good copy
     throw err;
@@ -107,13 +128,13 @@ function hasTrpcError(body: string): boolean {
   }
 }
 
-function trpcResponse(entry: TrpcEntry, cacheStatus: CacheStatus): Response {
+function trpcResponse(entry: TrpcEntry, cacheStatus: CacheStatus, staleWhileRevalidate = 0): Response {
   return new Response(entry.body, {
     status: entry.status,
     headers: {
       "Content-Type": entry.contentType,
       "X-Cache": cacheStatus,
-      "Cache-Control": cacheControl(cacheStatus, entry.expiresAt),
+      "Cache-Control": cacheControl(cacheStatus, entry.expiresAt, { staleWhileRevalidate }),
     },
   });
 }
@@ -182,8 +203,8 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
 
 async function serveIndustrialism(): Promise<Response> {
   try {
-    const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism);
-    return trpcResponse(entry, status);
+    const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism, { staleWhileRevalidate: true });
+    return trpcResponse(entry, status, INDUSTRIALISM_SWR_MS / 1000);
   } catch (err) {
     return upstreamFailure(err);
   }

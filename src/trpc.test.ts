@@ -4,6 +4,8 @@ import {
   chunk,
   industrialismByParty,
   levelsByCountry,
+  lruGet,
+  lruSet,
   partyBatchPath,
   ttlFor,
   TRPC_DEFAULT_TTL_MS,
@@ -17,14 +19,70 @@ test("known procedures keep their own ttl, everything else takes the default", (
 
 test("max-age is what is left of the server entry, not a fresh ttl", () => {
   const now = 1_000_000;
-  expect(cacheControl("MISS", now + 3600_000, now)).toBe("public, max-age=3600");
-  expect(cacheControl("HIT", now + 42_500, now)).toBe("public, max-age=42");
+  expect(cacheControl("MISS", now + 3600_000, { now })).toBe("public, max-age=3600");
+  expect(cacheControl("HIT", now + 42_500, { now })).toBe("public, max-age=42");
 });
 
 test("an expired or stale entry is never worth keeping", () => {
   const now = 1_000_000;
-  expect(cacheControl("STALE", now + 3600_000, now)).toBe("public, max-age=0");
-  expect(cacheControl("HIT", now - 5_000, now)).toBe("public, max-age=0");
+  expect(cacheControl("STALE", now + 3600_000, { now })).toBe("public, max-age=0");
+  expect(cacheControl("HIT", now - 5_000, { now })).toBe("public, max-age=0");
+});
+
+test("a copy being rebuilt behind the request is not offered as fresh", () => {
+  const now = 1_000_000;
+  expect(cacheControl("REVALIDATING", now + 3600_000, { now })).toBe("public, max-age=0");
+});
+
+test("stale-while-revalidate is offered alongside whatever max-age applies", () => {
+  const now = 1_000_000;
+  expect(cacheControl("HIT", now + 3600_000, { now, staleWhileRevalidate: 600 })).toBe(
+    "public, max-age=3600, stale-while-revalidate=600",
+  );
+  expect(cacheControl("REVALIDATING", now + 3600_000, { now, staleWhileRevalidate: 600 })).toBe(
+    "public, max-age=0, stale-while-revalidate=600",
+  );
+});
+
+test("no stale-while-revalidate directive when none was asked for", () => {
+  const now = 1_000_000;
+  expect(cacheControl("HIT", now + 1_000, { now, staleWhileRevalidate: 0 })).toBe("public, max-age=1");
+});
+
+test("the cache drops its least recently used entry once it is full", () => {
+  const cache = new Map<string, number>();
+  for (const key of ["a", "b", "c"]) lruSet(cache, key, 1, 3);
+
+  lruSet(cache, "d", 1, 3);
+
+  expect([...cache.keys()]).toEqual(["b", "c", "d"]);
+});
+
+test("reading an entry saves it from being the next one evicted", () => {
+  const cache = new Map<string, number>();
+  for (const key of ["a", "b", "c"]) lruSet(cache, key, 1, 3);
+
+  lruGet(cache, "a");
+  lruSet(cache, "d", 1, 3);
+
+  expect([...cache.keys()]).toEqual(["c", "a", "d"]);
+});
+
+test("rewriting an existing key updates it in place rather than growing the cache", () => {
+  const cache = new Map<string, number>();
+  lruSet(cache, "a", 1, 3);
+  lruSet(cache, "a", 2, 3);
+
+  expect(cache.size).toBe(1);
+  expect(lruGet(cache, "a")).toBe(2);
+});
+
+test("a missing key reads as undefined without disturbing the order", () => {
+  const cache = new Map<string, number>();
+  for (const key of ["a", "b"]) lruSet(cache, key, 1, 3);
+
+  expect(lruGet(cache, "missing")).toBeUndefined();
+  expect([...cache.keys()]).toEqual(["a", "b"]);
 });
 
 test("chunk splits into full groups plus the remainder", () => {

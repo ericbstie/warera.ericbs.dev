@@ -11,13 +11,21 @@ export const TRPC_TTL_MS: Record<string, number> = {
 };
 
 export const INDUSTRIALISM_TTL_MS = 60 * 60 * 1000;
+
+// How long a stale aggregate stays usable while a fresh one is being built.
+export const INDUSTRIALISM_SWR_MS = 10 * 60 * 1000;
+
+// The cache holds one entry per distinct request, so a long-running server
+// would otherwise keep every party, item and order book it has ever been
+// asked for. Past this many entries the least recently used ones go.
+export const TRPC_CACHE_MAX_ENTRIES = 500;
 export const COUNTRIES_PATH = "country.getAllCountries?input=%7B%7D";
 
 // One request per country would put 150+ party ids in the URL; upstream takes
 // them in batches, so send them in chunks that keep the URL a sane length.
 export const PARTY_BATCH_SIZE = 50;
 
-export type CacheStatus = "HIT" | "MISS" | "STALE";
+export type CacheStatus = "HIT" | "MISS" | "STALE" | "REVALIDATING";
 
 export function ttlFor(procedure: string): number {
   return TRPC_TTL_MS[procedure] ?? TRPC_DEFAULT_TTL_MS;
@@ -26,11 +34,42 @@ export function ttlFor(procedure: string): number {
 /**
  * Lets the browser reuse a response for however long the server copy stays
  * fresh, so a reload doesn't re-request what is already known to be current.
- * A stale copy gets max-age=0 — it is worth serving once, never worth keeping.
+ * Anything already past its TTL gets max-age=0 — worth serving once, never
+ * worth keeping — and staleWhileRevalidate lets a browser lean on that copy
+ * for a while longer rather than blocking on a rebuild.
  */
-export function cacheControl(status: CacheStatus, expiresAt: number, now = Date.now()): string {
-  const seconds = status === "STALE" ? 0 : Math.max(0, Math.floor((expiresAt - now) / 1000));
-  return `public, max-age=${seconds}`;
+export function cacheControl(
+  status: CacheStatus,
+  expiresAt: number,
+  { now = Date.now(), staleWhileRevalidate = 0 }: { now?: number; staleWhileRevalidate?: number } = {},
+): string {
+  const fresh = status === "HIT" || status === "MISS";
+  const seconds = fresh ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
+  const directives = ["public", `max-age=${seconds}`];
+  if (staleWhileRevalidate > 0) directives.push(`stale-while-revalidate=${Math.floor(staleWhileRevalidate)}`);
+  return directives.join(", ");
+}
+
+/**
+ * Reading re-inserts, so the map stays ordered least-recently-used first and
+ * the entry to drop is always the one at the front.
+ */
+export function lruGet<T>(cache: Map<string, T>, key: string): T | undefined {
+  const value = cache.get(key);
+  if (value === undefined) return undefined;
+  cache.delete(key);
+  cache.set(key, value);
+  return value;
+}
+
+export function lruSet<T>(cache: Map<string, T>, key: string, value: T, maxEntries = TRPC_CACHE_MAX_ENTRIES): void {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > maxEntries) {
+    const oldest = cache.keys().next();
+    if (oldest.done) break;
+    cache.delete(oldest.value);
+  }
 }
 
 export function chunk<T>(items: T[], size: number): T[][] {
