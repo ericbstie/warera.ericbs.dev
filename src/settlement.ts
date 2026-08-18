@@ -29,7 +29,24 @@ export async function fetchCountries(): Promise<Country[]> {
   return Object.values(json.result.data);
 }
 
+/**
+ * One request for the whole grid. Falls back to asking per country so the page
+ * still fills in if the aggregate is unavailable.
+ */
 export async function fetchIndustrialism(countries: Country[]): Promise<Record<string, number>> {
+  try {
+    const res = await fetch("/api/industrialism");
+    if (res.ok) {
+      const levels = await res.json();
+      if (!levels.error) return levels;
+    }
+  } catch {
+    // fall through to the per-country requests below
+  }
+  return fetchIndustrialismPerCountry(countries);
+}
+
+export async function fetchIndustrialismPerCountry(countries: Country[]): Promise<Record<string, number>> {
   const specializing = countries.filter(country => country.specializedItem && country.rulingParty);
   const levels: Record<string, number> = {};
   let next = 0;

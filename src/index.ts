@@ -2,6 +2,18 @@ import { serve } from "bun";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
 import index from "./index.html";
+import {
+  chunk,
+  cacheControl,
+  COUNTRIES_PATH,
+  industrialismByParty,
+  INDUSTRIALISM_TTL_MS,
+  levelsByCountry,
+  partyBatchPath,
+  PARTY_BATCH_SIZE,
+  ttlFor,
+  type CacheStatus,
+} from "./trpc";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -38,20 +50,38 @@ const contentTypeFor = (name: string, fallback = "application/octet-stream"): st
 // matter how many visitors are loading the page at the same time.
 
 const TRPC_UPSTREAM = "https://api2.warera.io/trpc";
-const TRPC_DEFAULT_TTL_MS = 5 * 60 * 1000;
-const TRPC_TTL_MS: Record<string, number> = {
-  "country.getAllCountries": 60 * 60 * 1000,
-  "party.getById": 60 * 60 * 1000,
-  "gameConfig.getGameConfig": 60 * 60 * 1000,
-  "itemTrading.getItemTrading": 10 * 60 * 1000,
-  "tradingOrder.getTopOrders": 45 * 1000,
-};
 
 type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number };
 type TrpcFailure = { status: number; body: string; contentType: string };
 
 const trpcCache = new Map<string, TrpcEntry>();
 const trpcInFlight = new Map<string, Promise<TrpcEntry>>();
+
+/**
+ * TTL cache plus in-flight coalescing, shared by the raw proxy and the
+ * industrialism aggregate so both read and fill the same entries.
+ */
+async function cached(key: string, produce: () => Promise<TrpcEntry>): Promise<{ entry: TrpcEntry; status: CacheStatus }> {
+  const hit = trpcCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return { entry: hit, status: "HIT" };
+
+  let pending = trpcInFlight.get(key);
+  if (!pending) {
+    pending = produce();
+    trpcInFlight.set(key, pending);
+    // .finally() returns its own promise; catch on it so a rejection isn't left unhandled.
+    pending.finally(() => trpcInFlight.delete(key)).catch(() => {});
+  }
+
+  try {
+    const entry = await pending;
+    trpcCache.set(key, entry);
+    return { entry, status: "MISS" };
+  } catch (err) {
+    if (hit) return { entry: hit, status: "STALE" }; // upstream is down/erroring — serve the last good copy
+    throw err;
+  }
+}
 
 async function fetchTrpc(pathAndQuery: string, method: string, body: string): Promise<TrpcEntry> {
   const upstream = await fetch(`${TRPC_UPSTREAM}/${pathAndQuery}`, {
@@ -66,7 +96,7 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
   if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
 
   const procedure = pathAndQuery.split("?")[0]!;
-  return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + (TRPC_TTL_MS[procedure] ?? TRPC_DEFAULT_TTL_MS) };
+  return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure) };
 }
 
 function hasTrpcError(body: string): boolean {
@@ -77,8 +107,27 @@ function hasTrpcError(body: string): boolean {
   }
 }
 
-function trpcResponse(entry: TrpcEntry, cacheStatus: "HIT" | "MISS" | "STALE"): Response {
-  return new Response(entry.body, { status: entry.status, headers: { "Content-Type": entry.contentType, "X-Cache": cacheStatus } });
+function trpcResponse(entry: TrpcEntry, cacheStatus: CacheStatus): Response {
+  return new Response(entry.body, {
+    status: entry.status,
+    headers: {
+      "Content-Type": entry.contentType,
+      "X-Cache": cacheStatus,
+      "Cache-Control": cacheControl(cacheStatus, entry.expiresAt),
+    },
+  });
+}
+
+function upstreamFailure(err: unknown): Response {
+  const failure = err as Partial<TrpcFailure>;
+  return new Response(failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }), {
+    status: failure.status ?? 502,
+    headers: {
+      "Content-Type": failure.contentType ?? "application/json",
+      "X-Cache": "MISS",
+      "Cache-Control": "no-store", // never let a browser hold on to an error
+    },
+  });
 }
 
 async function proxyTrpc(req: Request): Promise<Response> {
@@ -88,28 +137,55 @@ async function proxyTrpc(req: Request): Promise<Response> {
   const body = method === "POST" ? await req.text() : "";
   const key = `${method} ${pathAndQuery} ${body}`;
 
-  const cached = trpcCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return trpcResponse(cached, "HIT");
+  try {
+    const { entry, status } = await cached(key, () => fetchTrpc(pathAndQuery, method, body));
+    return trpcResponse(entry, status);
+  } catch (err) {
+    return upstreamFailure(err);
+  }
+}
 
-  let pending = trpcInFlight.get(key);
-  if (!pending) {
-    pending = fetchTrpc(pathAndQuery, method, body);
-    trpcInFlight.set(key, pending);
-    // .finally() returns its own promise; catch on it so a rejection isn't left unhandled.
-    pending.finally(() => trpcInFlight.delete(key)).catch(() => {});
+// --- industrialism aggregate ----------------------------------------------
+// The settlement grid needs one party ethic per specializing country, which
+// used to be 150+ separate browser requests. Upstream takes tRPC calls in
+// batches, so the whole set collapses into a handful of requests here and a
+// single one from the browser.
+
+async function fetchPartyLevels(partyIds: string[]): Promise<Record<string, number>> {
+  const res = await fetch(`${TRPC_UPSTREAM}/${partyBatchPath(partyIds)}`);
+  const text = await res.text();
+  if (!res.ok) throw { status: res.status, body: text, contentType: "application/json" } satisfies TrpcFailure;
+  return industrialismByParty(partyIds, JSON.parse(text));
+}
+
+async function buildIndustrialism(): Promise<TrpcEntry> {
+  const countries = await cached(`GET ${COUNTRIES_PATH} `, () => fetchTrpc(COUNTRIES_PATH, "GET", ""));
+  const all = Object.values(JSON.parse(countries.entry.body).result.data) as Array<{
+    _id: string;
+    specializedItem?: string;
+    rulingParty?: string;
+  }>;
+  const specializing = all.filter(country => country.specializedItem && country.rulingParty);
+
+  const byParty: Record<string, number> = {};
+  for (const group of chunk([...new Set(specializing.map(country => country.rulingParty!))], PARTY_BATCH_SIZE)) {
+    Object.assign(byParty, await fetchPartyLevels(group));
   }
 
+  return {
+    status: 200,
+    body: JSON.stringify(levelsByCountry(specializing, byParty)),
+    contentType: "application/json",
+    expiresAt: Date.now() + INDUSTRIALISM_TTL_MS,
+  };
+}
+
+async function serveIndustrialism(): Promise<Response> {
   try {
-    const entry = await pending;
-    trpcCache.set(key, entry);
-    return trpcResponse(entry, "MISS");
+    const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism);
+    return trpcResponse(entry, status);
   } catch (err) {
-    if (cached) return trpcResponse(cached, "STALE"); // upstream is down/erroring — serve the last good copy
-    const failure = err as Partial<TrpcFailure>;
-    return new Response(failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }), {
-      status: failure.status ?? 502,
-      headers: { "Content-Type": failure.contentType ?? "application/json", "X-Cache": "MISS" },
-    });
+    return upstreamFailure(err);
   }
 }
 
@@ -150,6 +226,7 @@ const server = isProduction
 
       return serve({
         routes: {
+          "/api/industrialism": serveIndustrialism,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
@@ -162,6 +239,7 @@ const server = isProduction
     })()
   : serve({
       routes: {
+        "/api/industrialism": serveIndustrialism,
         "/api/trpc/*": proxyTrpc,
         "/*": index,
       },
