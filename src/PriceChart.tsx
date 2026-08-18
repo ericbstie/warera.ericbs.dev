@@ -19,7 +19,9 @@ function useContainerWidth() {
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -28,7 +30,9 @@ function useContainerWidth() {
 }
 
 function formatDate(date: string) {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return ""; // an unparseable date reads better as a blank tick than as "Invalid Date"
+  return parsed.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     timeZone: "UTC",

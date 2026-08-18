@@ -56,6 +56,12 @@ const contentTypeFor = (name: string, fallback = "application/octet-stream"): st
 
 const TRPC_UPSTREAM = "https://api2.warera.io/trpc";
 
+// Without this an upstream that accepts the connection and then goes quiet
+// leaves its promise pending forever. refresh() only clears the in-flight entry
+// once that promise settles, so the key would stay poisoned — and every caller
+// coalesced onto it stuck — until the process restarted.
+const UPSTREAM_TIMEOUT_MS = 10_000;
+
 type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number; etag: string };
 type TrpcFailure = { status: number; body: string; contentType: string };
 
@@ -94,16 +100,28 @@ async function cached(
   if (hit && hit.expiresAt > Date.now()) return { entry: hit, status: "HIT" };
 
   if (hit && staleWhileRevalidate) {
-    refresh(key, produce).catch(() => {}); // a failed rebuild leaves the copy we are about to serve in place
+    // A failed rebuild leaves the copy we are about to serve in place. That is
+    // the point, but it also means a permanently broken rebuild would keep
+    // serving an ever-older copy silently, so say so.
+    refresh(key, produce).catch(err => console.error(`[trpc] background rebuild of ${key} failed:`, err));
     return { entry: hit, status: "REVALIDATING" };
   }
 
   try {
     return { entry: await refresh(key, produce), status: "MISS" };
   } catch (err) {
-    if (hit) return { entry: hit, status: "STALE" }; // upstream is down/erroring — serve the last good copy
+    if (hit) {
+      // upstream is down/erroring — serve the last good copy
+      console.error(`[trpc] serving a stale copy of ${key} after:`, err);
+      return { entry: hit, status: "STALE" };
+    }
     throw err;
   }
+}
+
+/** The cache is shared, so the key has to be built the same way everywhere. */
+function trpcCacheKey(method: string, pathAndQuery: string, body: string): string {
+  return `${method} ${pathAndQuery} ${body}`;
 }
 
 async function fetchTrpc(pathAndQuery: string, method: string, body: string): Promise<TrpcEntry> {
@@ -111,22 +129,43 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
     method,
     headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
     body: method === "POST" ? body : undefined,
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
   const text = await upstream.text();
   const contentType = upstream.headers.get("content-type") ?? "application/json";
 
-  const ok = upstream.status >= 200 && upstream.status < 300 && !hasTrpcError(text);
+  const ok = upstream.status >= 200 && upstream.status < 300 && isTrpcPayload(text);
   if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
 
   const procedure = pathAndQuery.split("?")[0]!;
   return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure), etag: etagFor(text) };
 }
 
-function hasTrpcError(body: string): boolean {
+/**
+ * Upstream sometimes answers 200 with something that isn't a tRPC payload — a
+ * gateway's own error page, or a body left behind by a schema change. Looking
+ * only for an `error` key would let those through and cache them for the full
+ * TTL, which reads as good data for an hour, so the shape has to hold up too.
+ */
+function isTrpcPayload(body: string): boolean {
+  let parsed: unknown;
   try {
-    return "error" in JSON.parse(body);
+    parsed = JSON.parse(body);
   } catch {
-    return true; // not valid JSON — treat as a failure, never cache it
+    return false; // not valid JSON — never cache it
+  }
+
+  // A batched call answers with one entry per procedure; a single call with one object.
+  const entries = Array.isArray(parsed) ? parsed : [parsed];
+  if (entries.length === 0) return false;
+  return entries.every(entry => typeof entry === "object" && entry !== null && !("error" in entry) && "result" in entry);
+}
+
+function parseJson(body: string, what: string): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new Error(`${what} came back as something other than JSON`);
   }
 }
 
@@ -149,8 +188,14 @@ function trpcResponse(req: Request, entry: TrpcEntry, cacheStatus: CacheStatus, 
   });
 }
 
-function upstreamFailure(err: unknown): Response {
-  const failure = err as Partial<TrpcFailure>;
+function upstreamFailure(err: unknown, context: string): Response {
+  // Nothing else records these, so a failure that never reaches a browser —
+  // a rejected rebuild behind a stale response — would otherwise leave no trace.
+  console.error(`[trpc] ${context} failed:`, err);
+
+  // Guarded rather than cast: a rejection from fetch is an Error, and a timeout
+  // is a DOMException, neither of which carries the fields a TrpcFailure has.
+  const failure: Partial<TrpcFailure> = typeof err === "object" && err !== null ? err : {};
   return new Response(failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }), {
     status: failure.status ?? 502,
     headers: {
@@ -163,16 +208,20 @@ function upstreamFailure(err: unknown): Response {
 
 async function proxyTrpc(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const pathAndQuery = url.pathname.replace(/^\/api\/trpc\//, "") + url.search;
   const method = req.method;
-  const body = method === "POST" ? await req.text() : "";
-  const key = `${method} ${pathAndQuery} ${body}`;
+  const pathAndQuery = url.pathname.replace(/^\/api\/trpc\//, "") + url.search;
 
   try {
-    const { entry, status } = await cached(key, () => fetchTrpc(pathAndQuery, method, body));
+    // Reading the body belongs inside the try: a client that disconnects
+    // mid-upload throws here, and outside it that escapes the route handler
+    // entirely rather than becoming the 502 every other failure returns.
+    const body = method === "POST" ? await req.text() : "";
+    const { entry, status } = await cached(trpcCacheKey(method, pathAndQuery, body), () =>
+      fetchTrpc(pathAndQuery, method, body),
+    );
     return trpcResponse(req, entry, status);
   } catch (err) {
-    return upstreamFailure(err);
+    return upstreamFailure(err, `${method} ${pathAndQuery}`);
   }
 }
 
@@ -183,15 +232,26 @@ async function proxyTrpc(req: Request): Promise<Response> {
 // single one from the browser.
 
 async function fetchPartyLevels(partyIds: string[]): Promise<Record<string, number>> {
-  const res = await fetch(`${TRPC_UPSTREAM}/${partyBatchPath(partyIds)}`);
+  const res = await fetch(`${TRPC_UPSTREAM}/${partyBatchPath(partyIds)}`, {
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  });
   const text = await res.text();
   if (!res.ok) throw { status: res.status, body: text, contentType: "application/json" } satisfies TrpcFailure;
-  return industrialismByParty(partyIds, JSON.parse(text));
+
+  const entries = parseJson(text, "Batched party lookup");
+  if (!Array.isArray(entries)) throw new Error("Batched party lookup did not answer with a list");
+  return industrialismByParty(partyIds, entries);
 }
 
 async function buildIndustrialism(): Promise<TrpcEntry> {
-  const countries = await cached(`GET ${COUNTRIES_PATH} `, () => fetchTrpc(COUNTRIES_PATH, "GET", ""));
-  const all = Object.values(JSON.parse(countries.entry.body).result.data) as Array<{
+  const countries = await cached(trpcCacheKey("GET", COUNTRIES_PATH, ""), () =>
+    fetchTrpc(COUNTRIES_PATH, "GET", ""),
+  );
+  const payload = parseJson(countries.entry.body, "Country list") as { result?: { data?: unknown } };
+  const data = payload.result?.data;
+  if (typeof data !== "object" || data === null) throw new Error("Country list came back in an unexpected shape");
+
+  const all = Object.values(data) as Array<{
     _id: string;
     specializedItem?: string;
     rulingParty?: string;
@@ -218,7 +278,7 @@ async function serveIndustrialism(req: Request): Promise<Response> {
     const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism, { staleWhileRevalidate: true });
     return trpcResponse(req, entry, status, INDUSTRIALISM_SWR_MS / 1000);
   } catch (err) {
-    return upstreamFailure(err);
+    return upstreamFailure(err, "industrialism aggregate");
   }
 }
 
@@ -241,6 +301,11 @@ const buildAssets = async (): Promise<Map<string, Asset>> => {
     },
   });
 
+  if (!result.success) {
+    for (const log of result.logs) console.error(log);
+    throw new Error("Production build failed, refusing to start");
+  }
+
   const assets = new Map<string, Asset>();
   for (const output of result.outputs) {
     const name = path.basename(output.path);
@@ -252,12 +317,30 @@ const buildAssets = async (): Promise<Map<string, Asset>> => {
 const respond = (asset: Asset, status = 200): Response =>
   new Response(asset.bytes, { status, headers: { "Content-Type": asset.contentType } });
 
+/**
+ * Bun's default handler renders the error page — a stack trace outside
+ * production — for anything a route throws. Answer plainly and keep the trace
+ * in the log where it belongs.
+ */
+const onError = (error: unknown): Response => {
+  console.error("[server] unhandled error while serving a request:", error);
+  return new Response("Internal Server Error", {
+    status: 500,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+};
+
 const server = isProduction
   ? await (async () => {
       const assets = await buildAssets();
-      const indexAsset = assets.get("index.html")!;
+      const indexAsset = assets.get("index.html");
+      // Asserting this used to hand `undefined` to respond(), which meant a
+      // TypeError on every request that fell through to the app rather than
+      // one clear failure here.
+      if (!indexAsset) throw new Error("Production build produced no index.html to serve");
 
       return serve({
+        error: onError,
         routes: {
           "/api/industrialism": serveIndustrialism,
           "/api/trpc/*": proxyTrpc,
@@ -271,6 +354,7 @@ const server = isProduction
       });
     })()
   : serve({
+      error: onError,
       routes: {
         "/api/industrialism": serveIndustrialism,
         "/api/trpc/*": proxyTrpc,

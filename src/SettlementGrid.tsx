@@ -5,8 +5,13 @@ import { rankPlacements, useSettlementData, type Placement } from "./settlement"
 const VISIBLE_ROWS = 5;
 const ROW_HEIGHT = 20;
 
-function trim(value: number) {
-  return Number(value.toFixed(2)).toString();
+/**
+ * A country missing its taxes or bonuses used to throw here and blank the whole
+ * page. An unknown number reads as "—" instead — absent, not zero.
+ */
+function percent(value: number | undefined, sign = "") {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return `${sign}${Number(value.toFixed(2))}%`;
 }
 
 function bonusColor(totalBonus: number) {
@@ -38,9 +43,9 @@ function PlacementTable({ itemCode, placements }: { itemCode: string; placements
                   {placement.country}
                 </td>
                 <td className="text-right tabular-nums" style={{ color: bonusColor(placement.totalBonus) }}>
-                  +{trim(placement.totalBonus)}%
+                  {percent(placement.totalBonus, "+")}
                 </td>
-                <td className="text-right tabular-nums text-[#a8a29e]">{trim(placement.taxes.income)}%</td>
+                <td className="text-right tabular-nums text-[#a8a29e]">{percent(placement.taxes?.income)}</td>
               </tr>
             ))}
           </tbody>
@@ -54,7 +59,7 @@ export function SettlementGrid({ items }: { items: string[] }) {
   const { countries, industrialism, loading, error } = useSettlementData();
 
   const rankings = useMemo(
-    () => items.map(item => ({ item, placements: rankPlacements(countries, industrialism, item) })),
+    () => items.map(item => ({ item, placements: rankPlacements(countries, industrialism.levels, item) })),
     [items, countries, industrialism],
   );
 
@@ -66,6 +71,11 @@ export function SettlementGrid({ items }: { items: string[] }) {
       <p className="text-xs text-[#a8a29e]">
         Best countries to settle a company, by production bonus. Tax is income tax.
       </p>
+      {!industrialism.complete && (
+        <p className="text-xs text-[#f87171]">
+          Some specialization data didn't load, so a few countries may be ranked lower than they should be.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
         {rankings.map(({ item, placements }) => (
           <PlacementTable key={item} itemCode={item} placements={placements} />

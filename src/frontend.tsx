@@ -9,8 +9,12 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 
 function start() {
-  const root = createRoot(document.getElementById("root")!);
-  root.render(<App />);
+  const container = document.getElementById("root");
+  if (!container) {
+    console.error("No #root element to mount the app into");
+    return;
+  }
+  createRoot(container).render(<App />);
 }
 
 if (document.readyState === "loading") {
