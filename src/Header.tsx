@@ -122,12 +122,7 @@ export function Header({
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-2.5">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-accent text-sm font-bold text-white">
-            WE
-          </span>
-          <p className="text-sm font-semibold">War Era Market</p>
-        </div>
+        <p className="text-xl font-semibold sm:text-2xl">War Era Market</p>
 
         <ItemPicker items={items} selected={selected} onSelect={onSelect} />
 
