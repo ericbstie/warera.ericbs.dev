@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 function stubFetch(payload: unknown) {
-  const fetchMock = mock(async () => Response.json(payload));
+  const fetchMock = mock(async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)));
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
@@ -32,7 +32,7 @@ test("fetchOrders requests the item and returns its buy/sell orders", async () =
   const fetchMock = stubFetch({ result: { data: { buyOrders, sellOrders } } });
 
   expect(await fetchOrders("iron")).toEqual({ buyOrders, sellOrders });
-  expect(fetchMock.mock.calls[0][0]).toContain(encodeURIComponent('{"itemCode":"iron"}'));
+  expect(String(fetchMock.mock.calls[0]?.[0])).toContain(encodeURIComponent('{"itemCode":"iron"}'));
 });
 
 test("fetchOrders returns empty arrays when a side is missing", async () => {

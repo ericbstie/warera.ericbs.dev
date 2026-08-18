@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 function stubFetch(payload: unknown) {
-  const fetchMock = mock(async () => Response.json(payload));
+  const fetchMock = mock(async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)));
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
@@ -25,7 +25,7 @@ test("fetchTransactionHistory requests the item and returns its daily values", a
   const fetchMock = stubFetch({ result: { data: { itemCode: "iron", values: [day] } } });
 
   expect(await fetchTransactionHistory("iron")).toEqual([day]);
-  expect(fetchMock.mock.calls[0][0]).toContain(encodeURIComponent('{"itemCode":"iron"}'));
+  expect(String(fetchMock.mock.calls[0]?.[0])).toContain(encodeURIComponent('{"itemCode":"iron"}'));
 });
 
 test("fetchTransactionHistory returns nothing when an item has never traded", async () => {
