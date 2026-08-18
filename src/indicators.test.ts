@@ -56,8 +56,8 @@ test("vwapSeries stays null until something trades, then anchors to the cumulati
 });
 
 test("RANGES lists every range shortest first and rangeDays maps them", () => {
-  expect(RANGES).toEqual(["7D", "30D", "90D", "180D", "ALL"]);
-  expect(RANGES.map(rangeDays)).toEqual([7, 30, 90, 180, null]);
+  expect(RANGES).toEqual(["7D", "14D", "30D", "ALL"]);
+  expect(RANGES.map(rangeDays)).toEqual([7, 14, 30, null]);
 });
 
 test("sliceRange keeps the last N days", () => {

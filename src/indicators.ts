@@ -32,20 +32,19 @@ export function vwapSeries(transactions: Transaction[]): (number | null)[] {
   return out;
 }
 
-export type Range = "7D" | "30D" | "90D" | "180D" | "ALL";
+export type Range = "7D" | "14D" | "30D" | "ALL";
 
-export const RANGES: Range[] = ["7D", "30D", "90D", "180D", "ALL"];
+/** Upstream keeps 30 days of daily records, so a longer window than that has nothing to show. */
+export const RANGES: Range[] = ["7D", "14D", "30D", "ALL"];
 
 export function rangeDays(range: Range): number | null {
   switch (range) {
     case "7D":
       return 7;
+    case "14D":
+      return 14;
     case "30D":
       return 30;
-    case "90D":
-      return 90;
-    case "180D":
-      return 180;
     case "ALL":
       return null;
   }

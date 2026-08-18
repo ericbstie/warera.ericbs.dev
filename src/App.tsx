@@ -1,11 +1,18 @@
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { CommandPalette } from "./CommandPalette";
 import { DepthOfMarket } from "./DepthOfMarket";
 import { Header, type MarketItem } from "./Header";
 import { useTransactionHistory } from "./hooks";
+import { sliceRange, type Range } from "./indicators";
 import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
+import { Toolbar, type Overlay } from "./Toolbar";
+import { ToolRail } from "./ToolRail";
+import { toolLabel, type Drawing, type ToolId } from "./tools";
 import "./index.css";
+
+const DEFAULT_OVERLAYS: Overlay[] = ["sma10", "vwap"];
 
 async function fetchItems(): Promise<MarketItem[]> {
   const res = await fetch("/api/trpc/gameConfig.getGameConfig", {
@@ -55,6 +62,13 @@ export function App() {
   const [error, setError] = useState<Error | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  const [range, setRange] = useState<Range>("30D");
+  const [view, setView] = useState<"line" | "candle">("candle");
+  const [overlays, setOverlays] = useState<Overlay[]>(DEFAULT_OVERLAYS);
+  const [tool, setTool] = useState<ToolId>("crosshair");
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [searching, setSearching] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     setError(null);
@@ -83,8 +97,46 @@ export function App() {
   // The header quote and the chart read the same day records, so they are
   // fetched once here rather than once per panel.
   const { transactions, loading, error: historyError } = useTransactionHistory(selected);
-  const quote = useMemo(() => quoteFor(transactions), [transactions]);
+  const visible = useMemo(() => sliceRange(transactions, range), [transactions, range]);
+  const quote = useMemo(() => quoteFor(visible), [visible]);
   const codes = useMemo(() => items.map(item => item.code), [items]);
+
+  // Anything drawn was measured against the bars on screen, so it stops meaning
+  // what it meant once those bars change.
+  useEffect(() => setDrawings([]), [selected, range]);
+
+  const toggleOverlay = useCallback(
+    (overlay: Overlay) =>
+      setOverlays(current =>
+        current.includes(overlay) ? current.filter(id => id !== overlay) : [...current, overlay],
+      ),
+    [],
+  );
+
+  const reset = useCallback(() => {
+    setDrawings([]);
+    setTool("crosshair");
+    setOverlays(DEFAULT_OVERLAYS);
+    setRange("30D");
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      // A shortcut that fires while someone is typing a search steals the letter.
+      const target = event.target as HTMLElement | null;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.isContentEditable)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "i") setOverlays(current => (current.length ? [] : DEFAULT_OVERLAYS));
+      else if (key === "r") reset();
+      else return;
+      event.preventDefault();
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reset]);
 
   return (
     <div className="min-h-screen">
@@ -94,6 +146,14 @@ export function App() {
         onSelect={setSelected}
         quote={quote}
         loading={loading}
+      />
+      <Toolbar
+        range={range}
+        onRange={setRange}
+        view={view}
+        onView={setView}
+        overlays={overlays}
+        onToggleOverlay={toggleOverlay}
       />
 
       <main className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
@@ -110,27 +170,51 @@ export function App() {
           </div>
         )}
 
-        <section className="rounded border border-edge bg-canvas">
-          <Panel label="price chart">
-            <PriceChart
-              itemCode={selected}
-              transactions={transactions}
-              loading={loading}
-              error={historyError}
+        <section className="overflow-hidden rounded border border-edge bg-canvas">
+          <div className="flex flex-col sm:flex-row">
+            <ToolRail
+              tool={tool}
+              onTool={setTool}
+              onClear={() => setDrawings([])}
+              hasDrawings={drawings.length > 0}
             />
-          </Panel>
+            <div className="min-w-0 flex-1">
+              <Panel label="price chart">
+                <PriceChart
+                  itemCode={selected}
+                  transactions={visible}
+                  loading={loading}
+                  error={historyError}
+                  view={view}
+                  overlays={overlays}
+                  tool={tool}
+                  drawings={drawings}
+                  onDraw={drawing => setDrawings(current => [...current, drawing])}
+                />
+              </Panel>
+            </div>
+          </div>
+          <p className="border-t border-edge bg-panel px-3 py-1.5 text-[11px] text-muted">
+            Tool: <span className="text-ink">{toolLabel(tool)}</span>
+          </p>
         </section>
 
-        <section className="rounded border border-edge bg-panel p-3">
-          <Panel label="order book">
-            <DepthOfMarket itemCode={selected} />
-          </Panel>
-        </section>
+        {/* The order book draws its own card, so it needs no wrapper of its own. */}
+        <Panel label="order book">
+          <DepthOfMarket itemCode={selected} />
+        </Panel>
 
         <Panel label="settlement bonuses">
           <SettlementGrid items={codes} />
         </Panel>
       </main>
+
+      <CommandPalette
+        items={items}
+        open={searching}
+        onOpenChange={setSearching}
+        onSelect={setSelected}
+      />
     </div>
   );
 }
