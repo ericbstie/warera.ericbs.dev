@@ -1,4 +1,4 @@
-import { serve } from "bun";
+import { serve, type Server } from "bun";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
 import index from "./index.html";
@@ -21,6 +21,94 @@ import {
 } from "./trpc";
 
 const isProduction = process.env.NODE_ENV === "production";
+
+// No websockets here, so the server never carries any per-socket data.
+type AppServer = Server<undefined>;
+
+// --- logging ---------------------------------------------------------------
+// Ordered quietest first, so a level prints itself and everything before it.
+
+const LOG_LEVELS = ["silent", "error", "warn", "info", "debug"] as const;
+type LogLevel = (typeof LOG_LEVELS)[number];
+
+const requestedLevel = (process.env.LOG_LEVEL ?? "").trim().toLowerCase();
+const configuredLevel = LOG_LEVELS.find(level => level === requestedLevel);
+const LOG_LEVEL: LogLevel = configuredLevel ?? (isProduction ? "info" : "debug");
+const verbosity = LOG_LEVELS.indexOf(LOG_LEVEL);
+
+/**
+ * Trims a value down to something loggable. Control characters go first: a
+ * record only means anything if one request cannot write what looks like a
+ * line of its own, and a header or a path is under the caller's control.
+ */
+const short = (value: string, limit = 120): string => {
+  const printable = value.replace(/[\p{Cc}\p{Cf}]/gu, "\u00b7").trim();
+  return printable.length > limit ? `${printable.slice(0, limit)}\u2026` : printable;
+};
+
+function write(level: Exclude<LogLevel, "silent">, line: string, ...rest: unknown[]): void {
+  if (LOG_LEVELS.indexOf(level) > verbosity) return;
+  const sink = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  sink(`${new Date().toISOString()} ${level.toUpperCase().padEnd(5)} ${line}`, ...rest);
+}
+
+const log = {
+  error: (line: string, ...rest: unknown[]) => write("error", line, ...rest),
+  warn: (line: string, ...rest: unknown[]) => write("warn", line, ...rest),
+  info: (line: string, ...rest: unknown[]) => write("info", line, ...rest),
+  debug: (line: string, ...rest: unknown[]) => write("debug", line, ...rest),
+};
+
+// Falling back silently would read as a logger that ignores its own setting.
+if (requestedLevel && !configuredLevel) {
+  log.warn(`[server] ignoring LOG_LEVEL=${short(requestedLevel, 20)}, expected one of ${LOG_LEVELS.join(", ")}`);
+}
+
+/**
+ * The socket address is the only one nobody can claim for themselves, and
+ * behind a proxy it is the proxy's own — so record what the hop in front says
+ * as well, and leave which one to believe to whoever reads the line.
+ */
+function clientOf(req: Request, server: AppServer): string {
+  const socket = server.requestIP(req)?.address ?? "unknown";
+  const forwarded = req.headers.get("X-Forwarded-For");
+  return forwarded ? `ip=${socket} forwarded=${short(forwarded, 60)}` : `ip=${socket}`;
+}
+
+/** Only worth recording where the line is about who is calling, not what for. */
+const agentOf = (req: Request): string => `ua="${short(req.headers.get("User-Agent") ?? "none", 80)}"`;
+
+/**
+ * One line per answered request — who asked, what they got and how long it
+ * took — so a slow or failing route can be found without reproducing it.
+ */
+const logged =
+  (handler: (req: Request, server: AppServer) => Response | Promise<Response>) =>
+  async (req: Request, server: AppServer): Promise<Response> => {
+    const startedAt = performance.now();
+    const url = new URL(req.url);
+    // Read before the handler runs: once the response is on its way the socket
+    // this request arrived on may already be gone.
+    const client = clientOf(req, server);
+    const describe = (outcome: string) =>
+      `[req] ${req.method} ${short(url.pathname + url.search)} ${outcome} ` +
+      `${(performance.now() - startedAt).toFixed(1)}ms ${client}`;
+
+    try {
+      const response = await handler(req, server);
+      const cacheStatus = response.headers.get("X-Cache");
+      const outcome = cacheStatus ? `${response.status} cache=${cacheStatus}` : `${response.status}`;
+
+      if (response.status >= 500) log.error(describe(outcome));
+      else if (response.status >= 400) log.warn(describe(outcome));
+      else log.info(describe(outcome));
+      return response;
+    } catch (err) {
+      // onError answers this one, but only here is it known who asked for it.
+      log.error(describe("threw"), err);
+      throw err;
+    }
+  };
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -103,16 +191,18 @@ async function cached(
     // A failed rebuild leaves the copy we are about to serve in place. That is
     // the point, but it also means a permanently broken rebuild would keep
     // serving an ever-older copy silently, so say so.
-    refresh(key, produce).catch(err => console.error(`[trpc] background rebuild of ${key} failed:`, err));
+    log.debug(`[cache] serving ${short(key)} while it rebuilds`);
+    refresh(key, produce).catch(err => log.error(`[trpc] background rebuild of ${key} failed:`, err));
     return { entry: hit, status: "REVALIDATING" };
   }
 
+  log.debug(`[cache] ${hit ? "expired" : "missing"} ${short(key)}, fetching`);
   try {
     return { entry: await refresh(key, produce), status: "MISS" };
   } catch (err) {
     if (hit) {
       // upstream is down/erroring — serve the last good copy
-      console.error(`[trpc] serving a stale copy of ${key} after:`, err);
+      log.error(`[trpc] serving a stale copy of ${key} after:`, err);
       return { entry: hit, status: "STALE" };
     }
     throw err;
@@ -125,6 +215,7 @@ function trpcCacheKey(method: string, pathAndQuery: string, body: string): strin
 }
 
 async function fetchTrpc(pathAndQuery: string, method: string, body: string): Promise<TrpcEntry> {
+  const startedAt = performance.now();
   const upstream = await fetch(`${TRPC_UPSTREAM}/${pathAndQuery}`, {
     method,
     headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
@@ -133,9 +224,18 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
   });
   const text = await upstream.text();
   const contentType = upstream.headers.get("content-type") ?? "application/json";
+  log.debug(
+    `[trpc] ${method} ${short(pathAndQuery)} ${upstream.status} ${text.length}B ` +
+      `${(performance.now() - startedAt).toFixed(0)}ms`,
+  );
 
   const ok = upstream.status >= 200 && upstream.status < 300 && isTrpcPayload(text);
-  if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
+  if (!ok) {
+    // A 200 carrying something else is upstream answering as something other
+    // than itself, which nothing downstream is in a position to notice.
+    log.warn(`[trpc] ${short(pathAndQuery)} answered ${upstream.status} with no usable payload, not caching it`);
+    throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
+  }
 
   const procedure = pathAndQuery.split("?")[0]!;
   return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure), etag: etagFor(text) };
@@ -191,7 +291,7 @@ function trpcResponse(req: Request, entry: TrpcEntry, cacheStatus: CacheStatus, 
 function upstreamFailure(err: unknown, context: string): Response {
   // Nothing else records these, so a failure that never reaches a browser —
   // a rejected rebuild behind a stale response — would otherwise leave no trace.
-  console.error(`[trpc] ${context} failed:`, err);
+  log.error(`[trpc] ${context} failed:`, err);
 
   // Guarded rather than cast: a rejection from fetch is an Error, and a timeout
   // is a DOMException, neither of which carries the fields a TrpcFailure has.
@@ -206,16 +306,38 @@ function upstreamFailure(err: unknown, context: string): Response {
   });
 }
 
-async function proxyTrpc(req: Request): Promise<Response> {
+// The app only ever asks for a bare procedure name. These are the shapes that
+// turn up when someone is working out what else the proxy will fetch for them.
+const PROBING_PATH = /(\.\.|%2e%2e|^\/|\\|^[a-z][a-z0-9+.-]*:\/\/)/i;
+
+// Its own POSTs carry a few hundred bytes of tRPC input at most.
+const OVERSIZED_BODY_BYTES = 16 * 1024;
+
+async function proxyTrpc(req: Request, server: AppServer): Promise<Response> {
   const url = new URL(req.url);
   const method = req.method;
   const pathAndQuery = url.pathname.replace(/^\/api\/trpc\//, "") + url.search;
+  const client = clientOf(req, server);
+
+  // The proxy forwards what it is given, so what it is being asked to forward
+  // is worth a record of its own even when the answer is a perfectly ordinary
+  // one and the access line above it reads as nothing out of the ordinary.
+  if (method !== "GET" && method !== "POST") {
+    log.warn(`[security] ${method} at the tRPC proxy, which only ever serves GET and POST ${client} ${agentOf(req)}`);
+  }
+  if (PROBING_PATH.test(pathAndQuery)) {
+    log.warn(`[security] tRPC proxy asked for ${short(pathAndQuery)} ${client} ${agentOf(req)}`);
+  }
 
   try {
     // Reading the body belongs inside the try: a client that disconnects
     // mid-upload throws here, and outside it that escapes the route handler
     // entirely rather than becoming the 502 every other failure returns.
     const body = method === "POST" ? await req.text() : "";
+    if (body.length > OVERSIZED_BODY_BYTES) {
+      log.warn(`[security] ${body.length} byte body posted to ${short(pathAndQuery)} ${client} ${agentOf(req)}`);
+    }
+
     const { entry, status } = await cached(trpcCacheKey(method, pathAndQuery, body), () =>
       fetchTrpc(pathAndQuery, method, body),
     );
@@ -236,6 +358,7 @@ async function fetchPartyLevels(partyIds: string[]): Promise<Record<string, numb
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
   const text = await res.text();
+  log.debug(`[trpc] ${partyIds.length} party lookups in one batch ${res.status} ${text.length}B`);
   if (!res.ok) throw { status: res.status, body: text, contentType: "application/json" } satisfies TrpcFailure;
 
   const entries = parseJson(text, "Batched party lookup");
@@ -258,10 +381,12 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
   }>;
   const specializing = all.filter(country => country.specializedItem && country.rulingParty);
 
+  const parties = [...new Set(specializing.map(country => country.rulingParty!))];
   const byParty: Record<string, number> = {};
-  for (const group of chunk([...new Set(specializing.map(country => country.rulingParty!))], PARTY_BATCH_SIZE)) {
+  for (const group of chunk(parties, PARTY_BATCH_SIZE)) {
     Object.assign(byParty, await fetchPartyLevels(group));
   }
+  log.debug(`[industrialism] rebuilt from ${specializing.length} countries and ${parties.length} parties`);
 
   const body = JSON.stringify(levelsByCountry(specializing, byParty));
   return {
@@ -302,7 +427,7 @@ const buildAssets = async (): Promise<Map<string, Asset>> => {
   });
 
   if (!result.success) {
-    for (const log of result.logs) console.error(log);
+    for (const message of result.logs) log.error(`[build] ${message}`);
     throw new Error("Production build failed, refusing to start");
   }
 
@@ -323,7 +448,7 @@ const respond = (asset: Asset, status = 200): Response =>
  * in the log where it belongs.
  */
 const onError = (error: unknown): Response => {
-  console.error("[server] unhandled error while serving a request:", error);
+  log.error("[server] unhandled error while serving a request:", error);
   return new Response("Internal Server Error", {
     status: 500,
     headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -342,22 +467,24 @@ const server = isProduction
       return serve({
         error: onError,
         routes: {
-          "/api/industrialism": serveIndustrialism,
-          "/api/trpc/*": proxyTrpc,
+          "/api/industrialism": logged(serveIndustrialism),
+          "/api/trpc/*": logged(proxyTrpc),
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
-          "/*": req => {
-            const asset = assets.get(path.basename(new URL(req.url).pathname));
+          "/*": logged(req => {
+            const name = path.basename(new URL(req.url).pathname);
+            const asset = assets.get(name);
+            if (!asset) log.debug(`[static] nothing built under the name ${short(name, 60)}, serving the app`);
             return asset ? respond(asset) : respond(indexAsset);
-          },
+          }),
         },
       });
     })()
   : serve({
       error: onError,
       routes: {
-        "/api/industrialism": serveIndustrialism,
-        "/api/trpc/*": proxyTrpc,
+        "/api/industrialism": logged(serveIndustrialism),
+        "/api/trpc/*": logged(proxyTrpc),
         "/*": index,
       },
 
@@ -367,4 +494,6 @@ const server = isProduction
       },
     });
 
-console.log(`🚀 Server running at ${server.url}`);
+log.info(
+  `🚀 Server running at ${server.url} — ${isProduction ? "production" : "development"}, LOG_LEVEL=${LOG_LEVEL}`,
+);
