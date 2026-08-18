@@ -85,3 +85,8 @@ export function usePriceHistory(itemCode: string) {
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   return { prices, loading, error };
 }
+
+/** Codes arrive as camelCase identifiers — "lightAmmo", "helmet1" — and the UI wants words. */
+export function itemLabel(code: string): string {
+  return code.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/^./, first => first.toUpperCase());
+}

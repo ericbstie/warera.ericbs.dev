@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toPriceHistory, useTransactionHistory } from "./hooks";
+import { toPriceHistory, type Transaction } from "./hooks";
 
 const PADDING = { top: 30, right: 16, bottom: 28, left: 56 };
 const ROWS = 4;
@@ -39,8 +39,17 @@ function formatDate(date: string) {
   });
 }
 
-export function PriceChart({ itemCode }: { itemCode: string }) {
-  const { transactions, loading, error } = useTransactionHistory(itemCode);
+export function PriceChart({
+  itemCode,
+  transactions,
+  loading,
+  error,
+}: {
+  itemCode: string;
+  transactions: Transaction[];
+  loading: boolean;
+  error: Error | null;
+}) {
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   const { ref, width } = useContainerWidth();
   const [hovered, setHovered] = useState<number | null>(null);

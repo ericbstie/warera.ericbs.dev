@@ -1,5 +1,5 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { fetchTransactionHistory, toPriceHistory, type Transaction } from "./hooks";
+import { fetchTransactionHistory, itemLabel, toPriceHistory, type Transaction } from "./hooks";
 
 const realFetch = globalThis.fetch;
 
@@ -42,4 +42,11 @@ test("fetchTransactionHistory throws on an api error", async () => {
 
 test("toPriceHistory keeps only the date and average price", () => {
   expect(toPriceHistory([day])).toEqual([{ date: "2026-08-17", price: 0.0815 }]);
+});
+
+test("turns an item code into words", () => {
+  expect(itemLabel("oil")).toBe("Oil");
+  expect(itemLabel("lightAmmo")).toBe("Light Ammo");
+  expect(itemLabel("helmet12")).toBe("Helmet 12");
+  expect(itemLabel("")).toBe("");
 });

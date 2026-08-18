@@ -15,21 +15,21 @@ function percent(value: number | undefined, sign = "") {
 }
 
 function bonusColor(totalBonus: number) {
-  if (totalBonus >= 50) return "#4ade80";
-  if (totalBonus > 30) return "#bef264";
+  if (totalBonus >= 50) return "var(--up)";
+  if (totalBonus > 30) return "var(--mid)";
   return undefined;
 }
 
 function PlacementTable({ itemCode, placements }: { itemCode: string; placements: Placement[] }) {
   return (
-    <div className="rounded border border-[#3a322e] bg-[#1a1613] p-2">
+    <div className="rounded border border-edge bg-panel p-2">
       <div className="flex items-center gap-1.5 pb-1.5">
         <img src={itemIcon(itemCode)} alt="" width={16} height={16} className="shrink-0" />
         <span className="truncate text-xs">{itemCode}</span>
       </div>
       <div className="overflow-y-auto" style={{ maxHeight: (VISIBLE_ROWS + 1) * ROW_HEIGHT }}>
         <table className="w-full table-fixed text-[10px]">
-          <thead className="sticky top-0 bg-[#1a1613] text-[#a8a29e]">
+          <thead className="sticky top-0 bg-panel text-muted">
             <tr style={{ height: ROW_HEIGHT }}>
               <th className="text-left font-normal">Area</th>
               <th className="w-12 text-right font-normal">Bonus</th>
@@ -45,7 +45,7 @@ function PlacementTable({ itemCode, placements }: { itemCode: string; placements
                 <td className="text-right tabular-nums" style={{ color: bonusColor(placement.totalBonus) }}>
                   {percent(placement.totalBonus, "+")}
                 </td>
-                <td className="text-right tabular-nums text-[#a8a29e]">{percent(placement.taxes?.income)}</td>
+                <td className="text-right tabular-nums text-muted">{percent(placement.taxes?.income)}</td>
               </tr>
             ))}
           </tbody>
@@ -63,16 +63,16 @@ export function SettlementGrid({ items }: { items: string[] }) {
     [items, countries, industrialism],
   );
 
-  if (loading) return <p className="text-sm text-[#a8a29e]">Loading settlement bonuses…</p>;
-  if (error) return <p className="text-sm text-[#a8a29e]">Couldn't load settlement bonuses.</p>;
+  if (loading) return <p className="text-sm text-muted">Loading settlement bonuses…</p>;
+  if (error) return <p className="text-sm text-muted">Couldn't load settlement bonuses.</p>;
 
   return (
     <section className="flex flex-col gap-2">
-      <p className="text-xs text-[#a8a29e]">
+      <p className="text-xs text-muted">
         Best countries to settle a company, by production bonus. Tax is income tax.
       </p>
       {!industrialism.complete && (
-        <p className="text-xs text-[#f87171]">
+        <p className="text-xs text-down">
           Some specialization data didn't load, so a few countries may be ranked lower than they should be.
         </p>
       )}

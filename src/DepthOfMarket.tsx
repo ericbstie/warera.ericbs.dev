@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { groupOrdersByPrice, useTransactions, type Order } from "./orders";
 
-const ASK_COLOR = "#f87171";
-const BID_COLOR = "#4ade80";
-const TRACK = "#14110f";
-const BORDER = "#3a322e";
-const MUTED = "#a8a29e";
-const TEXT = "#ede9e6";
+const ASK_COLOR = "var(--down)";
+const BID_COLOR = "var(--up)";
+const TRACK = "var(--surface)";
+const BORDER = "var(--edge)";
+const MUTED = "var(--muted)";
+const TEXT = "var(--ink)";
 
 const TICK = 0.001;
 // One row per tick, so a book with a far-out order would otherwise run to
@@ -79,7 +79,7 @@ function Side({
             className={`pointer-events-none absolute inset-y-0 flex items-center rounded-sm px-1 tabular-nums ${
               bid ? "left-0" : "right-0"
             } ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-            style={{ color: TEXT, backgroundColor: "rgba(0, 0, 0, 0.65)" }}
+            style={{ color: TEXT, backgroundColor: "color-mix(in srgb, var(--surface) 82%, transparent)" }}
           >
             {formatQuantity(cell.quantity)}
           </span>
@@ -145,7 +145,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
         : "No open orders for this item.";
 
   return (
-    <div className="rounded border p-4" style={{ borderColor: BORDER, backgroundColor: "#211c19" }}>
+    <div className="rounded border p-4" style={{ borderColor: BORDER, backgroundColor: "var(--panel)" }}>
       <h2 className="mb-3 text-sm font-medium" style={{ color: TEXT }}>
         Order book
       </h2>
