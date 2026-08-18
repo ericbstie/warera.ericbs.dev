@@ -14,12 +14,32 @@ export function itemIcon(code: string) {
   return `https://media.warera.io/images/items/${code}.png?v=33`;
 }
 
+/** `?? 0` lets NaN through, and NaN is what a malformed number usually arrives as. */
+export function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/**
+ * A single unusable day would otherwise poison the chart's whole scale — one
+ * NaN price turns the axis labels, the line and the candles into NaN — so drop
+ * the days that can't be drawn and chart the rest.
+ */
+export function usableTransactions(values: unknown): Transaction[] {
+  if (!Array.isArray(values)) return [];
+  return values
+    .filter((t): t is Transaction => isFiniteNumber(t?.avgValue) && typeof t?.valueAt === "string")
+    .map(t => ({ ...t, totalQuantity: isFiniteNumber(t.totalQuantity) ? t.totalQuantity : 0 }));
+}
+
 export async function fetchTransactionHistory(itemCode: string): Promise<Transaction[]> {
   const input = encodeURIComponent(JSON.stringify({ itemCode }));
   const res = await fetch(`/api/trpc/itemTrading.getItemTrading?input=${input}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
-  return json.result.data.values ?? [];
+  // Reject an unrecognised shape rather than reading it as "never traded" —
+  // an empty chart and a broken API should not look the same.
+  if (!json?.result?.data) throw new Error("Price history came back in an unexpected shape");
+  return usableTransactions(json.result.data.values ?? []);
 }
 
 export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
