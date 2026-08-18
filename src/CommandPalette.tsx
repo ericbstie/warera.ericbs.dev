@@ -98,7 +98,7 @@ export function CommandPalette({
     <div
       // A black scrim would be invisible on the dark theme, so dim with the
       // page's own surface colour and let the theme decide what that is.
-      style={{ background: "color-mix(in srgb, var(--surface) 70%, transparent)" }}
+      style={{ background: "color-mix(in srgb, var(--surface) 84%, transparent)" }}
       className="fixed inset-0 z-30 flex items-start justify-center px-4 pt-20"
       onMouseDown={event => {
         if (event.target === event.currentTarget) onOpenChange(false);
@@ -110,7 +110,7 @@ export function CommandPalette({
         aria-modal="true"
         aria-label="Search items"
         onKeyDown={onKeyDown}
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded border border-edge bg-panel"
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-lg border border-edge bg-panel shadow-2xl"
       >
         <input
           ref={inputRef}

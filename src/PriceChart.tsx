@@ -33,10 +33,12 @@ const PANE_GAP = 12;
 const VOLUME_OPACITY = 0.5;
 /** The histogram eats into the plot, so it only appears once there is plot to spare. */
 const PROFILE_MIN_WIDTH = 640;
-const PROFILE_WIDTH_RATIO = 0.18;
-const PROFILE_OPACITY = 0.3;
-const PROFILE_POC_OPACITY = 0.55;
+const PROFILE_WIDTH_RATIO = 0.14;
+const PROFILE_OPACITY = 0.22;
+const PROFILE_POC_OPACITY = 0.45;
 const PROFILE_BAND_GAP = 1;
+/** Room for the two wrapped rows the legend needs once it stops overlaying the plot. */
+const COMPACT_LEGEND_HEIGHT = 40;
 const DRAWING_OPACITY = 0.6;
 const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
@@ -158,7 +160,12 @@ export function PriceChart({
   const profile = useMemo(() => volumeProfile(transactions), [transactions]);
   const poc = useMemo(() => pointOfControl(profile), [profile]);
 
-  const height = width < 480 ? 260 : 380;
+  // A phone has no room for a legend floating over the plot: it lands on the
+  // price axis. There it sits above the chart instead, and drops the values a
+  // small screen can do without.
+  const compact = width > 0 && width < 480;
+  const boxHeight = compact ? 260 : 380;
+  const height = compact ? boxHeight - COMPACT_LEGEND_HEIGHT : boxHeight;
   const message = loading
     ? "Loading…"
     : error
@@ -367,6 +374,7 @@ export function PriceChart({
       plotRight - half < PADDING.left + half
         ? (PADDING.left + plotRight) / 2
         : clamp((left + right) / 2, PADDING.left + half, plotRight - half);
+    const labelY = Math.max(top - 9, priceTop + 9);
 
     return (
       <g key={key}>
@@ -380,10 +388,21 @@ export function PriceChart({
           stroke={SERIES}
           strokeOpacity={MEASURE_EDGE_OPACITY}
         />
+        {/* Candles run right under the label, so it carries its own backing. */}
+        <rect
+          x={labelX - half - 4}
+          y={labelY - 9}
+          width={half * 2 + 8}
+          height="15"
+          rx="2"
+          fill={PANEL}
+          stroke={EDGE}
+        />
         <text
           x={labelX}
-          y={Math.max(top - 5, priceTop + 9)}
+          y={labelY}
           textAnchor="middle"
+          dominantBaseline="middle"
           fontSize="11"
           fill={rising ? UP : DOWN}
         >
@@ -395,12 +414,64 @@ export function PriceChart({
 
   return (
     <div className="w-full">
-      <div ref={ref} style={{ height }} className="relative w-full">
+      <div ref={ref} style={{ height: boxHeight }} className="relative w-full">
         {message ? (
           <p className="flex h-full items-center justify-center text-sm text-muted">{message}</p>
         ) : (
           width > 0 && (
             <>
+              {legend && (
+                <div
+                  className={`flex flex-wrap gap-x-3 gap-y-0.5 px-2 text-[11px] ${
+                    compact ? "pt-1" : "pointer-events-none absolute left-2 right-2 top-1"
+                  }`}
+                >
+                  <span className="text-ink tabular-nums">{formatDay(legend.date)}</span>
+                  {!compact && (
+                    <>
+                      <span className="text-muted">
+                        O <span className="text-ink tabular-nums">{formatPrice(legendOhlc.open, decimals)}</span>
+                      </span>
+                      <span className="text-muted">
+                        H <span className="text-ink tabular-nums">{formatPrice(legendOhlc.high, decimals)}</span>
+                      </span>
+                      <span className="text-muted">
+                        L <span className="text-ink tabular-nums">{formatPrice(legendOhlc.low, decimals)}</span>
+                      </span>
+                    </>
+                  )}
+                  <span className="text-muted">
+                    C <span className="text-ink tabular-nums">{formatPrice(legendOhlc.close, decimals)}</span>
+                  </span>
+                  <span className="text-muted">
+                    Vol <span className="text-ink tabular-nums">{formatCompact(legendVolume)}</span>
+                  </span>
+                  <span className="text-muted">
+                    VWAP{" "}
+                    <span className="text-ink tabular-nums">
+                      {legendVwap === null ? "—" : formatPrice(legendVwap, decimals)}
+                    </span>
+                  </span>
+
+                  {OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
+                    const style = OVERLAY_STYLE[entry.id];
+                    const value = overlayValues[entry.id][legendIndex] ?? null;
+                    return (
+                      <span key={entry.id} className="flex items-center gap-1 text-muted">
+                        <span
+                          aria-hidden
+                          className="inline-block h-0.5 w-3 rounded-full"
+                          style={{ background: style.stroke, opacity: style.opacity }}
+                        />
+                        {entry.label}{" "}
+                        <span className="text-ink tabular-nums">
+                          {value === null ? "—" : formatPrice(value, decimals)}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               <svg
                 width={width}
                 height={height}
@@ -627,50 +698,6 @@ export function PriceChart({
                 )}
               </svg>
 
-              {legend && (
-                <div className="pointer-events-none absolute left-2 right-2 top-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
-                  <span className="text-ink tabular-nums">{formatDay(legend.date)}</span>
-                  <span className="text-muted">
-                    O <span className="text-ink tabular-nums">{formatPrice(legendOhlc.open, decimals)}</span>
-                  </span>
-                  <span className="text-muted">
-                    H <span className="text-ink tabular-nums">{formatPrice(legendOhlc.high, decimals)}</span>
-                  </span>
-                  <span className="text-muted">
-                    L <span className="text-ink tabular-nums">{formatPrice(legendOhlc.low, decimals)}</span>
-                  </span>
-                  <span className="text-muted">
-                    C <span className="text-ink tabular-nums">{formatPrice(legendOhlc.close, decimals)}</span>
-                  </span>
-                  <span className="text-muted">
-                    Vol <span className="text-ink tabular-nums">{formatCompact(legendVolume)}</span>
-                  </span>
-                  <span className="text-muted">
-                    VWAP{" "}
-                    <span className="text-ink tabular-nums">
-                      {legendVwap === null ? "—" : formatPrice(legendVwap, decimals)}
-                    </span>
-                  </span>
-
-                  {OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
-                    const style = OVERLAY_STYLE[entry.id];
-                    const value = overlayValues[entry.id][legendIndex] ?? null;
-                    return (
-                      <span key={entry.id} className="flex items-center gap-1 text-muted">
-                        <span
-                          aria-hidden
-                          className="inline-block h-0.5 w-3 rounded-full"
-                          style={{ background: style.stroke, opacity: style.opacity }}
-                        />
-                        {entry.label}{" "}
-                        <span className="text-ink tabular-nums">
-                          {value === null ? "—" : formatPrice(value, decimals)}
-                        </span>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
             </>
           )
         )}
