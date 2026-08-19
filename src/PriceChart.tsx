@@ -7,7 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
-import { pointOfControl, sma, volumeProfile, vwapSeries } from "./indicators";
+import { sma, vwapSeries } from "./indicators";
 import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
@@ -31,12 +31,6 @@ const PRICE_PANE_RATIO = 0.72;
 const VOLUME_PANE_RATIO = 0.28;
 const PANE_GAP = 28;
 const VOLUME_OPACITY = 0.5;
-/** The histogram eats into the plot, so it only appears once there is plot to spare. */
-const PROFILE_MIN_WIDTH = 640;
-const PROFILE_WIDTH_RATIO = 0.14;
-const PROFILE_OPACITY = 0.22;
-const PROFILE_POC_OPACITY = 0.45;
-const PROFILE_BAND_GAP = 1;
 /** Room for the two wrapped rows the legend needs once it stops overlaying the plot. */
 const COMPACT_LEGEND_HEIGHT = 40;
 const DRAWING_OPACITY = 0.6;
@@ -169,9 +163,6 @@ export function PriceChart({
       vwap: vwapSeries(transactions),
     } satisfies Record<Overlay, (number | null)[]>;
   }, [prices, transactions]);
-  const profile = useMemo(() => volumeProfile(transactions), [transactions]);
-  const poc = useMemo(() => pointOfControl(profile), [profile]);
-
   // A phone has no room for a legend floating over the plot: it lands on the
   // price axis. There it sits above the chart instead, and drops the values a
   // small screen can do without.
@@ -284,43 +275,6 @@ export function PriceChart({
   const dateTagX = point
     ? Math.min(Math.max(x(legendIndex) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
     : 0;
-
-  const heaviestBucket = poc?.volume ?? 0;
-  const profileWidth = innerWidth * PROFILE_WIDTH_RATIO;
-  // A phone-width plot is all profile and no chart, so it simply goes away.
-  const profileBars =
-    width < PROFILE_MIN_WIDTH || heaviestBucket <= 0 ? null : (
-      <g>
-        {profile.map((bucket, i) => {
-          if (bucket.volume <= 0) return null;
-          const top = y(bucket.high);
-          const bandHeight = Math.max(y(bucket.low) - top - PROFILE_BAND_GAP, 1);
-          const length = (bucket.volume / heaviestBucket) * profileWidth;
-          const upLength = (bucket.upVolume / heaviestBucket) * profileWidth;
-          const opacity = bucket === poc ? PROFILE_POC_OPACITY : PROFILE_OPACITY;
-          return (
-            <g key={i}>
-              <rect
-                x={plotRight - length}
-                y={top}
-                width={Math.max(length - upLength, 0)}
-                height={bandHeight}
-                fill={DOWN}
-                fillOpacity={opacity}
-              />
-              <rect
-                x={plotRight - upLength}
-                y={top}
-                width={upLength}
-                height={bandHeight}
-                fill={UP}
-                fillOpacity={opacity}
-              />
-            </g>
-          );
-        })}
-      </g>
-    );
 
   const overlayLines = OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
     const style = OVERLAY_STYLE[entry.id];
@@ -499,8 +453,6 @@ export function PriceChart({
                 onPointerCancel={() => setDraft(null)}
                 onKeyDown={onKeyDown}
               >
-                {profileBars}
-
                 {Array.from({ length: ROWS + 1 }, (_, row) => {
                   const price = low + ((high - low) * row) / ROWS;
                   return (
