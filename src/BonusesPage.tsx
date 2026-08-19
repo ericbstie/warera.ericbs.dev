@@ -9,7 +9,7 @@ export function BonusesPage() {
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-        <div className="mx-auto max-w-7xl px-4 pb-4 pt-2.5">
+        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4">
           <TitleBar />
         </div>
       </header>

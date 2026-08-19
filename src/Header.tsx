@@ -94,7 +94,7 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-panel">
-      <div className="flex flex-col gap-y-3 px-2 pb-3 pt-2.5">
+      <div className="flex flex-col gap-y-3 px-3 pb-3 pt-4 sm:px-4">
         <TitleBar />
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
