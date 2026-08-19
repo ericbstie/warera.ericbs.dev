@@ -9,6 +9,9 @@ const MUTED = "var(--muted)";
 const TEXT = "var(--ink)";
 
 const TICK = 0.001;
+// A hovered column's price sits close enough to the best price's own label to
+// print on top of it, so it only shows once far enough from the spread.
+const PRICE_OVERLAP_COLUMNS = 3;
 // One column per tick, so a book with a far-out order would otherwise run to
 // thousands of columns. The columns nearest the spread are the ones worth showing.
 const MAX_COLUMNS = 250;
@@ -71,6 +74,7 @@ function Bar({
   maxQuantity,
   active,
   best,
+  nearSpread,
   onActivate,
 }: {
   column: Column;
@@ -78,6 +82,7 @@ function Bar({
   maxQuantity: number;
   active: boolean;
   best: "bid" | "ask" | null;
+  nearSpread: boolean;
   onActivate: () => void;
 }) {
   const pct = maxQuantity > 0 ? (column.quantity / maxQuantity) * 100 : 0;
@@ -108,7 +113,7 @@ function Bar({
         />
       </div>
       <div className="relative h-4">
-        {(best || active) && (
+        {(best || (active && !nearSpread)) && (
           <span className={`${LABEL} ${anchor}`} style={{ color: active ? TEXT : color }}>
             {formatPrice(column.price)}
           </span>
@@ -221,6 +226,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   maxQuantity={maxQuantity}
                   active={active === column}
                   best={index === bids.length - 1 ? "bid" : null}
+                  nearSpread={bids.length - 1 - index < PRICE_OVERLAP_COLUMNS}
                   onActivate={() => setActive(column)}
                 />
               ))}
@@ -237,6 +243,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   maxQuantity={maxQuantity}
                   active={active === column}
                   best={index === 0 ? "ask" : null}
+                  nearSpread={index < PRICE_OVERLAP_COLUMNS}
                   onActivate={() => setActive(column)}
                 />
               ))}
