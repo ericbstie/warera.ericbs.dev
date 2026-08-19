@@ -101,7 +101,7 @@ function Drawer({ onClose }: { onClose: () => void }) {
                 aria-current={current ? "page" : undefined}
                 onClick={event => follow(event, link.href)}
                 className={`flex min-h-10 items-center rounded px-3 py-2 text-sm ${
-                  current ? "bg-accent font-semibold text-white" : "text-ink"
+                  current ? "bg-accent font-semibold text-on-accent" : "text-ink"
                 }`}
               >
                 {link.label}
