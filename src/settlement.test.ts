@@ -49,3 +49,17 @@ test("keeps taxes and caps the list at the limit", () => {
   expect(ranked).toHaveLength(10);
   expect(ranked[0]!.taxes).toEqual(taxes);
 });
+
+test("countries stay distinguishable when their display names aren't", () => {
+  // Two countries sharing a name, and one with none, all keyed on the name
+  // collided in React and rendered as a single row.
+  const countries = [
+    { ...country("a", 20), name: "Nordland" },
+    { ...country("b", 10), name: "Nordland" },
+    { ...country("c", 5), name: undefined as unknown as string },
+  ];
+
+  const ids = rankPlacements(countries, {}, "iron").map(placement => placement.id);
+  expect(ids).toEqual(["a", "b", "c"]);
+  expect(new Set(ids).size).toBe(ids.length);
+});
