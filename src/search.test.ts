@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type MarketItem } from "./Header";
+import { type MarketItem } from "./hooks";
 import { searchItems } from "./search";
 
 const ITEMS: MarketItem[] = [

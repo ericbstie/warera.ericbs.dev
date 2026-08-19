@@ -7,8 +7,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { type MarketItem } from "./Header";
-import { itemIcon, itemLabel } from "./hooks";
+import { itemIcon, itemLabel, type MarketItem } from "./hooks";
 import { searchItems } from "./search";
 
 /** Ctrl+K is the terminal convention for symbol search; Cmd+K is its mac spelling. */

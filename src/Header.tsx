@@ -1,9 +1,7 @@
 import { Ticker } from "./Ticker";
-import { itemIcon, itemLabel } from "./hooks";
+import { TitleBar } from "./TitleBar";
+import { itemIcon, itemLabel, type MarketItem } from "./hooks";
 import { formatCompact, formatDay, formatPrice, type Quote } from "./stats";
-import { useTheme } from "./theme";
-
-export type MarketItem = { code: string; type: string };
 
 /** The upstream config groups items by a bare `type`; the picker shows them under headings. */
 const GROUPS: { type: string; label: string }[] = [
@@ -77,32 +75,6 @@ function ItemPicker({
   );
 }
 
-function ThemeToggle() {
-  const { theme, toggle } = useTheme();
-  const dark = theme === "dark";
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-pressed={dark}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded border border-edge p-1.5 text-ink sm:right-4"
-    >
-      <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden className="fill-current">
-        {dark ? (
-          <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7Z" />
-        ) : (
-          <>
-            <circle cx="8" cy="8" r="3.2" />
-            <path d="M8 .8v2m0 10.4v2M.8 8h2m10.4 0h2M2.9 2.9l1.4 1.4m7.4 7.4 1.4 1.4m0-10.2-1.4 1.4m-7.4 7.4-1.4 1.4" stroke="currentColor" strokeWidth="1.3" />
-          </>
-        )}
-      </svg>
-    </button>
-  );
-}
-
 export function Header({
   items,
   selected,
@@ -123,10 +95,7 @@ export function Header({
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 pb-4 pt-2.5">
-        <div className="relative flex items-center justify-center">
-          <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
-          <ThemeToggle />
-        </div>
+        <TitleBar />
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <Ticker items={items.map(item => item.code)} onSelect={onSelect} />
