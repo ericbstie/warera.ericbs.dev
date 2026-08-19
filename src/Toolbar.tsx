@@ -1,7 +1,5 @@
 import { useState, type ReactNode } from "react";
 import { RANGES, type Range } from "./indicators";
-import { ToolRail } from "./ToolRail";
-import { type ToolId } from "./tools";
 
 export type Overlay = "sma5" | "sma10" | "sma20" | "vwap";
 
@@ -63,10 +61,6 @@ export function Toolbar({
   onView,
   overlays,
   onToggleOverlay,
-  tool,
-  onTool,
-  onClear,
-  hasDrawings,
 }: {
   range: Range;
   onRange: (range: Range) => void;
@@ -74,10 +68,6 @@ export function Toolbar({
   onView: (view: "line" | "candle") => void;
   overlays: Overlay[];
   onToggleOverlay: (overlay: Overlay) => void;
-  tool: ToolId;
-  onTool: (tool: ToolId) => void;
-  onClear: () => void;
-  hasDrawings: boolean;
 }) {
   // Narrow screens collapse the chips behind the button so the strip stays one
   // line; from `sm` up the chips are always on show and this only tracks the arrow.
@@ -85,13 +75,7 @@ export function Toolbar({
 
   return (
     <div className="border-b border-edge bg-panel">
-      {/* Drawing tools, chart type and range share one line, each group fenced
-          off by a divider. On a phone there is no room for that, so they wrap. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2">
-        <ToolRail tool={tool} onTool={onTool} onClear={onClear} hasDrawings={hasDrawings} />
-
-        <Divider />
-
         <Group label="Chart type">
           {VIEWS.map(entry => (
             <Segment

@@ -8,6 +8,7 @@ import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
 import { Toolbar, type Overlay } from "./Toolbar";
+import { ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 import "./index.css";
 
@@ -169,24 +170,31 @@ export function App() {
             onView={setView}
             overlays={overlays}
             onToggleOverlay={toggleOverlay}
-            tool={tool}
-            onTool={setTool}
-            onClear={() => setDrawings([])}
-            hasDrawings={drawings.length > 0}
           />
-          <Panel label="price chart">
-            <PriceChart
-              itemCode={selected}
-              transactions={visible}
-              loading={loading}
-              error={historyError}
-              view={view}
-              overlays={overlays}
+
+          <div className="flex flex-col sm:flex-row">
+            <ToolRail
               tool={tool}
-              drawings={drawings}
-              onDraw={drawing => setDrawings(current => [...current, drawing])}
+              onTool={setTool}
+              onClear={() => setDrawings([])}
+              hasDrawings={drawings.length > 0}
             />
-          </Panel>
+            <div className="min-w-0 flex-1">
+              <Panel label="price chart">
+                <PriceChart
+                  itemCode={selected}
+                  transactions={visible}
+                  loading={loading}
+                  error={historyError}
+                  view={view}
+                  overlays={overlays}
+                  tool={tool}
+                  drawings={drawings}
+                  onDraw={drawing => setDrawings(current => [...current, drawing])}
+                />
+              </Panel>
+            </div>
+          </div>
         </section>
 
         {/* The order book draws its own card, so it needs no wrapper of its own. */}
