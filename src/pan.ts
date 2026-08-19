@@ -1,7 +1,8 @@
 // The chart keeps a stretch of empty room past its last bar, so a level or a
 // measurement can be drawn where the price hasn't been yet. Panning into it is
 // what these work out: how far right the view may go, and what date a column
-// carries once it is past the end of the record.
+// carries once it is past the end of the record — and, since a pinch decides how
+// much of the record the view holds, what the limits of that are.
 
 import { isTimestamp, parseBarDate } from "./stats";
 
@@ -20,10 +21,35 @@ export function lastIndex(count: number): number {
   return Math.max(count - 1, 0) + futureSpan(count);
 }
 
-/** Offset 0 puts the newest bar hard against the right edge, which is where the chart opens. */
-export function clampOffset(offset: number, count: number): number {
+/**
+ * Offset 0 puts the newest bar hard against the right edge, which is where the
+ * chart opens. Zoomed in the view holds fewer gaps than the record, so there is
+ * that much more of it to scroll through before the far edge is reached.
+ */
+export function clampOffset(offset: number, count: number, span = futureSpan(count)): number {
   if (!Number.isFinite(offset)) return 0;
-  return Math.min(Math.max(offset, 0), futureSpan(count));
+  return Math.min(Math.max(offset, 0), Math.max(lastIndex(count) - span, 0));
+}
+
+/** Fewer than this on screen and a chart is a handful of bars floating in space. */
+const MIN_VISIBLE_GAPS = 4;
+
+/**
+ * How many gaps the view spans. Zooming out stops at the whole record — the
+ * chart already opens there — and zooming in stops a few bars short of one.
+ */
+export function clampSpan(span: number, count: number): number {
+  const whole = futureSpan(count);
+  if (!Number.isFinite(span)) return whole;
+  return Math.min(Math.max(span, Math.min(MIN_VISIBLE_GAPS, whole)), whole);
+}
+
+/** How far the price scale may be pulled: 1 is the whole range in the pane. */
+const MAX_STRETCH = 10;
+
+export function clampStretch(stretch: number): number {
+  if (!Number.isFinite(stretch)) return 1;
+  return Math.min(Math.max(stretch, 1), MAX_STRETCH);
 }
 
 /**

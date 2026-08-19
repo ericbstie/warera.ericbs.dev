@@ -6,11 +6,10 @@ import {
   useState,
   type KeyboardEvent,
   type PointerEvent,
-  type WheelEvent,
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
 import { sma, vwapSeries } from "./indicators";
-import { barDateAt, clampOffset, lastIndex } from "./pan";
+import { barDateAt, clampOffset, clampSpan, clampStretch, futureSpan, lastIndex } from "./pan";
 import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
@@ -43,6 +42,21 @@ const MEASURE_EDGE_OPACITY = 0.45;
 const LABEL_CHAR_WIDTH = 6;
 /** Below this, a measured box is a layout still settling rather than a chart. */
 const MIN_BOX_HEIGHT = 200;
+/** How hard a wheel bites. A trackpad pinch reports far smaller deltas than a mouse notch, so it needs a longer lever. */
+const WHEEL_SCALE = 0.002;
+const PINCH_SCALE = 0.01;
+/** Two fingers this close together on an axis were never meant to work it. */
+const MIN_PINCH_SPREAD = 24;
+
+/** The view a fresh chart opens on: the whole record, the whole price range. */
+const FIT: Scale = { offset: 0, span: null, stretch: 1 };
+
+/**
+ * What of the chart is on screen: the leftmost bar, how many gaps fit beside it
+ * — null until a pinch narrows it from the whole record — and how far the price
+ * scale has been pulled past the range that fits.
+ */
+type Scale = { offset: number; span: number | null; stretch: number };
 
 type MeasureDrawing = Extract<Drawing, { kind: "measure" }>;
 
@@ -137,6 +151,7 @@ export function PriceChart({
   tool,
   drawings,
   onDraw,
+  resetAt,
 }: {
   itemCode: string;
   transactions: Transaction[];
@@ -147,20 +162,28 @@ export function PriceChart({
   tool: ToolId;
   drawings: Drawing[];
   onDraw: (drawing: Drawing) => void;
+  /** Bumped when the page is reset, which returns the view to its fit. */
+  resetAt: number;
 }) {
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   const { ref, width, height: boxed } = useContainerSize();
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<MeasureDrawing | null>(null);
-  // Bars of empty room pulled in from the right. Zero — the newest bar against
-  // the right edge — is where the chart sits until someone scrolls it forward.
-  const [offset, setOffset] = useState(0);
+  const [scale, setScale] = useState<Scale>(FIT);
   const panFrom = useRef<{ x: number; offset: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  /** Every finger or cursor on the plot, so a second one can be told from the first. */
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchFrom = useRef<
+    { dx: number; dy: number; ratio: number; offset: number; span: number; stretch: number } | null
+  >(null);
   const clipId = useId();
+  const priceClipId = useId();
 
-  // Another item, or another range, is another set of bars: the future scrolled
-  // to belonged to the old ones.
-  useEffect(() => setOffset(0), [itemCode, prices.length]);
+  // Another item, or another range, is another set of bars: the view scrolled
+  // and pinched to belonged to the old ones.
+  useEffect(() => setScale(FIT), [itemCode, prices.length]);
+  useEffect(() => setScale(FIT), [resetAt]);
 
   // Letting go of the graph keeps the last-held bar highlighted; only a
   // click elsewhere on the page drops it back to the most recent one.
@@ -201,8 +224,24 @@ export function PriceChart({
 
   const values = prices.map(p => p.price);
   const pad = (Math.max(...values) - Math.min(...values)) * 0.1 || Math.abs(values[0] ?? 0) * 0.1 || 1;
-  const low = Math.min(...values) - pad;
-  const high = Math.max(...values) + pad;
+  const fitLow = Math.min(...values) - pad;
+  const fitHigh = Math.max(...values) + pad;
+  // How many gaps the view spans — the whole record until a pinch narrows it.
+  const span = scale.span ?? futureSpan(prices.length);
+  const offset = scale.offset;
+  const stretch = scale.stretch;
+  // Stretching keeps the same pane and shows less of the price range in it. The
+  // window it keeps is centred on the bars in view, so pulling the scale open
+  // magnifies what is being looked at rather than the middle of the record —
+  // and it never leaves the range, so an unstretched chart still fits it whole.
+  const onScreen = values.slice(Math.max(Math.floor(offset), 0), Math.ceil(offset + span) + 1);
+  const half = (fitHigh - fitLow) / (2 * stretch);
+  const middle = onScreen.length
+    ? (Math.min(...onScreen) + Math.max(...onScreen)) / 2
+    : (fitLow + fitHigh) / 2;
+  const centre = clamp(middle, fitLow + half, fitHigh - half);
+  const low = centre - half;
+  const high = centre + half;
   const decimals = Math.min(6, Math.max(2, Math.ceil(-Math.log10((high - low) / ROWS)) + 1));
   const columns = width < 480 ? 3 : 5;
 
@@ -216,7 +255,6 @@ export function PriceChart({
   const volumeBottom = volumeTop + volumeHeight;
   const plotRight = width - PADDING.right;
 
-  const span = prices.length - 1;
   const x = (index: number) =>
     PADDING.left + (span < 1 ? innerWidth / 2 : ((index - offset) / span) * innerWidth);
   const y = (price: number) => priceBottom - ((price - low) / (high - low)) * priceHeight;
@@ -255,9 +293,71 @@ export function PriceChart({
     return { index, price: priceAt(event.clientY - bounds.top) };
   };
 
-  const panTo = (next: number) => setOffset(clampOffset(next, prices.length));
+  /** Where along the plot a client x falls: 0 at the left edge of it, 1 at the right. */
+  const ratioOf = (clientX: number, left: number) =>
+    clamp((clientX - left - PADDING.left) / innerWidth, 0, 1);
+
+  const panTo = (next: number) =>
+    setScale(current => ({ ...current, offset: clampOffset(next, prices.length, span) }));
+
+  /**
+   * Zoom about a point of the plot: the bar under the fingers, or under the
+   * cursor, is the one that stays where it is while the rest close in on it.
+   */
+  const zoomAt = (ratio: number, factor: number) =>
+    setScale(current => {
+      const from = current.span ?? futureSpan(prices.length);
+      const next = clampSpan(from * factor, prices.length);
+      const held = current.offset + ratio * from;
+      return {
+        ...current,
+        span: next,
+        offset: clampOffset(held - ratio * next, prices.length, next),
+      };
+    });
+
+  const stretchBy = (factor: number) =>
+    setScale(current => ({ ...current, stretch: clampStretch(current.stretch * factor) }));
+
+  /** Two fingers work the axes apart: spreading sideways zooms, spreading up stretches. */
+  const pinchTo = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const from = pinchFrom.current;
+    if (!from) return;
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
+    const nextSpan =
+      from.dx < MIN_PINCH_SPREAD
+        ? from.span
+        : clampSpan(from.span * (from.dx / Math.max(dx, 1)), prices.length);
+    const nextStretch =
+      from.dy < MIN_PINCH_SPREAD ? from.stretch : clampStretch((from.stretch * dy) / from.dy);
+    const held = from.offset + from.ratio * from.span;
+    setScale({
+      span: nextSpan,
+      stretch: nextStretch,
+      offset: clampOffset(held - from.ratio * nextSpan, prices.length, nextSpan),
+    });
+  };
 
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // A second finger down turns the drag into a pinch, and whatever the first
+    // one had started — a pan, a measurement — is abandoned to it.
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      panFrom.current = null;
+      setDraft(null);
+      pinchFrom.current = {
+        dx: Math.abs(a.x - b.x),
+        dy: Math.abs(a.y - b.y),
+        ratio: ratioOf((a.x + b.x) / 2, event.currentTarget.getBoundingClientRect().left),
+        offset,
+        span,
+        stretch,
+      };
+      return;
+    }
+    if (pointers.current.size > 2) return;
     const { index, price } = locate(event);
     setHovered(index);
     // Capture keeps the drag alive when a finger slides off the plot.
@@ -272,6 +372,16 @@ export function PriceChart({
   };
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (pointers.current.has(event.pointerId)) {
+      pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+    if (pinchFrom.current) {
+      if (pointers.current.size >= 2) {
+        const [a, b] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+        pinchTo(a, b);
+      }
+      return;
+    }
     // Read the bar before the pan lands: measured against the offset it was
     // grabbed at, the bar under the finger stays under the finger.
     const { index, price } = locate(event);
@@ -281,7 +391,14 @@ export function PriceChart({
   };
 
   const onPointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    pointers.current.delete(event.pointerId);
     panFrom.current = null;
+    // The finger left on the plot after a pinch shouldn't drag the chart along
+    // with it: it takes a fresh press to pan again.
+    if (pinchFrom.current) {
+      if (pointers.current.size < 2) pinchFrom.current = null;
+      return;
+    }
     if (!draft) return;
     const { index, price } = locate(event);
     setDraft(null);
@@ -290,11 +407,45 @@ export function PriceChart({
     if (index !== draft.fromIndex) onDraw({ ...draft, toIndex: index, toPrice: price });
   };
 
-  /** A plain vertical wheel still belongs to the page; sideways scrolling is the chart's. */
-  const onWheel = (event: WheelEvent<SVGSVGElement>) => {
-    const delta = event.deltaX || (event.shiftKey ? event.deltaY : 0);
-    if (delta) panTo(offset + delta / spacing);
-  };
+  /**
+   * The wheel is the mouse's pinch: it zooms the time axis, with shift held it
+   * stretches the price axis, and a trackpad pinch — which reaches the page as
+   * a wheel with ctrl held — zooms as well. Sideways scrolling still pans.
+   *
+   * React listens for the wheel passively, so this is bound by hand: the
+   * browser's own page zoom and scroll have to be held off for any of it.
+   */
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const onWheel = (event: globalThis.WheelEvent) => {
+      const pinching = event.ctrlKey;
+      if (event.shiftKey && !pinching) {
+        // Shift turns the wheel sideways on some platforms and leaves it
+        // upright on others, so the stretch takes whichever axis it arrives on.
+        const delta = event.deltaY || event.deltaX;
+        if (!delta) return;
+        event.preventDefault();
+        stretchBy(Math.exp(-delta * WHEEL_SCALE));
+        return;
+      }
+      if (!pinching && event.deltaX) {
+        event.preventDefault();
+        panTo(offset + event.deltaX / spacing);
+        return;
+      }
+      if (!event.deltaY) return;
+      event.preventDefault();
+      zoomAt(
+        ratioOf(event.clientX, svg.getBoundingClientRect().left),
+        Math.exp(event.deltaY * (pinching ? PINCH_SCALE : WHEEL_SCALE)),
+      );
+    };
+
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  });
 
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key === "Escape") {
@@ -311,6 +462,8 @@ export function PriceChart({
     panTo(Math.min(Math.max(offset, next - span), next));
   };
 
+  /** A stretch can take the read price off the pane; its tag stays on the axis. */
+  const tagY = point ? clamp(y(point.price), priceTop, priceBottom) : 0;
   const dateTag = point ? formatDate(barDateAt(dates, legendIndex)) : "";
   const dateTagWidth = dateTag.length * LABEL_CHAR_WIDTH + 14;
   const dateTagX = point
@@ -374,8 +527,9 @@ export function PriceChart({
     // Scrolling can carry half a measurement off the plot; the rest stays put.
     const left = clamp(Math.min(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
     const right = clamp(Math.max(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
-    const top = y(Math.max(drawing.fromPrice, drawing.toPrice));
-    const bottom = y(Math.min(drawing.fromPrice, drawing.toPrice));
+    // Stretching can carry an end of it off the pane; the box stops at the edge.
+    const top = clamp(y(Math.max(drawing.fromPrice, drawing.toPrice)), priceTop, priceBottom);
+    const bottom = clamp(y(Math.min(drawing.fromPrice, drawing.toPrice)), priceTop, priceBottom);
     const sign = rising ? "+" : "";
     const label = `${sign}${formatPrice(change, decimals)} (${sign}${changePct.toFixed(2)}%) ${bars}`;
     const half = (label.length * LABEL_CHAR_WIDTH) / 2;
@@ -481,10 +635,10 @@ export function PriceChart({
                   })}
                 </div>
               )}
-              {offset >= 0.5 && (
+              {(offset >= 0.5 || span < futureSpan(prices.length) || stretch > 1) && (
                 <button
                   type="button"
-                  onClick={() => setOffset(0)}
+                  onClick={() => setScale(FIT)}
                   // Inside the plot rather than over the price axis, and below
                   // the legend on a phone, where the legend has the top of the box.
                   style={{ top: compact ? COMPACT_LEGEND_HEIGHT + 2 : 2, right: PADDING.right + 4 }}
@@ -494,6 +648,7 @@ export function PriceChart({
                 </button>
               )}
               <svg
+                ref={svgRef}
                 width={width}
                 height={height}
                 role="img"
@@ -504,17 +659,27 @@ export function PriceChart({
                 onPointerMove={onPointerMove}
                 onPointerDown={onPointerDown}
                 onPointerUp={onPointerUp}
-                onPointerCancel={() => {
+                onPointerCancel={event => {
+                  pointers.current.delete(event.pointerId);
+                  if (pointers.current.size < 2) pinchFrom.current = null;
                   panFrom.current = null;
                   setDraft(null);
                 }}
-                onWheel={onWheel}
                 onKeyDown={onKeyDown}
               >
                 <defs>
                   {/* Scrolled-away bars must stop at the plot, not run under the axis labels. */}
                   <clipPath id={clipId}>
                     <rect x={PADDING.left} y="0" width={Math.max(innerWidth, 0)} height={height} />
+                  </clipPath>
+                  {/* A stretched price runs off its pane rather than over the volume below it. */}
+                  <clipPath id={priceClipId}>
+                    <rect
+                      x={PADDING.left}
+                      y={priceTop}
+                      width={Math.max(innerWidth, 0)}
+                      height={Math.max(priceHeight, 0)}
+                    />
                   </clipPath>
                 </defs>
 
@@ -604,29 +769,32 @@ export function PriceChart({
                     );
                   })}
 
+                  {point && (
+                    <line
+                      x1={x(legendIndex)}
+                      x2={x(legendIndex)}
+                      y1={priceTop}
+                      y2={volumeBottom}
+                      stroke={AXIS_TEXT}
+                      strokeOpacity="0.5"
+                      strokeDasharray="4 4"
+                    />
+                  )}
+                </g>
+
+                <g clipPath={`url(#${priceClipId})`}>
                   {overlayLines}
 
                   {point && (
-                    <g>
-                      <line
-                        x1={x(legendIndex)}
-                        x2={x(legendIndex)}
-                        y1={priceTop}
-                        y2={volumeBottom}
-                        stroke={AXIS_TEXT}
-                        strokeOpacity="0.5"
-                        strokeDasharray="4 4"
-                      />
-                      <line
-                        x1={PADDING.left}
-                        x2={width - PADDING.right}
-                        y1={y(point.price)}
-                        y2={y(point.price)}
-                        stroke={AXIS_TEXT}
-                        strokeOpacity="0.5"
-                        strokeDasharray="4 4"
-                      />
-                    </g>
+                    <line
+                      x1={PADDING.left}
+                      x2={width - PADDING.right}
+                      y1={y(point.price)}
+                      y2={y(point.price)}
+                      stroke={AXIS_TEXT}
+                      strokeOpacity="0.5"
+                      strokeDasharray="4 4"
+                    />
                   )}
 
                   {view === "line" ? (
@@ -683,7 +851,7 @@ export function PriceChart({
 
                 {point && (
                   <g>
-                    <g clipPath={`url(#${clipId})`}>
+                    <g clipPath={`url(#${priceClipId})`}>
                       <circle
                         cx={x(dataIndex)}
                         cy={y(point.price)}
@@ -695,7 +863,7 @@ export function PriceChart({
                     </g>
                     <rect
                       x={width - PADDING.right + 4}
-                      y={y(point.price) - 9}
+                      y={tagY - 9}
                       width={PADDING.right - 8}
                       height="18"
                       rx="3"
@@ -704,7 +872,7 @@ export function PriceChart({
                     />
                     <text
                       x={axisX}
-                      y={y(point.price)}
+                      y={tagY}
                       textAnchor="end"
                       dominantBaseline="middle"
                       fontSize="11"

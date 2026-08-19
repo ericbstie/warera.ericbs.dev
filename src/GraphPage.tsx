@@ -23,6 +23,8 @@ export function GraphPage() {
   const [tool, setTool] = useState<ToolId>("crosshair");
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [searching, setSearching] = useState(false);
+  // A reset returns the chart to its fit, which is the chart's own state to hold.
+  const [resetAt, setResetAt] = useState(0);
 
   // A list that arrives, changes or empties must never leave the chart pointed
   // at an item that is no longer in it.
@@ -52,6 +54,7 @@ export function GraphPage() {
   );
 
   const reset = useCallback(() => {
+    setResetAt(count => count + 1);
     setDrawings([]);
     setTool("crosshair");
     setOverlays(DEFAULT_OVERLAYS);
@@ -124,6 +127,7 @@ export function GraphPage() {
                   tool={tool}
                   drawings={drawings}
                   onDraw={drawing => setDrawings(current => [...current, drawing])}
+                  resetAt={resetAt}
                 />
               </Panel>
             </div>
