@@ -58,7 +58,7 @@ const FIT: Scale = { offset: 0, span: null, stretch: 1 };
  */
 type Scale = { offset: number; span: number | null; stretch: number };
 
-type MeasureDrawing = Extract<Drawing, { kind: "measure" }>;
+type DraggedDrawing = Extract<Drawing, { kind: "line" | "measure" }>;
 
 /** The averages share one colour, so dash and opacity are what tell them apart. */
 const OVERLAY_STYLE: Record<
@@ -168,7 +168,7 @@ export function PriceChart({
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   const { ref, width, height: boxed } = useContainerSize();
   const [hovered, setHovered] = useState<number | null>(null);
-  const [draft, setDraft] = useState<MeasureDrawing | null>(null);
+  const [draft, setDraft] = useState<DraggedDrawing | null>(null);
   const [scale, setScale] = useState<Scale>(FIT);
   const panFrom = useRef<{ x: number; offset: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -365,9 +365,8 @@ export function PriceChart({
     // The crosshair is also the hand: dragging it carries the chart along,
     // which is the only way into the future on a touchscreen.
     if (tool === "crosshair") panFrom.current = { x: event.clientX, offset };
-    if (tool === "line") onDraw({ kind: "line", price });
-    if (tool === "measure") {
-      setDraft({ kind: "measure", fromIndex: index, toIndex: index, fromPrice: price, toPrice: price });
+    if (tool === "line" || tool === "measure") {
+      setDraft({ kind: tool, fromIndex: index, toIndex: index, fromPrice: price, toPrice: price });
     }
   };
 
@@ -489,36 +488,17 @@ export function PriceChart({
 
   const renderDrawing = (drawing: Drawing, key: string) => {
     if (drawing.kind === "line") {
-      const level = y(clamp(drawing.price, low, high));
+      // Scrolling or stretching can carry an end of the line off the pane; it
+      // stops at the edge rather than vanishing.
+      const x1 = clamp(x(drawing.fromIndex), PADDING.left, plotRight);
+      const y1 = clamp(y(clamp(drawing.fromPrice, low, high)), priceTop, priceBottom);
+      const x2 = clamp(x(drawing.toIndex), PADDING.left, plotRight);
+      const y2 = clamp(y(clamp(drawing.toPrice, low, high)), priceTop, priceBottom);
       return (
         <g key={key}>
-          <line
-            x1={PADDING.left}
-            x2={plotRight}
-            y1={level}
-            y2={level}
-            stroke={LABEL_TEXT}
-            strokeOpacity={DRAWING_OPACITY}
-          />
-          <rect
-            x={plotRight + 4}
-            y={level - 9}
-            width={PADDING.right - 8}
-            height="18"
-            rx="3"
-            fill={PANEL}
-            stroke={EDGE}
-          />
-          <text
-            x={axisX}
-            y={level}
-            textAnchor="end"
-            dominantBaseline="middle"
-            fontSize="11"
-            fill={LABEL_TEXT}
-          >
-            {formatPrice(drawing.price, decimals)}
-          </text>
+          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LABEL_TEXT} strokeOpacity={DRAWING_OPACITY} />
+          <circle cx={x1} cy={y1} r={3} fill={LABEL_TEXT} fillOpacity={DRAWING_OPACITY} />
+          <circle cx={x2} cy={y2} r={3} fill={LABEL_TEXT} fillOpacity={DRAWING_OPACITY} />
         </g>
       );
     }

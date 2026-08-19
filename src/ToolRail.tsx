@@ -8,7 +8,13 @@ const ICONS: Record<ToolId, ReactElement> = {
       <circle cx="8" cy="8" r="2.5" />
     </>
   ),
-  line: <path d="M1.5 8h13M4 5.5v5M12 5.5v5" />,
+  line: (
+    <>
+      <path d="M2.5 13.5 13.5 2.5" />
+      <circle cx="2.5" cy="13.5" r="1.5" />
+      <circle cx="13.5" cy="2.5" r="1.5" />
+    </>
+  ),
   measure: (
     <>
       <rect x="2" y="3.5" width="12" height="9" rx="1" />

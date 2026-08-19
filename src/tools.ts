@@ -2,13 +2,13 @@ export type ToolId = "crosshair" | "line" | "measure";
 
 export const TOOLS: { id: ToolId; label: string; hint: string }[] = [
   { id: "crosshair", label: "Crosshair", hint: "Read a day off the chart" },
-  { id: "line", label: "Price line", hint: "Click to pin a price level" },
+  { id: "line", label: "Trend line", hint: "Drag between two points to draw a line" },
   { id: "measure", label: "Measure", hint: "Drag across bars for the move between them" },
 ];
 
-/** A price level pinned to the chart, or a span dragged out between two bars. */
+/** A trend line or a measured span, each dragged out between two points. */
 export type Drawing =
-  | { kind: "line"; price: number }
+  | { kind: "line"; fromIndex: number; toIndex: number; fromPrice: number; toPrice: number }
   | { kind: "measure"; fromIndex: number; toIndex: number; fromPrice: number; toPrice: number };
 
 export type Measurement = { change: number; changePct: number; bars: number; rising: boolean };
