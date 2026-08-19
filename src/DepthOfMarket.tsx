@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { groupOrdersByPrice, useTransactions, type Order } from "./orders";
 
 const ASK_COLOR = "var(--down)";
@@ -119,13 +119,22 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   const spread = bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
 
   // A deep book is wider than the panel, and the spread is the part worth
-  // opening on rather than the far end of the bids.
-  useEffect(() => {
+  // opening on rather than the far end of the bids. The panel settles to its
+  // final width after the book has drawn on some layouts, so the same centring
+  // runs again on every width it is given.
+  useLayoutEffect(() => {
     setActive(null);
     const scroller = scrollerRef.current;
     const spreadLine = spreadRef.current;
     if (!scroller || !spreadLine) return;
-    scroller.scrollLeft = spreadLine.offsetLeft - scroller.clientWidth / 2;
+
+    const centre = () => {
+      scroller.scrollLeft = spreadLine.offsetLeft + spreadLine.offsetWidth / 2 - scroller.clientWidth / 2;
+    };
+    centre();
+    const observer = new ResizeObserver(centre);
+    observer.observe(scroller);
+    return () => observer.disconnect();
   }, [bids, asks]);
 
   const message = loading
@@ -152,9 +161,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
               Bids
             </span>
             <span className="shrink-0 tabular-nums" style={{ color: active ? TEXT : MUTED }}>
-              {active
-                ? `${formatPrice(active.price)} · ${formatQuantity(active.quantity)}`
-                : `Spread ${spread !== null ? spread.toFixed(3) : "—"}`}
+              {active ? formatQuantity(active.quantity) : `Spread ${spread !== null ? spread.toFixed(3) : "—"}`}
             </span>
             <span className="flex-1 text-right" style={{ color: ASK_COLOR }}>
               Asks
