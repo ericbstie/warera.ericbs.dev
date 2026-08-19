@@ -3,7 +3,7 @@ import { itemIcon } from "./hooks";
 import { rankPlacements, useSettlementData, type Placement } from "./settlement";
 
 const VISIBLE_ROWS = 5;
-const ROW_HEIGHT = 20;
+const ROW_HEIGHT = 26;
 
 /**
  * A country missing its taxes or bonuses used to throw here and blank the whole
@@ -22,18 +22,18 @@ function bonusColor(totalBonus: number) {
 
 function PlacementTable({ itemCode, placements }: { itemCode: string; placements: Placement[] }) {
   return (
-    <div className="rounded border border-edge bg-panel p-2">
-      <div className="flex items-center gap-1.5 pb-1.5">
-        <img src={itemIcon(itemCode)} alt="" width={16} height={16} className="shrink-0" />
-        <span className="truncate text-xs">{itemCode}</span>
+    <div className="rounded border border-edge bg-panel p-3">
+      <div className="flex items-center gap-2 pb-2">
+        <img src={itemIcon(itemCode)} alt="" width={20} height={20} className="shrink-0" />
+        <span className="truncate text-sm font-medium">{itemCode}</span>
       </div>
       <div className="overflow-y-auto" style={{ maxHeight: (VISIBLE_ROWS + 1) * ROW_HEIGHT }}>
-        <table className="w-full table-fixed text-[10px]">
+        <table className="w-full table-fixed text-sm">
           <thead className="sticky top-0 bg-panel text-muted">
             <tr style={{ height: ROW_HEIGHT }}>
               <th className="text-left font-normal">Area</th>
-              <th className="w-12 text-right font-normal">Bonus</th>
-              <th className="w-14 text-right font-normal">Tax</th>
+              <th className="w-16 text-right font-normal">Bonus</th>
+              <th className="w-16 text-right font-normal">Tax</th>
             </tr>
           </thead>
           <tbody>
@@ -42,7 +42,7 @@ function PlacementTable({ itemCode, placements }: { itemCode: string; placements
                 <td className="truncate pr-1" title={placement.country}>
                   {placement.country}
                 </td>
-                <td className="text-right tabular-nums" style={{ color: bonusColor(placement.totalBonus) }}>
+                <td className="text-right tabular-nums font-medium" style={{ color: bonusColor(placement.totalBonus) }}>
                   {percent(placement.totalBonus, "+")}
                 </td>
                 <td className="text-right tabular-nums text-muted">{percent(placement.taxes?.income)}</td>
@@ -73,7 +73,7 @@ export function SettlementGrid({ items }: { items: string[] }) {
           Some specialization data didn't load, so a few countries may be ranked lower than they should be.
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {rankings.map(({ item, placements }) => (
           <PlacementTable key={item} itemCode={item} placements={placements} />
         ))}
