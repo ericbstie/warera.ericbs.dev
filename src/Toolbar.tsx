@@ -42,16 +42,15 @@ function Group({ children, label }: { children: ReactNode; label: string }) {
     <div
       role="group"
       aria-label={label}
-      className="flex items-center divide-x divide-edge overflow-hidden rounded border border-edge"
+      className="flex shrink-0 items-center divide-x divide-edge overflow-hidden rounded border border-edge"
     >
       {children}
     </div>
   );
 }
 
-/** Only earns its keep while the groups share a line; below `sm` they wrap apart instead. */
 function Divider() {
-  return <span aria-hidden className="hidden h-5 self-center border-l border-edge sm:block" />;
+  return <span aria-hidden className="h-5 shrink-0 self-center border-l border-edge" />;
 }
 
 export function Toolbar({
@@ -69,56 +68,28 @@ export function Toolbar({
   overlays: Overlay[];
   onToggleOverlay: (overlay: Overlay) => void;
 }) {
-  // Narrow screens collapse the chips behind the button so the strip stays one
-  // line; from `sm` up the chips are always on show and this only tracks the arrow.
+  // The chips live behind the button at every width: the strip stays one line
+  // and scrolls, so anything as wide as four chips has to float over the chart.
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border-b border-edge bg-panel">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2">
+    <div className="relative border-b border-edge bg-panel">
+      <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto px-2 py-2">
         <button
           type="button"
           onClick={() => setOpen(current => !current)}
           aria-expanded={open}
-          className={`flex h-7 items-center gap-1.5 rounded border border-edge px-2.5 text-xs ${
+          aria-controls="toolbar-overlays"
+          className={`flex h-7 shrink-0 items-center gap-1.5 rounded border border-edge px-2.5 text-xs ${
             overlays.length ? "bg-surface font-semibold text-ink" : "text-muted"
           }`}
         >
           Indicators
           {overlays.length > 0 && <span className="tabular-nums text-accent">{overlays.length}</span>}
-          <svg
-            viewBox="0 0 12 8"
-            width="9"
-            height="6"
-            aria-hidden
-            className={`sm:hidden ${open ? "rotate-180" : ""}`}
-          >
+          <svg viewBox="0 0 12 8" width="9" height="6" aria-hidden className={open ? "rotate-180" : ""}>
             <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
           </svg>
         </button>
-
-        <div
-          className={`${open ? "flex" : "hidden"} flex-nowrap items-center gap-x-2 overflow-x-auto sm:flex`}
-        >
-          {OVERLAYS.map(overlay => {
-            const active = overlays.includes(overlay.id);
-            return (
-              <button
-                key={overlay.id}
-                type="button"
-                onClick={() => onToggleOverlay(overlay.id)}
-                aria-pressed={active}
-                className={`h-7 shrink-0 rounded border px-2.5 text-xs ${
-                  active
-                    ? "border-edge bg-accent font-semibold text-white"
-                    : "border-edge bg-panel text-muted"
-                }`}
-              >
-                {overlay.label}
-              </button>
-            );
-          })}
-        </div>
 
         <Divider />
 
@@ -146,6 +117,33 @@ export function Toolbar({
           ))}
         </Group>
       </div>
+
+      {/* Anchored to the bar rather than the button, which scrolls away with the strip. */}
+      {open && (
+        <div
+          id="toolbar-overlays"
+          className="absolute left-2 top-full z-20 mt-1 flex max-w-[calc(100%-1rem)] flex-wrap gap-2 rounded border border-edge bg-panel p-2 shadow-lg"
+        >
+          {OVERLAYS.map(overlay => {
+            const active = overlays.includes(overlay.id);
+            return (
+              <button
+                key={overlay.id}
+                type="button"
+                onClick={() => onToggleOverlay(overlay.id)}
+                aria-pressed={active}
+                className={`h-7 shrink-0 rounded border px-2.5 text-xs ${
+                  active
+                    ? "border-edge bg-accent font-semibold text-white"
+                    : "border-edge bg-panel text-muted"
+                }`}
+              >
+                {overlay.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

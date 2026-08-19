@@ -180,7 +180,8 @@ test("formatCompact handles negatives without producing -0", () => {
 test("formatDay renders a short UTC label", () => {
   expect(formatDay("2026-08-09")).toBe("9 Aug 2026");
   expect(formatDay("2026-12-31")).toBe("31 Dec 2026");
-  expect(formatDay("2026-08-09T23:45:00.000Z")).toBe("9 Aug 2026");
+  // A timestamp is a 15-minute bar, and which quarter-hour it is matters.
+  expect(formatDay("2026-08-09T23:45:00.000Z")).toBe("9 Aug 2026, 23:45");
 });
 
 test("formatDay returns a blank rather than Invalid Date", () => {

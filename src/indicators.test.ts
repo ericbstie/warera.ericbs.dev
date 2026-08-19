@@ -4,7 +4,7 @@ import {
   pointOfControl,
   RANGES,
   rangeDays,
-  sliceRange,
+  isIntraday,
   sma,
   volumeProfile,
   vwapSeries,
@@ -56,25 +56,14 @@ test("vwapSeries stays null until something trades, then anchors to the cumulati
 });
 
 test("RANGES lists every range shortest first and rangeDays maps them", () => {
-  expect(RANGES).toEqual(["7D", "14D", "30D", "ALL"]);
-  expect(RANGES.map(rangeDays)).toEqual([7, 14, 30, null]);
+  expect(RANGES).toEqual(["1D", "3D", "7D", "30D", "90D", "1Y", "ALL"]);
+  expect(RANGES.map(rangeDays)).toEqual([1, 3, 7, 30, 90, 365, null]);
 });
 
-test("sliceRange keeps the last N days", () => {
-  const days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-  expect(sliceRange(days, "7D")).toEqual([4, 5, 6, 7, 8, 9, 10]);
-});
-
-test("sliceRange returns everything when the series is shorter than the range", () => {
-  expect(sliceRange([1, 2, 3], "30D")).toEqual([1, 2, 3]);
-  expect(sliceRange([], "7D")).toEqual([]);
-});
-
-test("sliceRange returns the whole series for ALL", () => {
-  const days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-  expect(sliceRange(days, "ALL")).toEqual(days);
+test("only the short ranges are drawn at the polled resolution", () => {
+  expect(RANGES.filter(isIntraday)).toEqual(["1D", "3D"]);
+  // A year of quarter-hours would be tens of thousands of candles.
+  expect(isIntraday("ALL")).toBe(false);
 });
 
 test("volumeProfile bands prices low to high and puts the highest price in the last bucket", () => {

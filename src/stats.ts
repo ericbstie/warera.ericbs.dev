@@ -116,14 +116,34 @@ function trimTrailingZeros(value: string): string {
   return trimmed === "-0" ? "0" : trimmed;
 }
 
+/**
+ * A daily record is dated `2026-08-19`; a 15-minute one carries the whole
+ * timestamp. Which of the two a bar is decides how it wants to be labelled.
+ */
+export function isTimestamp(at: string): boolean {
+  return at.includes("T");
+}
+
+/** Both resolutions are kept in UTC, so a bar is never labelled with a day it isn't in. */
+export function parseBarDate(at: string): Date {
+  return new Date(isTimestamp(at) ? at : `${at}T00:00:00Z`);
+}
+
+export function formatTime(at: string): string {
+  const parsed = parseBarDate(at);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+}
+
 export function formatDay(date: string): string {
-  const parsed = new Date(date);
+  const parsed = parseBarDate(date);
   if (Number.isNaN(parsed.getTime())) return ""; // an unparseable date reads better as blank than as "Invalid Date"
   // Pinned to en-GB so the label stays "9 Aug 2026" rather than following the viewer's locale.
-  return parsed.toLocaleDateString("en-GB", {
+  const day = parsed.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: "UTC",
   });
+  return isTimestamp(date) ? `${day}, ${formatTime(date)}` : day;
 }

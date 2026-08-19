@@ -1,6 +1,15 @@
 // Pure helpers for the tRPC caching proxy in index.ts. They live here rather
 // than in index.ts so tests can import them without booting the server.
 
+// Overridable so a test can stand a stub upstream in front of the poller.
+export const TRPC_UPSTREAM = process.env.WARERA_TRPC_UPSTREAM ?? "https://api2.warera.io/trpc";
+
+// Without this an upstream that accepts the connection and then goes quiet
+// leaves its promise pending forever. refresh() only clears the in-flight entry
+// once that promise settles, so the key would stay poisoned — and every caller
+// coalesced onto it stuck — until the process restarted.
+export const UPSTREAM_TIMEOUT_MS = 10_000;
+
 export const TRPC_DEFAULT_TTL_MS = 5 * 60 * 1000;
 export const TRPC_TTL_MS: Record<string, number> = {
   "country.getAllCountries": 60 * 60 * 1000,
@@ -99,10 +108,18 @@ export function chunk<T>(items: T[], size: number): T[][] {
   return groups;
 }
 
-export function partyBatchPath(partyIds: string[]): string {
-  const procedures = Array(partyIds.length).fill("party.getById").join(",");
-  const input = JSON.stringify(Object.fromEntries(partyIds.map((id, index) => [index, { partyId: id }])));
+/**
+ * Upstream takes one procedure per comma-separated name and indexes the inputs
+ * to match, so a batch of n calls is the name repeated n times.
+ */
+export function batchPath(procedure: string, inputs: object[]): string {
+  const procedures = Array(inputs.length).fill(procedure).join(",");
+  const input = JSON.stringify(Object.fromEntries(inputs.map((value, index) => [index, value])));
   return `${procedures}?batch=1&input=${encodeURIComponent(input)}`;
+}
+
+export function partyBatchPath(partyIds: string[]): string {
+  return batchPath("party.getById", partyIds.map(partyId => ({ partyId })));
 }
 
 type BatchEntry = { error?: unknown; result?: { data?: { ethics?: { industrialism?: number } } } };

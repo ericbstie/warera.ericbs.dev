@@ -1,7 +1,12 @@
 import { serve } from "bun";
+import type { Database } from "bun:sqlite";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
+import { openDatabase, readDailyByItem, readDailyTrading, readSnapshotBefore, readSnapshots } from "./db";
+import { intradayBars } from "./history";
+import { weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
+import { POLL_INTERVAL_MS, startPolling } from "./poller";
 import {
   chunk,
   cacheControl,
@@ -17,6 +22,8 @@ import {
   partyBatchPath,
   PARTY_BATCH_SIZE,
   ttlFor,
+  TRPC_UPSTREAM,
+  UPSTREAM_TIMEOUT_MS,
   type CacheStatus,
 } from "./trpc";
 
@@ -53,14 +60,6 @@ const contentTypeFor = (name: string, fallback = "application/octet-stream"): st
 // and got throttled. Proxying through here with a TTL cache and in-flight
 // coalescing means that burst hits the upstream at most once per TTL, no
 // matter how many visitors are loading the page at the same time.
-
-const TRPC_UPSTREAM = "https://api2.warera.io/trpc";
-
-// Without this an upstream that accepts the connection and then goes quiet
-// leaves its promise pending forever. refresh() only clears the in-flight entry
-// once that promise settles, so the key would stay poisoned — and every caller
-// coalesced onto it stuck — until the process restarted.
-const UPSTREAM_TIMEOUT_MS = 10_000;
 
 type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number; etag: string };
 type TrpcFailure = { status: number; body: string; contentType: string };
@@ -282,6 +281,85 @@ async function serveIndustrialism(req: Request): Promise<Response> {
   }
 }
 
+// --- recorded market history ----------------------------------------------
+// Upstream answers with 30 days of trading and nothing finer than a day, so a
+// poller writes the live order book and those daily totals into SQLite on a
+// timer. This serves back what has accumulated there.
+
+/** How far back a request reaches when it doesn't say — well past upstream's 30. */
+const HISTORY_DEFAULT_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** How much of the record the ticker compares across. */
+const MOVERS_WINDOW_DAYS = 14;
+
+/** `Number("")` is 0 and `Number("abc")` is NaN; neither is a window. */
+function historyDays(raw: string | null): number {
+  const days = Number(raw);
+  return Number.isFinite(days) && days > 0 ? days : HISTORY_DEFAULT_DAYS;
+}
+
+function day(at: number): string {
+  return new Date(at).toISOString().slice(0, 10);
+}
+
+function jsonResponse(req: Request, body: string, maxAgeSeconds: number): Response {
+  const etag = etagFor(body);
+  const headers = { ETag: etag, "Cache-Control": `public, max-age=${maxAgeSeconds}` };
+  // Nothing changes between polls, so a reload inside one costs a few headers.
+  if (etagMatches(req.headers.get("If-None-Match"), etag)) return new Response(null, { status: 304, headers });
+  return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
+}
+
+/**
+ * Both resolutions answer with the same bar shape, so the chart draws them the
+ * same way — an intraday bar just carries a timestamp where a daily one
+ * carries a date.
+ */
+function serveHistory(req: Request, db: Database): Response {
+  const params = new URL(req.url).searchParams;
+  const itemCode = params.get("itemCode") ?? "";
+  if (!itemCode) {
+    return new Response(JSON.stringify({ error: { message: "itemCode is required" } }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
+  const since = Date.now() - historyDays(params.get("days")) * DAY_MS;
+  const bars = params.get("intraday")
+    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since))
+    : readDailyTrading(db, itemCode, day(since));
+
+  return jsonResponse(req, JSON.stringify({ bars }), POLL_INTERVAL_MS / 1000);
+}
+
+/** The whole strip in one query, where it used to be a batch call per browser. */
+function serveMovers(req: Request, db: Database): Response {
+  const byItem = readDailyByItem(db, day(Date.now() - MOVERS_WINDOW_DAYS * DAY_MS));
+
+  const movers: Mover[] = [];
+  for (const [code, rows] of byItem) {
+    const changePct = weeklyChangePct(rows);
+    if (changePct !== null) movers.push({ code, changePct });
+  }
+  movers.sort((a, b) => b.changePct - a.changePct);
+
+  return jsonResponse(req, JSON.stringify({ movers }), POLL_INTERVAL_MS / 1000);
+}
+
+/**
+ * `bun --hot` re-runs this module on every edit. Without a handle to the last
+ * one, each reload would leave another timer polling upstream and another
+ * connection open on the same file.
+ */
+const hot = globalThis as typeof globalThis & { wareraHistory?: { db: Database; poller: { stop: () => void } } };
+hot.wareraHistory?.poller.stop();
+hot.wareraHistory?.db.close();
+
+const historyDb = openDatabase();
+hot.wareraHistory = { db: historyDb, poller: startPolling(historyDb) };
+
 type Asset = { bytes: ArrayBuffer; contentType: string };
 
 /**
@@ -342,6 +420,8 @@ const server = isProduction
       return serve({
         error: onError,
         routes: {
+          "/api/history": req => serveHistory(req, historyDb),
+          "/api/movers": req => serveMovers(req, historyDb),
           "/api/industrialism": serveIndustrialism,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
@@ -356,6 +436,8 @@ const server = isProduction
   : serve({
       error: onError,
       routes: {
+        "/api/history": req => serveHistory(req, historyDb),
+        "/api/movers": req => serveMovers(req, historyDb),
         "/api/industrialism": serveIndustrialism,
         "/api/trpc/*": proxyTrpc,
         "/*": index,

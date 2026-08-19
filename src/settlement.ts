@@ -16,6 +16,8 @@ export type Country = {
 };
 
 export type Placement = {
+  /** The country's own id: two countries can share a display name, or lack one. */
+  id: string;
   country: string;
   strategicBonus: number;
   specializationBonus: number;
@@ -110,6 +112,7 @@ export function rankPlacements(
           ? (SPECIALIZATION_BONUS[industrialism[country._id] ?? 0] ?? 0)
           : 0;
       return {
+        id: country._id,
         country: country.name,
         strategicBonus,
         specializationBonus,

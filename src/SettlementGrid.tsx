@@ -38,7 +38,7 @@ function PlacementTable({ itemCode, placements }: { itemCode: string; placements
           </thead>
           <tbody>
             {placements.map(placement => (
-              <tr key={placement.country} style={{ height: ROW_HEIGHT }}>
+              <tr key={placement.id} style={{ height: ROW_HEIGHT }}>
                 <td className="truncate pr-1" title={placement.country}>
                   {placement.country}
                 </td>
