@@ -21,11 +21,11 @@
 
 @layer base {
   :root {
-    --surface: #14110f;
-    --panel: #211c19;
-    --canvas: #0a0806;
-    --edge: #3a322e;
-    --grid: #2e2825;
+    --surface: #0d0d0d;
+    --panel: #1a1a1a;
+    --canvas: #050505;
+    --edge: #333333;
+    --grid: #262626;
     --ink: #f5efe2;
     --muted: #a8a29e;
     --accent: #f5efe2;
@@ -38,14 +38,14 @@
   }
 
   :root[data-theme="light"] {
-    --surface: #f4f1ed;
+    --surface: #f6f5f3;
     --panel: #ffffff;
-    --canvas: #fdfbf9;
-    --edge: #d8cfc6;
-    --grid: #e6ded6;
-    --ink: #6b4a2e;
+    --canvas: #fbfbfa;
+    --edge: #dcd9d5;
+    --grid: #e9e6e3;
+    --ink: #4d453e;
     --muted: #6d635c;
-    --accent: #6b4a2e;
+    --accent: #4d453e;
     --on-accent: #f6ecdd;
     --mid: #6f8f1c;
     --up: #157a4a;
