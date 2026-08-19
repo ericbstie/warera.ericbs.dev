@@ -125,7 +125,7 @@ export function Nav() {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="hidden h-8 w-8 place-items-center rounded border border-edge text-ink sm:grid"
+        className="hidden h-8 w-8 place-items-center rounded border border-edge bg-accent text-on-accent sm:grid"
       >
         <MenuGlyph />
       </button>
@@ -137,7 +137,7 @@ export function Nav() {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="fixed bottom-4 right-4 z-20 grid h-12 w-12 place-items-center rounded-full border border-edge bg-panel text-ink shadow-lg sm:hidden"
+        className="fixed bottom-4 right-4 z-20 grid h-12 w-12 place-items-center rounded-full border border-edge bg-accent text-on-accent shadow-lg sm:hidden"
       >
         <MenuGlyph />
       </button>
