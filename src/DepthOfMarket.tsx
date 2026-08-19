@@ -12,12 +12,9 @@ const TICK = 0.001;
 // One column per tick, so a book with a far-out order would otherwise run to
 // thousands of columns. The columns nearest the spread are the ones worth showing.
 const MAX_COLUMNS = 250;
-// Prices sit on one grid of every fifth tick, shared by both sides, so no two
-// labels can crowd each other around the spread.
-const LABEL_EVERY = 5;
 const CHART_HEIGHT = "h-40 sm:h-56";
 
-type Column = { price: number; quantity: number; labelled: boolean };
+type Column = { price: number; quantity: number };
 
 function formatPrice(price: number) {
   return price.toFixed(3);
@@ -47,11 +44,7 @@ function buildColumns(orders: Order[], side: "bid" | "ask"): Column[] {
   const columns: Column[] = [];
   for (let index = 0; index < count; index++) {
     const tick = bestTick + index * step;
-    columns.push({
-      price: tick * TICK,
-      quantity: quantities.get(tick) ?? 0,
-      labelled: tick % LABEL_EVERY === 0,
-    });
+    columns.push({ price: tick * TICK, quantity: quantities.get(tick) ?? 0 });
   }
   // Bids were walked down from the best bid, so flip them to read left to right.
   return side === "bid" ? columns.reverse() : columns;
@@ -62,33 +55,40 @@ function Bar({
   color,
   maxQuantity,
   active,
+  best,
   onActivate,
 }: {
   column: Column;
   color: string;
   maxQuantity: number;
   active: boolean;
+  best: "bid" | "ask" | null;
   onActivate: () => void;
 }) {
   const pct = maxQuantity > 0 ? (column.quantity / maxQuantity) * 100 : 0;
+  // The two standing prices meet at the spread, so each hangs off the edge of
+  // its column that faces away from it rather than sitting centred, where the
+  // two would print over each other.
+  const anchor =
+    best === "bid" ? "right-0" : best === "ask" ? "left-0" : "left-1/2 -translate-x-1/2";
   return (
     <div
-      className="relative min-w-2 flex-1 cursor-pointer px-px sm:min-w-3"
+      className="relative min-w-2 max-w-6 flex-1 cursor-pointer px-px sm:min-w-3"
       style={{ backgroundColor: active ? HIGHLIGHT : "transparent" }}
       onPointerEnter={onActivate}
     >
       <div className={`flex items-end ${CHART_HEIGHT}`}>
         {/* A resting tick that rounds to nothing still deserves to be visible. */}
         <div
-          className="mx-auto w-full max-w-8 rounded-t-sm"
+          className="w-full rounded-t-sm"
           style={{ height: `${pct}%`, minHeight: column.quantity > 0 ? 2 : 0, backgroundColor: color }}
         />
       </div>
       <div className="relative h-4">
-        {column.labelled && (
+        {(best || active) && (
           <span
-            className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-[9px] tabular-nums sm:text-[10px]"
-            style={{ color: active ? TEXT : MUTED }}
+            className={`absolute top-0 whitespace-nowrap text-[9px] tabular-nums sm:text-[10px] ${anchor}`}
+            style={{ color: active ? TEXT : color }}
           >
             {formatPrice(column.price)}
           </span>
@@ -169,25 +169,29 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
               if (event.pointerType === "mouse") setActive(null);
             }}
           >
-            <div className="relative flex items-start">
-              {bids.map(column => (
+            {/* Safe centring holds a shallow book in the middle of the panel
+                without pushing half of a deep one out of the scroller's reach. */}
+            <div className="relative flex items-start" style={{ justifyContent: "safe center" }}>
+              {bids.map((column, index) => (
                 <Bar
                   key={column.price}
                   column={column}
                   color={BID_COLOR}
                   maxQuantity={maxQuantity}
                   active={active === column}
+                  best={index === bids.length - 1 ? "bid" : null}
                   onActivate={() => setActive(column)}
                 />
               ))}
               <div ref={spreadRef} className={`w-px shrink-0 ${CHART_HEIGHT}`} style={{ backgroundColor: BORDER }} />
-              {asks.map(column => (
+              {asks.map((column, index) => (
                 <Bar
                   key={column.price}
                   column={column}
                   color={ASK_COLOR}
                   maxQuantity={maxQuantity}
                   active={active === column}
+                  best={index === 0 ? "ask" : null}
                   onActivate={() => setActive(column)}
                 />
               ))}
