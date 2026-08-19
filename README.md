@@ -6,9 +6,7 @@ and VWAP overlays, the depth of its order book, and the countries where a compan
 producing it earns the most.
 
 The chart is drawn from the server's own record rather than upstream's, so it
-reaches back further than the 30 days upstream publishes and, over a few days,
-down to the quarter-hour. Resolution follows the range: `1D` and `3D` are drawn
-from the 15-minute poll, anything longer from daily records.
+reaches back further than the 30 days upstream publishes.
 
 Keyboard: `Ctrl`/`Cmd`+`K` searches items, `I` toggles the indicator overlays, `R`
 resets the chart, and the arrow keys walk the crosshair once the chart has focus.
