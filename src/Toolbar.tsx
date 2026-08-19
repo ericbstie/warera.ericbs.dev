@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RANGES, type Range } from "./indicators";
 
 export type Overlay = "sma5" | "sma10" | "sma20" | "vwap";
@@ -71,9 +71,27 @@ export function Toolbar({
   // The chips live behind the button at every width: the strip stays one line
   // and scrolls, so anything as wide as four chips has to float over the chart.
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // A click anywhere outside the dropdown closes it, same as the item picker.
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   return (
-    <div className="relative border-b border-edge bg-panel">
+    <div ref={rootRef} className="relative border-b border-edge bg-panel">
       <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto px-2 py-2">
         <button
           type="button"
