@@ -148,6 +148,16 @@ export function PriceChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<MeasureDrawing | null>(null);
 
+  // Letting go of the graph keeps the last-held day highlighted; only a
+  // click elsewhere on the page drops it back to the most recent day.
+  useEffect(() => {
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setHovered(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [ref]);
+
   const overlayValues = useMemo(() => {
     const closes = prices.map(p => p.price);
     return {
@@ -209,10 +219,10 @@ export function PriceChart({
   };
   const maxVolume = Math.max(1, ...transactions.map(t => t.totalQuantity));
 
-  const point = hovered === null ? undefined : prices[hovered];
-  // With nothing hovered the legend still reports a day: the most recent one.
+  // With nothing hovered, the highlight sticks to the most recent day.
   const legendIndex = hovered ?? prices.length - 1;
-  const legend = prices[legendIndex];
+  const point = prices[legendIndex];
+  const legend = point;
   const legendBar = transactions[legendIndex];
   const legendOhlc = ohlcAt(prices, legendIndex);
   const legendVolume = legendBar?.totalQuantity ?? 0;
@@ -268,7 +278,7 @@ export function PriceChart({
   const dateTag = point ? formatDate(point.date) : "";
   const dateTagWidth = dateTag.length * LABEL_CHAR_WIDTH + 14;
   const dateTagX = point
-    ? Math.min(Math.max(x(hovered!) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
+    ? Math.min(Math.max(x(legendIndex) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
     : 0;
 
   const heaviestBucket = poc?.volume ?? 0;
@@ -483,7 +493,6 @@ export function PriceChart({
                 onPointerDown={onPointerDown}
                 onPointerUp={onPointerUp}
                 onPointerCancel={() => setDraft(null)}
-                onPointerLeave={() => setHovered(null)}
                 onKeyDown={onKeyDown}
               >
                 {profileBars}
@@ -574,8 +583,8 @@ export function PriceChart({
                 {point && (
                   <g>
                     <line
-                      x1={x(hovered!)}
-                      x2={x(hovered!)}
+                      x1={x(legendIndex)}
+                      x2={x(legendIndex)}
                       y1={priceTop}
                       y2={volumeBottom}
                       stroke={AXIS_TEXT}
@@ -648,7 +657,7 @@ export function PriceChart({
                 {point && (
                   <g>
                     <circle
-                      cx={x(hovered!)}
+                      cx={x(legendIndex)}
                       cy={y(point.price)}
                       r="4"
                       fill={SERIES}
