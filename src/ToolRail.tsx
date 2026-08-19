@@ -65,7 +65,7 @@ export function ToolRail({
             aria-pressed={active}
             onClick={() => onTool(id)}
             className={`grid h-8 w-8 place-items-center rounded ${
-              active ? "bg-accent text-white" : "text-muted"
+              active ? "bg-accent text-on-accent" : "text-muted"
             }`}
           >
             <Glyph>{ICONS[id]}</Glyph>

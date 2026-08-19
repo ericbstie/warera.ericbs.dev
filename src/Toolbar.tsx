@@ -30,7 +30,7 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-7 px-2.5 text-xs ${active ? "bg-accent font-semibold text-white" : "bg-panel text-muted"}`}
+      className={`h-7 px-2.5 text-xs ${active ? "bg-accent font-semibold text-on-accent" : "bg-panel text-muted"}`}
     >
       {label}
     </button>
@@ -134,7 +134,7 @@ export function Toolbar({
                 aria-pressed={active}
                 className={`h-7 shrink-0 rounded border px-2.5 text-xs ${
                   active
-                    ? "border-edge bg-accent font-semibold text-white"
+                    ? "border-edge bg-accent font-semibold text-on-accent"
                     : "border-edge bg-panel text-muted"
                 }`}
               >
