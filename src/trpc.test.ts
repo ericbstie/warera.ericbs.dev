@@ -8,6 +8,7 @@ import {
   levelsByCountry,
   lruGet,
   lruSet,
+  batchPath,
   partyBatchPath,
   ttlFor,
   TRPC_DEFAULT_TTL_MS,
@@ -127,6 +128,16 @@ test("a batch path asks for one procedure per party id", () => {
   expect(path.startsWith("party.getById,party.getById?batch=1&input=")).toBe(true);
   const input = JSON.parse(decodeURIComponent(path.split("input=")[1]!));
   expect(input).toEqual({ 0: { partyId: "a" }, 1: { partyId: "b" } });
+});
+
+test("a batch path indexes its inputs whatever the procedure", () => {
+  const path = batchPath("tradingOrder.getTopOrders", [{ itemCode: "lightAmmo" }, { itemCode: "ironOre" }]);
+  const [procedures, query] = path.split("?");
+  expect(procedures).toBe("tradingOrder.getTopOrders,tradingOrder.getTopOrders");
+  expect(JSON.parse(decodeURIComponent(query!.split("input=")[1]!))).toEqual({
+    0: { itemCode: "lightAmmo" },
+    1: { itemCode: "ironOre" },
+  });
 });
 
 test("a batch response maps back onto the ids that asked for it", () => {

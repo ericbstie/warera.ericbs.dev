@@ -26,4 +26,21 @@ To run for production:
 bun start
 ```
 
+## Recorded market history
+
+Upstream's trading endpoint only answers with the last 30 days, one row per day,
+so the server keeps its own record. Every 15 minutes it walks each tradable item,
+stores the best bid, best ask and depth on both sides of the live order book, and
+re-reads the daily totals — days already on file stay there once upstream drops
+them. It all lands in a SQLite file, `data/warera.sqlite` by default, so the
+history survives a restart and keeps growing.
+
+Read it back at `/api/history?itemCode=<code>&days=<n>` (90 days by default),
+which answers with the 15-minute `snapshots` and the daily `daily` rows.
+
+| Variable | Default | |
+| --- | --- | --- |
+| `WARERA_DB_PATH` | `data/warera.sqlite` | where the history file lives |
+| `WARERA_TRPC_UPSTREAM` | `https://api2.warera.io/trpc` | the API to poll and proxy |
+
 This project was created using `bun init` in bun v1.3.11. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
