@@ -99,7 +99,9 @@ export function Header({
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <Ticker items={items.map(item => item.code)} onSelect={onSelect} />
+        </div>
 
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <ItemPicker items={items} selected={selected} onSelect={onSelect} />
 
           <div className="flex flex-col gap-1">
