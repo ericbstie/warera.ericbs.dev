@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Ticker } from "./Ticker";
 import { TitleBar } from "./TitleBar";
 import { itemIcon, itemLabel, type MarketItem } from "./hooks";
@@ -33,6 +34,9 @@ function ItemPicker({
   selected: string;
   onSelect: (code: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
   const current = items.find(item => item.code === selected);
   const listed = GROUPS.map(group => ({
     ...group,
@@ -40,38 +44,105 @@ function ItemPicker({
   })).filter(group => group.codes.length);
   const ungrouped = items.filter(item => !GROUPS.some(group => group.type === item.type));
 
+  // A click anywhere outside the picker closes it, same as a native <select>.
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const choose = (code: string) => {
+    onSelect(code);
+    setOpen(false);
+  };
+
   return (
-    <div className="relative flex min-w-[13rem] flex-1 items-center gap-2.5 rounded border border-edge bg-surface px-3 py-1.5 sm:flex-none">
-      {selected && <img src={itemIcon(selected)} alt="" width={28} height={28} className="shrink-0" />}
-      <div className="min-w-0 leading-tight">
-        <p className="truncate text-sm font-semibold">{itemLabel(selected) || "Select an item"}</p>
-        <p className="text-[10px] uppercase tracking-[0.18em] text-muted">{groupLabel(current?.type)}</p>
-      </div>
-      <svg viewBox="0 0 12 8" width="11" height="8" aria-hidden className="ml-auto shrink-0 fill-muted">
-        <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
-      </svg>
-      <select
-        value={selected}
-        onChange={event => onSelect(event.target.value)}
+    <div ref={rootRef} className="relative min-w-[13rem] flex-1 sm:flex-none">
+      <button
+        type="button"
+        onClick={() => setOpen(value => !value)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         aria-label="Traded item"
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        className="flex w-full items-center gap-2.5 rounded border border-edge bg-surface px-3 py-1.5 text-left"
       >
-        {listed.map(group => (
-          <optgroup key={group.type} label={group.label}>
-            {group.codes.map(code => (
-              <option key={code} value={code}>
-                {itemLabel(code)}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-        {ungrouped.map(item => (
-          <option key={item.code} value={item.code}>
-            {itemLabel(item.code)}
-          </option>
-        ))}
-      </select>
+        {selected && <img src={itemIcon(selected)} alt="" width={28} height={28} className="shrink-0" />}
+        <div className="min-w-0 leading-tight">
+          <p className="truncate text-sm font-semibold">{itemLabel(selected) || "Select an item"}</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-muted">{groupLabel(current?.type)}</p>
+        </div>
+        <svg viewBox="0 0 12 8" width="11" height="8" aria-hidden className="ml-auto shrink-0 fill-muted">
+          <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+        </svg>
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          aria-label="Traded item"
+          className="absolute left-0 top-full z-30 mt-1 max-h-80 w-full min-w-[16rem] overflow-y-auto rounded border border-edge bg-panel py-1 shadow-lg"
+        >
+          {listed.map(group => (
+            <li key={group.type}>
+              <p className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+                {group.label}
+              </p>
+              <ul>
+                {group.codes.map(code => (
+                  <ItemOption key={code} code={code} selected={code === selected} onSelect={choose} />
+                ))}
+              </ul>
+            </li>
+          ))}
+          {ungrouped.length > 0 && (
+            <ul>
+              {ungrouped.map(item => (
+                <ItemOption
+                  key={item.code}
+                  code={item.code}
+                  selected={item.code === selected}
+                  onSelect={choose}
+                />
+              ))}
+            </ul>
+          )}
+        </ul>
+      )}
     </div>
+  );
+}
+
+function ItemOption({
+  code,
+  selected,
+  onSelect,
+}: {
+  code: string;
+  selected: boolean;
+  onSelect: (code: string) => void;
+}) {
+  return (
+    <li
+      role="option"
+      aria-selected={selected}
+      onClick={() => onSelect(code)}
+      className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-sm ${
+        selected ? "bg-accent text-on-accent" : "text-ink hover:bg-surface"
+      }`}
+    >
+      <img src={itemIcon(code)} alt="" width={20} height={20} className="shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{itemLabel(code)}</span>
+    </li>
   );
 }
 
