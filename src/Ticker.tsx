@@ -99,6 +99,13 @@ export function Ticker({ items, onSelect }: { items: string[]; onSelect: (code: 
     }, RESUME_DELAY);
   };
 
+  // Just moving the pointer off (no drag) should resume the drift right away;
+  // the delay is only there to keep a just-finished drag from lurching forward.
+  const resumeNow = () => {
+    clearTimeout(resumeTimer.current);
+    pausedRef.current = false;
+  };
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     pause();
     // Touch already scrolls itself, momentum included; only mouse/pen need a manual drag.
@@ -143,7 +150,7 @@ export function Ticker({ items, onSelect }: { items: string[]; onSelect: (code: 
       className="min-w-0 basis-full select-none overflow-x-auto sm:flex-1 sm:basis-40 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
       aria-label="7 day change"
       onPointerEnter={pause}
-      onPointerLeave={scheduleResume}
+      onPointerLeave={() => (drag.current ? scheduleResume() : resumeNow())}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
