@@ -76,32 +76,6 @@ export function Toolbar({
   return (
     <div className="border-b border-edge bg-panel">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2">
-        <Group label="Chart type">
-          {VIEWS.map(entry => (
-            <Segment
-              key={entry.id}
-              label={entry.label}
-              active={view === entry.id}
-              onClick={() => onView(entry.id)}
-            />
-          ))}
-        </Group>
-
-        <Divider />
-
-        <Group label="Date range">
-          {RANGES.map(entry => (
-            <Segment
-              key={entry}
-              label={entry}
-              active={range === entry}
-              onClick={() => onRange(entry)}
-            />
-          ))}
-        </Group>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 pb-2">
         <button
           type="button"
           onClick={() => setOpen(current => !current)}
@@ -145,6 +119,32 @@ export function Toolbar({
             );
           })}
         </div>
+
+        <Divider />
+
+        <Group label="Chart type">
+          {VIEWS.map(entry => (
+            <Segment
+              key={entry.id}
+              label={entry.label}
+              active={view === entry.id}
+              onClick={() => onView(entry.id)}
+            />
+          ))}
+        </Group>
+
+        <Divider />
+
+        <Group label="Date range">
+          {RANGES.map(entry => (
+            <Segment
+              key={entry}
+              label={entry}
+              active={range === entry}
+              onClick={() => onRange(entry)}
+            />
+          ))}
+        </Group>
       </div>
     </div>
   );
