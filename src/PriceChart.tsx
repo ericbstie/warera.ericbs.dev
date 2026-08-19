@@ -8,7 +8,7 @@ import {
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
 import { pointOfControl, sma, volumeProfile, vwapSeries } from "./indicators";
-import { formatCompact, formatDay, formatPrice } from "./stats";
+import { formatCompact, formatPrice } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
@@ -29,7 +29,7 @@ const EDGE = "var(--edge)";
 /** The drawable height is split between the two panes, with a gap between them. */
 const PRICE_PANE_RATIO = 0.72;
 const VOLUME_PANE_RATIO = 0.28;
-const PANE_GAP = 12;
+const PANE_GAP = 28;
 const VOLUME_OPACITY = 0.5;
 /** The histogram eats into the plot, so it only appears once there is plot to spare. */
 const PROFILE_MIN_WIDTH = 640;
@@ -422,31 +422,30 @@ export function PriceChart({
             <>
               {legend && (
                 <div
-                  className={`flex flex-wrap gap-x-3 gap-y-0.5 px-2 text-[11px] ${
-                    compact ? "pt-1" : "pointer-events-none absolute left-2 right-2 top-1"
+                  className={`flex flex-nowrap items-center gap-x-3 overflow-x-auto whitespace-nowrap px-2 text-[11px] ${
+                    compact ? "pt-1" : "absolute left-2 right-2 top-1"
                   }`}
                 >
-                  <span className="text-ink tabular-nums">{formatDay(legend.date)}</span>
                   {!compact && (
                     <>
-                      <span className="text-muted">
+                      <span className="shrink-0 text-muted">
                         O <span className="text-ink tabular-nums">{formatPrice(legendOhlc.open, decimals)}</span>
                       </span>
-                      <span className="text-muted">
+                      <span className="shrink-0 text-muted">
                         H <span className="text-ink tabular-nums">{formatPrice(legendOhlc.high, decimals)}</span>
                       </span>
-                      <span className="text-muted">
+                      <span className="shrink-0 text-muted">
                         L <span className="text-ink tabular-nums">{formatPrice(legendOhlc.low, decimals)}</span>
                       </span>
                     </>
                   )}
-                  <span className="text-muted">
+                  <span className="shrink-0 text-muted">
                     C <span className="text-ink tabular-nums">{formatPrice(legendOhlc.close, decimals)}</span>
                   </span>
-                  <span className="text-muted">
+                  <span className="shrink-0 text-muted">
                     Vol <span className="text-ink tabular-nums">{formatCompact(legendVolume)}</span>
                   </span>
-                  <span className="text-muted">
+                  <span className="shrink-0 text-muted">
                     VWAP{" "}
                     <span className="text-ink tabular-nums">
                       {legendVwap === null ? "—" : formatPrice(legendVwap, decimals)}
@@ -457,7 +456,7 @@ export function PriceChart({
                     const style = OVERLAY_STYLE[entry.id];
                     const value = overlayValues[entry.id][legendIndex] ?? null;
                     return (
-                      <span key={entry.id} className="flex items-center gap-1 text-muted">
+                      <span key={entry.id} className="flex shrink-0 items-center gap-1 text-muted">
                         <span
                           aria-hidden
                           className="inline-block h-0.5 w-3 rounded-full"

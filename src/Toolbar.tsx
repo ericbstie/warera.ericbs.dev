@@ -117,7 +117,7 @@ export function Toolbar({
         </button>
 
         <div
-          className={`${open ? "flex" : "hidden"} flex-wrap items-center gap-x-2 gap-y-2 sm:flex`}
+          className={`${open ? "flex" : "hidden"} flex-nowrap items-center gap-x-2 overflow-x-auto sm:flex`}
         >
           {OVERLAYS.map(overlay => {
             const active = overlays.includes(overlay.id);
@@ -127,7 +127,7 @@ export function Toolbar({
                 type="button"
                 onClick={() => onToggleOverlay(overlay.id)}
                 aria-pressed={active}
-                className={`h-7 rounded border px-2.5 text-xs ${
+                className={`h-7 shrink-0 rounded border px-2.5 text-xs ${
                   active
                     ? "border-edge bg-accent font-semibold text-white"
                     : "border-edge bg-panel text-muted"
