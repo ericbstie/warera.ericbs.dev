@@ -86,9 +86,10 @@ function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-pressed={dark}
-      className="flex items-center gap-2 rounded border border-edge px-2.5 py-1.5 text-xs text-ink"
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded border border-edge p-1.5 text-ink sm:right-4"
     >
-      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden className="fill-current">
+      <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden className="fill-current">
         {dark ? (
           <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7Z" />
         ) : (
@@ -98,7 +99,6 @@ function ThemeToggle() {
           </>
         )}
       </svg>
-      {dark ? "Dark" : "Light"}
     </button>
   );
 }
@@ -123,7 +123,10 @@ export function Header({
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 py-2.5">
-        <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
+        <div className="relative flex items-center justify-center">
+          <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
+          <ThemeToggle />
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <Ticker items={items.map(item => item.code)} onSelect={onSelect} />
@@ -151,10 +154,6 @@ export function Header({
                 <Stat label="VWAP" value={quote.vwap === null ? "—" : formatPrice(quote.vwap)} />
               </>
             )}
-          </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <ThemeToggle />
           </div>
         </div>
       </div>
