@@ -5,6 +5,7 @@ const ASK_COLOR = "var(--down)";
 const BID_COLOR = "var(--up)";
 const HIGHLIGHT = "color-mix(in srgb, var(--ink) 10%, transparent)";
 const BORDER = "var(--edge)";
+const GRIDLINE = "color-mix(in srgb, var(--ink) 6%, transparent)";
 const MUTED = "var(--muted)";
 const TEXT = "var(--ink)";
 
@@ -84,11 +85,11 @@ function Row({
   return (
     <div
       className={`relative flex cursor-pointer items-center gap-1 ${ROW_HEIGHT}`}
-      style={{ backgroundColor: active ? HIGHLIGHT : "transparent" }}
+      style={{ backgroundColor: active ? HIGHLIGHT : "transparent", borderBottom: `1px solid ${GRIDLINE}` }}
       onPointerEnter={onActivate}
     >
       {/* Price stands beside the row it belongs to, clear of every bar. */}
-      <div className={`relative h-full ${PRICE_GUTTER}`}>
+      <div className={`relative h-full ${PRICE_GUTTER}`} style={{ borderRight: `1px solid ${GRIDLINE}` }}>
         {(best || (active && !nearSpread)) && (
           <span className={`${LABEL} right-1 ${anchor}`} style={{ color: active ? TEXT : color }}>
             {formatPrice(level.price)}
@@ -98,7 +99,7 @@ function Row({
       <div className="relative h-full min-w-0 flex-1">
         {/* A resting tick that rounds to nothing still deserves to be visible. */}
         <div
-          className="h-full rounded-r-sm"
+          className="h-full"
           style={{ width: `${pct}%`, minWidth: level.quantity > 0 ? 2 : 0, backgroundColor: color }}
         />
         {active && (
@@ -126,10 +127,6 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
     () => Math.max(0, ...bids.map(level => level.quantity), ...asks.map(level => level.quantity)),
     [bids, asks],
   );
-
-  const bestBid = bids.at(-1)?.price ?? null;
-  const bestAsk = asks[0]?.price ?? null;
-  const spread = bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
 
   // The spread is the part of a deep book worth opening on rather than the far
   // end of the bids. The panel settles to its final height after the book has
@@ -183,11 +180,9 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] sm:text-xs" style={{ color: MUTED }}>
-            <span style={{ color: BID_COLOR }}>Bids ↑</span>
-            <span className="flex-1 text-center tabular-nums">
-              Spread {spread !== null ? spread.toFixed(3) : "—"}
-            </span>
-            <span style={{ color: ASK_COLOR }}>Asks ↓</span>
+            <span style={{ color: BID_COLOR }}>Bids</span>
+            <span className="flex-1" />
+            <span style={{ color: ASK_COLOR }}>Asks</span>
           </div>
           {/* Price runs top to bottom down one strip, so both sides share an
               axis and the depth on each reads as a bar against the other. */}
