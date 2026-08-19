@@ -53,6 +53,15 @@
     color-scheme: light;
   }
 
+  /* A sideways two-finger swipe on a trackpad is how the chart is panned, so the
+     page must never read one as history navigation or bounce the viewport under
+     it. `clip` rather than `hidden` keeps the sticky headers sticking. */
+  html,
+  body {
+    overscroll-behavior-x: none;
+    overflow-x: clip;
+  }
+
   body {
     @apply min-h-screen m-0;
   }
