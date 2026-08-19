@@ -1,4 +1,4 @@
-import { type MarketItem } from "./Header";
+import { type MarketItem } from "./hooks";
 import { itemLabel } from "./hooks";
 
 export type Match = { item: MarketItem; score: number };

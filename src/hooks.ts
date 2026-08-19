@@ -10,6 +10,8 @@ export type Transaction = {
 
 export type PricePoint = { date: string; price: number };
 
+export type MarketItem = { code: string; type: string };
+
 export function itemIcon(code: string) {
   return `https://media.warera.io/images/items/${code}.png?v=33`;
 }
@@ -150,4 +152,52 @@ export function usePriceHistory(itemCode: string) {
 /** Codes arrive as camelCase identifiers — "lightAmmo", "helmet1" — and the UI wants words. */
 export function itemLabel(code: string): string {
   return code.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/^./, first => first.toUpperCase());
+}
+
+export async function fetchItems(): Promise<MarketItem[]> {
+  const res = await fetch("/api/trpc/gameConfig.getGameConfig", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  const items = json?.result?.data?.items as
+    | Record<string, { isTradable?: boolean; type?: string }>
+    | undefined;
+  if (!items) throw new Error("Item list came back in an unexpected shape");
+  return Object.keys(items)
+    .filter(code => items[code]?.isTradable)
+    .sort()
+    .map(code => ({ code, type: items[code]?.type ?? "" }));
+}
+
+/** Both pages are built out of this list, so both fetch it the same way. */
+export function useItems() {
+  const [items, setItems] = useState<MarketItem[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+
+    fetchItems()
+      .then(listed => {
+        if (!cancelled) setItems(listed);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        // Without this the page rendered as a healthy but empty shell: an empty
+        // picker, and three panels each reporting "no data for this item".
+        setItems([]);
+        setError(err as Error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+
+  return { items, error, retry: () => setAttempt(current => current + 1) };
 }
