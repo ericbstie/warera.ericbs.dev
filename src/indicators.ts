@@ -33,29 +33,21 @@ export function vwapSeries(transactions: Transaction[]): (number | null)[] {
   return out;
 }
 
-export type Range = "1D" | "3D" | "7D" | "30D" | "90D" | "1Y" | "ALL";
+export type Range = "7D" | "30D" | "ALL";
 
 /**
  * The server's own record reaches back as far as it has been running, so these
  * are no longer capped at the 30 days upstream publishes.
  */
-export const RANGES: Range[] = ["1D", "3D", "7D", "30D", "90D", "1Y", "ALL"];
+export const RANGES: Range[] = ["7D", "30D", "ALL"];
 
 /** null asks for everything on file. */
 export function rangeDays(range: Range): number | null {
   switch (range) {
-    case "1D":
-      return 1;
-    case "3D":
-      return 3;
     case "7D":
       return 7;
     case "30D":
       return 30;
-    case "90D":
-      return 90;
-    case "1Y":
-      return 365;
     case "ALL":
       return null;
   }
