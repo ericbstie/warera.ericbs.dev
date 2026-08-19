@@ -4,6 +4,7 @@ import { DepthOfMarket } from "./DepthOfMarket";
 import { Header, type MarketItem } from "./Header";
 import { useTransactionHistory } from "./hooks";
 import { sliceRange, type Range } from "./indicators";
+import { NavDrawer } from "./NavDrawer";
 import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
@@ -68,6 +69,7 @@ export function App() {
   const [tool, setTool] = useState<ToolId>("crosshair");
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [searching, setSearching] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,6 +148,8 @@ export function App() {
         onSelect={setSelected}
         quote={quote}
         loading={loading}
+        menuOpen={menuOpen}
+        onOpenMenu={() => setMenuOpen(true)}
       />
       <Toolbar
         range={range}
@@ -214,6 +218,8 @@ export function App() {
         onOpenChange={setSearching}
         onSelect={setSelected}
       />
+
+      <NavDrawer open={menuOpen} onOpenChange={setMenuOpen} />
     </div>
   );
 }

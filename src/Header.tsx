@@ -1,3 +1,4 @@
+import { MenuGlyph } from "./NavDrawer";
 import { Ticker } from "./Ticker";
 import { itemIcon, itemLabel } from "./hooks";
 import { formatCompact, formatDay, formatPrice, type Quote } from "./stats";
@@ -109,12 +110,16 @@ export function Header({
   onSelect,
   quote,
   loading,
+  menuOpen,
+  onOpenMenu,
 }: {
   items: MarketItem[];
   selected: string;
   onSelect: (code: string) => void;
   quote: Quote | null;
   loading: boolean;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
 }) {
   const rising = (quote?.change ?? 0) >= 0;
   const sign = rising ? "+" : "";
@@ -123,8 +128,19 @@ export function Header({
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
       <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 py-2.5">
-        <div className="relative flex items-center justify-center">
-          <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
+        <div className="relative flex items-center justify-center gap-2.5 sm:justify-start">
+          <p className="text-3xl font-semibold sm:text-4xl">War Era Market</p>
+          {/* On a phone the same menu rides the floating button, which leaves the
+              title centred rather than nudged off-centre by a neighbour. */}
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            className="hidden h-8 w-8 place-items-center rounded border border-edge text-ink sm:grid"
+          >
+            <MenuGlyph />
+          </button>
           <ThemeToggle />
         </div>
 
