@@ -1,20 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { groupOrdersByPrice, useTransactions, type Order } from "./orders";
 
 const ASK_COLOR = "var(--down)";
 const BID_COLOR = "var(--up)";
-const TRACK = "var(--surface)";
+const HIGHLIGHT = "color-mix(in srgb, var(--ink) 10%, transparent)";
 const BORDER = "var(--edge)";
 const MUTED = "var(--muted)";
 const TEXT = "var(--ink)";
 
 const TICK = 0.001;
-// One row per tick, so a book with a far-out order would otherwise run to
-// thousands of rows. The rows nearest the spread are the ones worth showing.
-const MAX_ROWS = 250;
+// One column per tick, so a book with a far-out order would otherwise run to
+// thousands of columns. The columns nearest the spread are the ones worth showing.
+const MAX_COLUMNS = 250;
+// Prices sit on one grid of every fifth tick, shared by both sides, so no two
+// labels can crowd each other around the spread.
+const LABEL_EVERY = 5;
+const CHART_HEIGHT = "h-40 sm:h-56";
 
-type Ladder = { quantities: Map<number, number>; bestTick: number; step: 1 | -1; rows: number };
-type Cell = { price: number | null; quantity: number };
+type Column = { price: number; quantity: number; labelled: boolean };
 
 function formatPrice(price: number) {
   return price.toFixed(3);
@@ -24,10 +27,10 @@ function formatQuantity(quantity: number) {
   return quantity.toLocaleString();
 }
 
-/** Buckets orders into whole ticks and measures how many rows the side spans. */
-function buildLadder(orders: Order[], side: "bid" | "ask"): Ladder | null {
+/** Buckets orders into whole ticks and walks outward from the best price. */
+function buildColumns(orders: Order[], side: "bid" | "ask"): Column[] {
   const levels = groupOrdersByPrice(orders);
-  if (!levels.length) return null;
+  if (!levels.length) return [];
 
   const quantities = new Map<number, number>();
   for (const level of levels) {
@@ -39,108 +42,97 @@ function buildLadder(orders: Order[], side: "bid" | "ask"): Ladder | null {
   const step = side === "bid" ? -1 : 1;
   const bestTick = side === "bid" ? Math.max(...ticks) : Math.min(...ticks);
   const worstTick = side === "bid" ? Math.min(...ticks) : Math.max(...ticks);
-  return { quantities, bestTick, step, rows: Math.min(MAX_ROWS, Math.abs(worstTick - bestTick) + 1) };
+  const count = Math.min(MAX_COLUMNS, Math.abs(worstTick - bestTick) + 1);
+
+  const columns: Column[] = [];
+  for (let index = 0; index < count; index++) {
+    const tick = bestTick + index * step;
+    columns.push({
+      price: tick * TICK,
+      quantity: quantities.get(tick) ?? 0,
+      labelled: tick % LABEL_EVERY === 0,
+    });
+  }
+  // Bids were walked down from the best bid, so flip them to read left to right.
+  return side === "bid" ? columns.reverse() : columns;
 }
 
-function cellAt(ladder: Ladder | null, row: number): Cell {
-  if (!ladder || row >= ladder.rows) return { price: null, quantity: 0 };
-  const tick = ladder.bestTick + row * ladder.step;
-  return { price: tick * TICK, quantity: ladder.quantities.get(tick) ?? 0 };
-}
-
-function Side({
-  cell,
+function Bar({
+  column,
   color,
   maxQuantity,
-  side,
-  open,
+  active,
+  onActivate,
 }: {
-  cell: Cell;
+  column: Column;
   color: string;
   maxQuantity: number;
-  side: "bid" | "ask";
-  open: boolean;
+  active: boolean;
+  onActivate: () => void;
 }) {
-  const pct = maxQuantity > 0 ? (cell.quantity / maxQuantity) * 100 : 0;
-  const bid = side === "bid";
-  const align = bid ? "text-left" : "text-right";
-  // The bid half is laid out in reverse so both halves read outward-in: price,
-  // then a bar track flush against the centre line.
+  const pct = maxQuantity > 0 ? (column.quantity / maxQuantity) * 100 : 0;
   return (
-    <div className={`flex flex-1 items-center gap-1 sm:gap-2 ${bid ? "flex-row-reverse" : ""}`}>
-      <div
-        className={`relative h-4 flex-1 overflow-hidden rounded-sm ${bid ? "flex justify-end" : ""}`}
-        style={{ backgroundColor: cell.price === null ? "transparent" : TRACK }}
-      >
-        <div className="h-full rounded-sm" style={{ width: `${pct}%`, backgroundColor: color }} />
-        {cell.quantity > 0 && (
-          // Sits over the far end of the track, so it never shifts the row when it appears.
+    <div
+      className="relative min-w-2 flex-1 cursor-pointer px-px sm:min-w-3"
+      style={{ backgroundColor: active ? HIGHLIGHT : "transparent" }}
+      onPointerEnter={onActivate}
+    >
+      <div className={`flex items-end ${CHART_HEIGHT}`}>
+        {/* A resting tick that rounds to nothing still deserves to be visible. */}
+        <div
+          className="mx-auto w-full max-w-8 rounded-t-sm"
+          style={{ height: `${pct}%`, minHeight: column.quantity > 0 ? 2 : 0, backgroundColor: color }}
+        />
+      </div>
+      <div className="relative h-4">
+        {column.labelled && (
           <span
-            className={`pointer-events-none absolute inset-y-0 flex items-center rounded-sm px-1 tabular-nums ${
-              bid ? "left-0" : "right-0"
-            } ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-            style={{ color: TEXT, backgroundColor: "color-mix(in srgb, var(--surface) 82%, transparent)" }}
+            className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-[9px] tabular-nums sm:text-[10px]"
+            style={{ color: active ? TEXT : MUTED }}
           >
-            {formatQuantity(cell.quantity)}
+            {formatPrice(column.price)}
           </span>
         )}
       </div>
-      <span
-        className={`w-10 shrink-0 tabular-nums sm:w-16 ${align}`}
-        style={{ color: cell.quantity > 0 ? color : MUTED }}
-      >
-        {cell.price === null ? "" : formatPrice(cell.price)}
-      </span>
-    </div>
-  );
-}
-
-function Row({
-  bid,
-  ask,
-  maxQuantity,
-  open,
-  onToggle,
-}: {
-  bid: Cell;
-  ask: Cell;
-  maxQuantity: number;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div
-      className="group flex cursor-pointer items-center gap-1 text-[10px] sm:gap-2 sm:text-sm"
-      onClick={onToggle}
-    >
-      <Side cell={bid} color={BID_COLOR} maxQuantity={maxQuantity} side="bid" open={open} />
-      <div className="w-px shrink-0 self-stretch" style={{ backgroundColor: BORDER }} />
-      <Side cell={ask} color={ASK_COLOR} maxQuantity={maxQuantity} side="ask" open={open} />
     </div>
   );
 }
 
 export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   const { buyOrders, sellOrders, loading, error } = useTransactions(itemCode);
-  // Hover reveals the amounts on a pointer; tapping pins a row open for touch.
-  const [pinnedRow, setPinnedRow] = useState<number | null>(null);
+  // Hovering reads a column on a pointer; tapping does the same on touch.
+  const [active, setActive] = useState<Column | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const spreadRef = useRef<HTMLDivElement>(null);
 
-  // Each side walks away from its best price one tick at a time, so row n is
-  // always 0.001 further out than row n - 1 whether or not orders rest there.
-  const bids = useMemo(() => buildLadder(buyOrders, "bid"), [buyOrders]);
-  const asks = useMemo(() => buildLadder(sellOrders, "ask"), [sellOrders]);
-  const rowCount = Math.max(bids?.rows ?? 0, asks?.rows ?? 0);
+  // Each side steps away from its best price one tick at a time, so column n is
+  // always 0.001 further out than column n - 1 whether or not orders rest there.
+  const bids = useMemo(() => buildColumns(buyOrders, "bid"), [buyOrders]);
+  const asks = useMemo(() => buildColumns(sellOrders, "ask"), [sellOrders]);
   const maxQuantity = useMemo(
-    () => Math.max(0, ...(bids?.quantities.values() ?? []), ...(asks?.quantities.values() ?? [])),
+    () => Math.max(0, ...bids.map(column => column.quantity), ...asks.map(column => column.quantity)),
     [bids, asks],
   );
-  const spread = bids && asks ? (asks.bestTick - bids.bestTick) * TICK : null;
+
+  const bestBid = bids.at(-1)?.price ?? null;
+  const bestAsk = asks[0]?.price ?? null;
+  const spread = bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
+
+  // A deep book is wider than the panel, and the spread is the part worth
+  // opening on rather than the far end of the bids.
+  useEffect(() => {
+    setActive(null);
+    const scroller = scrollerRef.current;
+    const spreadLine = spreadRef.current;
+    if (!scroller || !spreadLine) return;
+    scroller.scrollLeft = spreadLine.offsetLeft - scroller.clientWidth / 2;
+  }, [bids, asks]);
 
   const message = loading
     ? "Loading…"
     : error
       ? "Couldn't load order book."
-      : rowCount
+      : bids.length || asks.length
         ? null
         : "No open orders for this item.";
 
@@ -154,28 +146,52 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
           {message}
         </p>
       ) : (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-[10px] sm:gap-2 sm:text-xs" style={{ color: MUTED }}>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[10px] sm:text-xs" style={{ color: MUTED }}>
             <span className="flex-1" style={{ color: BID_COLOR }}>
               Bids
             </span>
-            <span className="shrink-0 px-1">Spread {spread !== null ? spread.toFixed(3) : "—"}</span>
+            <span className="shrink-0 tabular-nums" style={{ color: active ? TEXT : MUTED }}>
+              {active
+                ? `${formatPrice(active.price)} · ${formatQuantity(active.quantity)}`
+                : `Spread ${spread !== null ? spread.toFixed(3) : "—"}`}
+            </span>
             <span className="flex-1 text-right" style={{ color: ASK_COLOR }}>
               Asks
             </span>
           </div>
-          {/* Both halves live in the same rows, so one scroller moves them together. */}
-          <div className="flex max-h-72 flex-col gap-1 overflow-y-auto sm:max-h-96">
-            {Array.from({ length: rowCount }, (_, row) => (
-              <Row
-                key={row}
-                bid={cellAt(bids, row)}
-                ask={cellAt(asks, row)}
-                maxQuantity={maxQuantity}
-                open={pinnedRow === row}
-                onToggle={() => setPinnedRow(current => (current === row ? null : row))}
-              />
-            ))}
+          {/* Price runs left to right across one strip, so both sides share an
+              axis and the depth on each reads as a column against the other. */}
+          <div
+            ref={scrollerRef}
+            className="overflow-x-auto"
+            onPointerLeave={event => {
+              if (event.pointerType === "mouse") setActive(null);
+            }}
+          >
+            <div className="relative flex items-start">
+              {bids.map(column => (
+                <Bar
+                  key={column.price}
+                  column={column}
+                  color={BID_COLOR}
+                  maxQuantity={maxQuantity}
+                  active={active === column}
+                  onActivate={() => setActive(column)}
+                />
+              ))}
+              <div ref={spreadRef} className={`w-px shrink-0 ${CHART_HEIGHT}`} style={{ backgroundColor: BORDER }} />
+              {asks.map(column => (
+                <Bar
+                  key={column.price}
+                  column={column}
+                  color={ASK_COLOR}
+                  maxQuantity={maxQuantity}
+                  active={active === column}
+                  onActivate={() => setActive(column)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
