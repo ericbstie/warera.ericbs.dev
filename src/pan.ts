@@ -53,6 +53,18 @@ export function clampStretch(stretch: number): number {
 }
 
 /**
+ * How far the price window may be pushed off where the bars put it, counted in
+ * windows: three quarters leaves a good stretch of empty room above or below to
+ * draw a level in, and still keeps a corner of the range on the pane.
+ */
+const MAX_SHIFT = 0.75;
+
+export function clampShift(shift: number): number {
+  if (!Number.isFinite(shift)) return 0;
+  return Math.min(Math.max(shift, -MAX_SHIFT), MAX_SHIFT);
+}
+
+/**
  * How far apart bars sit, by the middle gap rather than the mean: a record with
  * a poll missing, or a day the item didn't trade, shouldn't stretch the future.
  */

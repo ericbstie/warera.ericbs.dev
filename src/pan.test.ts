@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { barDateAt, clampOffset, futureSpan, lastIndex, stepMs } from "./pan";
+import { barDateAt, clampOffset, clampShift, futureSpan, lastIndex, stepMs } from "./pan";
 
 const days = (count: number) =>
   Array.from({ length: count }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10));
@@ -17,6 +17,14 @@ test("has nowhere to scroll without at least two bars", () => {
   expect(lastIndex(1)).toBe(0);
   expect(lastIndex(0)).toBe(0);
   expect(clampOffset(3, 1)).toBe(0);
+});
+
+test("drags the price window off the bars, but keeps a corner of them on the pane", () => {
+  expect(clampShift(0.5)).toBe(0.5);
+  expect(clampShift(-0.5)).toBe(-0.5);
+  expect(clampShift(4)).toBe(0.75);
+  expect(clampShift(-4)).toBe(-0.75);
+  expect(clampShift(NaN)).toBe(0);
 });
 
 test("takes the middle gap, so a missing bar doesn't stretch the future", () => {

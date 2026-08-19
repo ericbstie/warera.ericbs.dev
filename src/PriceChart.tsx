@@ -9,7 +9,15 @@ import {
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
 import { sma, vwapSeries } from "./indicators";
-import { barDateAt, clampOffset, clampSpan, clampStretch, futureSpan, lastIndex } from "./pan";
+import {
+  barDateAt,
+  clampOffset,
+  clampShift,
+  clampSpan,
+  clampStretch,
+  futureSpan,
+  lastIndex,
+} from "./pan";
 import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
@@ -49,14 +57,15 @@ const PINCH_SCALE = 0.01;
 const MIN_PINCH_SPREAD = 24;
 
 /** The view a fresh chart opens on: the whole record, the whole price range. */
-const FIT: Scale = { offset: 0, span: null, stretch: 1 };
+const FIT: Scale = { offset: 0, span: null, stretch: 1, shift: 0 };
 
 /**
  * What of the chart is on screen: the leftmost bar, how many gaps fit beside it
- * — null until a pinch narrows it from the whole record — and how far the price
- * scale has been pulled past the range that fits.
+ * — null until a pinch narrows it from the whole record — how far the price
+ * scale has been pulled past the range that fits, and how far the window has
+ * been dragged off the prices that would centre it, in windows.
  */
-type Scale = { offset: number; span: number | null; stretch: number };
+type Scale = { offset: number; span: number | null; stretch: number; shift: number };
 
 type DraggedDrawing = Extract<Drawing, { kind: "line" | "measure" }>;
 
@@ -170,13 +179,19 @@ export function PriceChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<DraggedDrawing | null>(null);
   const [scale, setScale] = useState<Scale>(FIT);
-  const panFrom = useRef<{ x: number; offset: number } | null>(null);
+  const panFrom = useRef<{ x: number; y: number; offset: number; shift: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   /** Every finger or cursor on the plot, so a second one can be told from the first. */
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const pinchFrom = useRef<
-    { dx: number; dy: number; ratio: number; offset: number; span: number; stretch: number } | null
-  >(null);
+  const pinchFrom = useRef<{
+    dx: number;
+    dy: number;
+    ratio: number;
+    offset: number;
+    span: number;
+    stretch: number;
+    shift: number;
+  } | null>(null);
   const clipId = useId();
   const priceClipId = useId();
 
@@ -230,6 +245,7 @@ export function PriceChart({
   const span = scale.span ?? futureSpan(prices.length);
   const offset = scale.offset;
   const stretch = scale.stretch;
+  const shift = scale.shift;
   // Stretching keeps the same pane and shows less of the price range in it. The
   // window it keeps is centred on the bars in view, so pulling the scale open
   // magnifies what is being looked at rather than the middle of the record —
@@ -239,7 +255,9 @@ export function PriceChart({
   const middle = onScreen.length
     ? (Math.min(...onScreen) + Math.max(...onScreen)) / 2
     : (fitLow + fitHigh) / 2;
-  const centre = clamp(middle, fitLow + half, fitHigh - half);
+  // Dragging up and down moves the window off that centre, by windows, so the
+  // room it opens above or below the prices grows with how far it is zoomed in.
+  const centre = clamp(middle, fitLow + half, fitHigh - half) + shift * 2 * half;
   const low = centre - half;
   const high = centre + half;
   const decimals = Math.min(6, Math.max(2, Math.ceil(-Math.log10((high - low) / ROWS)) + 1));
@@ -300,6 +318,9 @@ export function PriceChart({
   const panTo = (next: number) =>
     setScale(current => ({ ...current, offset: clampOffset(next, prices.length, span) }));
 
+  /** The other axis of the drag: how far the price window sits off the bars. */
+  const liftTo = (next: number) => setScale(current => ({ ...current, shift: clampShift(next) }));
+
   /**
    * Zoom about a point of the plot: the bar under the fingers, or under the
    * cursor, is the one that stays where it is while the rest close in on it.
@@ -335,6 +356,7 @@ export function PriceChart({
     setScale({
       span: nextSpan,
       stretch: nextStretch,
+      shift: clampShift(from.shift),
       offset: clampOffset(held - from.ratio * nextSpan, prices.length, nextSpan),
     });
   };
@@ -354,6 +376,7 @@ export function PriceChart({
         offset,
         span,
         stretch,
+        shift,
       };
       return;
     }
@@ -362,9 +385,11 @@ export function PriceChart({
     setHovered(index);
     // Capture keeps the drag alive when a finger slides off the plot.
     event.currentTarget.setPointerCapture(event.pointerId);
-    // The crosshair is also the hand: dragging it carries the chart along,
-    // which is the only way into the future on a touchscreen.
-    if (tool === "crosshair") panFrom.current = { x: event.clientX, offset };
+    // The crosshair is also the hand: dragging it carries the chart along in
+    // whichever direction it is pulled, which is the only way into the empty
+    // room around the bars on a touchscreen.
+    if (tool === "crosshair")
+      panFrom.current = { x: event.clientX, y: event.clientY, offset, shift };
     if (tool === "line" || tool === "measure") {
       setDraft({ kind: tool, fromIndex: index, toIndex: index, fromPrice: price, toPrice: price });
     }
@@ -385,7 +410,12 @@ export function PriceChart({
     // grabbed at, the bar under the finger stays under the finger.
     const { index, price } = locate(event);
     setHovered(index);
-    if (panFrom.current) panTo(panFrom.current.offset + (panFrom.current.x - event.clientX) / spacing);
+    if (panFrom.current) {
+      panTo(panFrom.current.offset + (panFrom.current.x - event.clientX) / spacing);
+      // The bars follow the finger, so pulling down lifts the window to the
+      // prices above them.
+      liftTo(panFrom.current.shift + (event.clientY - panFrom.current.y) / priceHeight);
+    }
     if (draft) setDraft({ ...draft, toIndex: index, toPrice: price });
   };
 
@@ -450,6 +480,14 @@ export function PriceChart({
     if (event.key === "Escape") {
       setHovered(null);
       setDraft(null);
+      return;
+    }
+    // Up and down pan the price the way left and right pan the dates, a tenth
+    // of the window at a time.
+    const lift = event.key === "ArrowUp" ? 0.1 : event.key === "ArrowDown" ? -0.1 : 0;
+    if (lift !== 0) {
+      event.preventDefault();
+      liftTo(shift + lift);
       return;
     }
     const step = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
@@ -615,7 +653,10 @@ export function PriceChart({
                   })}
                 </div>
               )}
-              {(offset >= 0.5 || span < futureSpan(prices.length) || stretch > 1) && (
+              {(offset >= 0.5 ||
+                span < futureSpan(prices.length) ||
+                stretch > 1 ||
+                Math.abs(shift) > 0.01) && (
                 <button
                   type="button"
                   onClick={() => setScale(FIT)}

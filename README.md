@@ -8,8 +8,13 @@ producing it earns the most.
 The chart is drawn from the server's own record rather than upstream's, so it
 reaches back further than the 30 days upstream publishes.
 
+The chart pans in both directions: drag it anywhere with the crosshair tool to
+carry the bars sideways into the empty room past the last one, or up and down to
+open room above or below the prices. `Now ›` puts the view back on its fit.
+
 Keyboard: `Ctrl`/`Cmd`+`K` searches items, `I` toggles the indicator overlays, `R`
-resets the chart, and the arrow keys walk the crosshair once the chart has focus.
+resets the chart, and once the chart has focus the left and right arrows walk the
+crosshair while the up and down arrows pan the price.
 
 To install dependencies:
 
