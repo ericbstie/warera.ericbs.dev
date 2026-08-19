@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { groupOrdersByPrice, useTransactions, type Order } from "./orders";
 
 const ASK_COLOR = "var(--down)";
@@ -13,6 +13,10 @@ const TICK = 0.001;
 // thousands of columns. The columns nearest the spread are the ones worth showing.
 const MAX_COLUMNS = 250;
 const CHART_HEIGHT = "h-40 sm:h-56";
+// A column reserves the same width whether or not it carries an order, so the
+// short side of a lopsided book can be padded out to match the long one.
+const COLUMN_WIDTH = "min-w-2 max-w-6 flex-1 px-px sm:min-w-3";
+const LABEL = "absolute top-0 whitespace-nowrap text-[9px] tabular-nums sm:text-[10px]";
 
 type Column = { price: number; quantity: number };
 
@@ -50,6 +54,17 @@ function buildColumns(orders: Order[], side: "bid" | "ask"): Column[] {
   return side === "bid" ? columns.reverse() : columns;
 }
 
+/** Blank width on the short side, holding the spread at the middle of the strip. */
+function Padding({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className={COLUMN_WIDTH} aria-hidden />
+      ))}
+    </>
+  );
+}
+
 function Bar({
   column,
   color,
@@ -73,10 +88,18 @@ function Bar({
     best === "bid" ? "right-0" : best === "ask" ? "left-0" : "left-1/2 -translate-x-1/2";
   return (
     <div
-      className="relative min-w-2 max-w-6 flex-1 cursor-pointer px-px sm:min-w-3"
+      className={`relative cursor-pointer ${COLUMN_WIDTH}`}
       style={{ backgroundColor: active ? HIGHLIGHT : "transparent" }}
       onPointerEnter={onActivate}
     >
+      {/* Size stands over the column it belongs to, clear of every bar. */}
+      <div className="relative h-4">
+        {active && (
+          <span className={`${LABEL} left-1/2 -translate-x-1/2`} style={{ color: TEXT }}>
+            {formatQuantity(column.quantity)}
+          </span>
+        )}
+      </div>
       <div className={`flex items-end ${CHART_HEIGHT}`}>
         {/* A resting tick that rounds to nothing still deserves to be visible. */}
         <div
@@ -86,10 +109,7 @@ function Bar({
       </div>
       <div className="relative h-4">
         {(best || active) && (
-          <span
-            className={`absolute top-0 whitespace-nowrap text-[9px] tabular-nums sm:text-[10px] ${anchor}`}
-            style={{ color: active ? TEXT : color }}
-          >
+          <span className={`${LABEL} ${anchor}`} style={{ color: active ? TEXT : color }}>
             {formatPrice(column.price)}
           </span>
         )}
@@ -117,11 +137,13 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   const bestBid = bids.at(-1)?.price ?? null;
   const bestAsk = asks[0]?.price ?? null;
   const spread = bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
+  // One side reaching further out than the other would otherwise carry the
+  // meeting point off towards the shallow side.
+  const padding = bids.length - asks.length;
 
-  // A deep book is wider than the panel, and the spread is the part worth
-  // opening on rather than the far end of the bids. The panel settles to its
-  // final width after the book has drawn on some layouts, so the same centring
-  // runs again on every width it is given.
+  // The spread is the part of a deep book worth opening on rather than the far
+  // end of the bids. The panel settles to its final width after the book has
+  // drawn on some layouts, so the same centring runs on every width it is given.
   useLayoutEffect(() => {
     setActive(null);
     const scroller = scrollerRef.current;
@@ -136,6 +158,17 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
     observer.observe(scroller);
     return () => observer.disconnect();
   }, [bids, asks]);
+
+  // A pointer that leaves the diagram drops the column it was reading; a touch
+  // has to be told, and anywhere off the diagram is where it gets told.
+  useEffect(() => {
+    if (!active) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!scrollerRef.current?.contains(event.target as Node)) setActive(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [active]);
 
   const message = loading
     ? "Loading…"
@@ -160,8 +193,8 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
             <span className="flex-1" style={{ color: BID_COLOR }}>
               Bids
             </span>
-            <span className="shrink-0 tabular-nums" style={{ color: active ? TEXT : MUTED }}>
-              {active ? formatQuantity(active.quantity) : `Spread ${spread !== null ? spread.toFixed(3) : "—"}`}
+            <span className="shrink-0 tabular-nums">
+              Spread {spread !== null ? spread.toFixed(3) : "—"}
             </span>
             <span className="flex-1 text-right" style={{ color: ASK_COLOR }}>
               Asks
@@ -179,6 +212,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
             {/* Safe centring holds a shallow book in the middle of the panel
                 without pushing half of a deep one out of the scroller's reach. */}
             <div className="relative flex items-start" style={{ justifyContent: "safe center" }}>
+              <Padding count={Math.max(0, -padding)} />
               {bids.map((column, index) => (
                 <Bar
                   key={column.price}
@@ -190,7 +224,11 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   onActivate={() => setActive(column)}
                 />
               ))}
-              <div ref={spreadRef} className={`w-px shrink-0 ${CHART_HEIGHT}`} style={{ backgroundColor: BORDER }} />
+              <div
+                ref={spreadRef}
+                className={`mt-4 w-px shrink-0 ${CHART_HEIGHT}`}
+                style={{ backgroundColor: BORDER }}
+              />
               {asks.map((column, index) => (
                 <Bar
                   key={column.price}
@@ -202,6 +240,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   onActivate={() => setActive(column)}
                 />
               ))}
+              <Padding count={Math.max(0, padding)} />
             </div>
           </div>
         </div>
