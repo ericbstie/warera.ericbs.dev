@@ -133,26 +133,28 @@ export function Header({
 
           <ItemPicker items={items} selected={selected} onSelect={onSelect} />
 
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-2xl font-semibold tabular-nums">
-              {quote ? formatPrice(quote.price) : loading ? "…" : "—"}
-            </span>
-            {quote && (
-              <span
-                className={`rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}
-                style={{ background: `color-mix(in srgb, currentColor 14%, transparent)` }}
-              >
-                {sign}
-                {formatPrice(quote.change)} ({sign}
-                {quote.changePct.toFixed(2)}%)
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-2xl font-semibold tabular-nums">
+                {quote ? formatPrice(quote.price) : loading ? "…" : "—"}
               </span>
-            )}
+              {quote && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}
+                  style={{ background: `color-mix(in srgb, currentColor 14%, transparent)` }}
+                >
+                  {sign}
+                  {formatPrice(quote.change)} ({sign}
+                  {quote.changePct.toFixed(2)}%)
+                </span>
+              )}
+            </div>
             {quote && (
-              <>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="text-xs text-muted">{formatDay(quote.date)}</span>
                 <Stat label="Vol" value={formatCompact(quote.volume)} />
                 <Stat label="VWAP" value={quote.vwap === null ? "—" : formatPrice(quote.vwap)} />
-              </>
+              </div>
             )}
           </div>
         </div>
