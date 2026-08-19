@@ -122,36 +122,39 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-      <div className="relative flex items-center justify-center px-4 py-2 sm:py-2.5">
-        <p className="text-xl font-semibold sm:text-2xl">War Era Market</p>
-        <ThemeToggle />
-      </div>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 border-t border-edge px-4 py-2.5">
-        <Ticker items={items.map(item => item.code)} />
+      <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 py-2.5">
+        <div className="relative flex items-center justify-center">
+          <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
+          <ThemeToggle />
+        </div>
 
-        <ItemPicker items={items} selected={selected} onSelect={onSelect} />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <Ticker items={items.map(item => item.code)} onSelect={onSelect} />
 
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-2xl font-semibold tabular-nums">
-            {quote ? formatPrice(quote.price) : loading ? "…" : "—"}
-          </span>
-          {quote && (
-            <span
-              className={`rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}
-              style={{ background: `color-mix(in srgb, currentColor 14%, transparent)` }}
-            >
-              {sign}
-              {formatPrice(quote.change)} ({sign}
-              {quote.changePct.toFixed(2)}%)
+          <ItemPicker items={items} selected={selected} onSelect={onSelect} />
+
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-2xl font-semibold tabular-nums">
+              {quote ? formatPrice(quote.price) : loading ? "…" : "—"}
             </span>
-          )}
-          {quote && (
-            <>
-              <span className="text-xs text-muted">{formatDay(quote.date)}</span>
-              <Stat label="Vol" value={formatCompact(quote.volume)} />
-              <Stat label="VWAP" value={quote.vwap === null ? "—" : formatPrice(quote.vwap)} />
-            </>
-          )}
+            {quote && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}
+                style={{ background: `color-mix(in srgb, currentColor 14%, transparent)` }}
+              >
+                {sign}
+                {formatPrice(quote.change)} ({sign}
+                {quote.changePct.toFixed(2)}%)
+              </span>
+            )}
+            {quote && (
+              <>
+                <span className="text-xs text-muted">{formatDay(quote.date)}</span>
+                <Stat label="Vol" value={formatCompact(quote.volume)} />
+                <Stat label="VWAP" value={quote.vwap === null ? "—" : formatPrice(quote.vwap)} />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>
