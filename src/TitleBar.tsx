@@ -11,7 +11,9 @@ function ThemeToggle() {
       onClick={toggle}
       aria-pressed={dark}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded border border-edge p-1.5 text-ink sm:right-4"
+      // Centring the title on a phone means nothing else may take up room in
+      // the row; from `sm` up it joins the flow and the menu follows it.
+      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded border border-edge p-1.5 text-ink sm:static sm:ml-auto sm:h-8 sm:w-8 sm:translate-y-0 sm:p-0"
     >
       <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden className="fill-current">
         {dark ? (
@@ -32,8 +34,8 @@ export function TitleBar() {
   return (
     <div className="relative flex items-center justify-center gap-2.5 sm:justify-start">
       <p className="text-3xl font-semibold sm:text-4xl">War Era Market</p>
-      <Nav />
       <ThemeToggle />
+      <Nav />
     </div>
   );
 }
