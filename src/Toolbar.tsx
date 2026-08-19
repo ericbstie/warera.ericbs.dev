@@ -49,6 +49,11 @@ function Group({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+/** Only earns its keep while the groups share a line; below `sm` they wrap apart instead. */
+function Divider() {
+  return <span aria-hidden className="hidden h-5 self-center border-l border-edge sm:block" />;
+}
+
 export function Toolbar({
   range,
   onRange,
@@ -70,31 +75,7 @@ export function Toolbar({
 
   return (
     <div className="border-b border-edge bg-panel">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-2">
-        <Group label="Chart type">
-          {VIEWS.map(entry => (
-            <Segment
-              key={entry.id}
-              label={entry.label}
-              active={view === entry.id}
-              onClick={() => onView(entry.id)}
-            />
-          ))}
-        </Group>
-
-        <span aria-hidden className="hidden h-5 self-center border-l border-edge sm:block" />
-
-        <Group label="Date range">
-          {RANGES.map(entry => (
-            <Segment
-              key={entry}
-              label={entry}
-              active={range === entry}
-              onClick={() => onRange(entry)}
-            />
-          ))}
-        </Group>
-
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2">
         <button
           type="button"
           onClick={() => setOpen(current => !current)}
@@ -139,6 +120,31 @@ export function Toolbar({
           })}
         </div>
 
+        <Divider />
+
+        <Group label="Chart type">
+          {VIEWS.map(entry => (
+            <Segment
+              key={entry.id}
+              label={entry.label}
+              active={view === entry.id}
+              onClick={() => onView(entry.id)}
+            />
+          ))}
+        </Group>
+
+        <Divider />
+
+        <Group label="Date range">
+          {RANGES.map(entry => (
+            <Segment
+              key={entry}
+              label={entry}
+              active={range === entry}
+              onClick={() => onRange(entry)}
+            />
+          ))}
+        </Group>
       </div>
     </div>
   );

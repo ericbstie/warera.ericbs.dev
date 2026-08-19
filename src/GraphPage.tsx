@@ -84,19 +84,19 @@ export function GraphPage() {
         quote={quote}
         loading={loading}
       />
-      <Toolbar
-        range={range}
-        onRange={setRange}
-        view={view}
-        onView={setView}
-        overlays={overlays}
-        onToggleOverlay={toggleOverlay}
-      />
-
-      <main className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
+      <main className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-4 pt-6">
         {error && <ItemListError onRetry={retry} />}
 
         <section className="overflow-hidden rounded border border-edge bg-canvas">
+          <Toolbar
+            range={range}
+            onRange={setRange}
+            view={view}
+            onView={setView}
+            overlays={overlays}
+            onToggleOverlay={toggleOverlay}
+          />
+
           <div className="flex flex-col sm:flex-row">
             <ToolRail
               tool={tool}
