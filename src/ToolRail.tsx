@@ -46,14 +46,7 @@ export function ToolRail({
   hasDrawings: boolean;
 }) {
   return (
-    <div
-      role="toolbar"
-      aria-label="Chart tools"
-      aria-orientation="vertical"
-      // A rail down the side would eat a third of a phone screen, so below `sm`
-      // the same buttons run across the top instead.
-      className="flex shrink-0 flex-row gap-1 border-b border-edge bg-panel p-1 sm:flex-col sm:border-b-0 sm:border-r"
-    >
+    <div role="toolbar" aria-label="Chart tools" className="flex shrink-0 items-center gap-0.5">
       {TOOLS.map(({ id, label, hint }) => {
         const active = tool === id;
         return (
@@ -64,7 +57,7 @@ export function ToolRail({
             aria-label={label}
             aria-pressed={active}
             onClick={() => onTool(id)}
-            className={`grid h-8 w-8 place-items-center rounded ${
+            className={`grid h-7 w-7 place-items-center rounded ${
               active ? "bg-accent text-white" : "text-muted"
             }`}
           >
@@ -79,7 +72,7 @@ export function ToolRail({
         aria-label="Clear drawings"
         onClick={onClear}
         disabled={!hasDrawings}
-        className="grid h-8 w-8 place-items-center rounded text-muted disabled:opacity-40 sm:mt-auto"
+        className="grid h-7 w-7 place-items-center rounded text-muted disabled:opacity-40"
       >
         <Glyph>
           <path d="M3.5 4.5h9M6 4.5V3h4v1.5M5 4.5l.6 8h4.8l.6-8" />

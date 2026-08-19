@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { RANGES, type Range } from "./indicators";
+import { ToolRail } from "./ToolRail";
+import { type ToolId } from "./tools";
 
 export type Overlay = "sma5" | "sma10" | "sma20" | "vwap";
 
@@ -49,6 +51,11 @@ function Group({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+/** Only earns its keep while the groups share a line; below `sm` they wrap apart instead. */
+function Divider() {
+  return <span aria-hidden className="hidden h-5 self-center border-l border-edge sm:block" />;
+}
+
 export function Toolbar({
   range,
   onRange,
@@ -56,6 +63,10 @@ export function Toolbar({
   onView,
   overlays,
   onToggleOverlay,
+  tool,
+  onTool,
+  onClear,
+  hasDrawings,
 }: {
   range: Range;
   onRange: (range: Range) => void;
@@ -63,6 +74,10 @@ export function Toolbar({
   onView: (view: "line" | "candle") => void;
   overlays: Overlay[];
   onToggleOverlay: (overlay: Overlay) => void;
+  tool: ToolId;
+  onTool: (tool: ToolId) => void;
+  onClear: () => void;
+  hasDrawings: boolean;
 }) {
   // Narrow screens collapse the chips behind the button so the strip stays one
   // line; from `sm` up the chips are always on show and this only tracks the arrow.
@@ -70,7 +85,13 @@ export function Toolbar({
 
   return (
     <div className="border-b border-edge bg-panel">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-2">
+      {/* Drawing tools, chart type and range share one line, each group fenced
+          off by a divider. On a phone there is no room for that, so they wrap. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2">
+        <ToolRail tool={tool} onTool={onTool} onClear={onClear} hasDrawings={hasDrawings} />
+
+        <Divider />
+
         <Group label="Chart type">
           {VIEWS.map(entry => (
             <Segment
@@ -82,7 +103,7 @@ export function Toolbar({
           ))}
         </Group>
 
-        <span aria-hidden className="hidden h-5 self-center border-l border-edge sm:block" />
+        <Divider />
 
         <Group label="Date range">
           {RANGES.map(entry => (
@@ -94,7 +115,9 @@ export function Toolbar({
             />
           ))}
         </Group>
+      </div>
 
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 pb-2">
         <button
           type="button"
           onClick={() => setOpen(current => !current)}
@@ -138,7 +161,6 @@ export function Toolbar({
             );
           })}
         </div>
-
       </div>
     </div>
   );

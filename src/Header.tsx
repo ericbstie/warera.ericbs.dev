@@ -122,7 +122,7 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-      <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 py-2.5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 pb-4 pt-2.5">
         <div className="relative flex items-center justify-center">
           <p className="text-center text-3xl font-semibold sm:text-4xl">War Era Market</p>
           <ThemeToggle />

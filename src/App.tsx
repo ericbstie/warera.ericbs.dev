@@ -8,7 +8,6 @@ import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
 import { Toolbar, type Overlay } from "./Toolbar";
-import { ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 import "./index.css";
 
@@ -147,16 +146,8 @@ export function App() {
         quote={quote}
         loading={loading}
       />
-      <Toolbar
-        range={range}
-        onRange={setRange}
-        view={view}
-        onView={setView}
-        overlays={overlays}
-        onToggleOverlay={toggleOverlay}
-      />
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
+      <main className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-4 pt-6">
         {error && (
           <div className="flex flex-wrap items-center gap-3 rounded border border-down p-3 text-sm text-down">
             <span>Couldn't load the item list, so there is nothing to show.</span>
@@ -171,29 +162,31 @@ export function App() {
         )}
 
         <section className="overflow-hidden rounded border border-edge bg-canvas">
-          <div className="flex flex-col sm:flex-row">
-            <ToolRail
+          <Toolbar
+            range={range}
+            onRange={setRange}
+            view={view}
+            onView={setView}
+            overlays={overlays}
+            onToggleOverlay={toggleOverlay}
+            tool={tool}
+            onTool={setTool}
+            onClear={() => setDrawings([])}
+            hasDrawings={drawings.length > 0}
+          />
+          <Panel label="price chart">
+            <PriceChart
+              itemCode={selected}
+              transactions={visible}
+              loading={loading}
+              error={historyError}
+              view={view}
+              overlays={overlays}
               tool={tool}
-              onTool={setTool}
-              onClear={() => setDrawings([])}
-              hasDrawings={drawings.length > 0}
+              drawings={drawings}
+              onDraw={drawing => setDrawings(current => [...current, drawing])}
             />
-            <div className="min-w-0 flex-1">
-              <Panel label="price chart">
-                <PriceChart
-                  itemCode={selected}
-                  transactions={visible}
-                  loading={loading}
-                  error={historyError}
-                  view={view}
-                  overlays={overlays}
-                  tool={tool}
-                  drawings={drawings}
-                  onDraw={drawing => setDrawings(current => [...current, drawing])}
-                />
-              </Panel>
-            </div>
-          </div>
+          </Panel>
         </section>
 
         {/* The order book draws its own card, so it needs no wrapper of its own. */}
