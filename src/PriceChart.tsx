@@ -1,13 +1,16 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
+  type WheelEvent,
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
 import { sma, vwapSeries } from "./indicators";
+import { barDateAt, clampOffset, lastIndex } from "./pan";
 import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
@@ -143,6 +146,15 @@ export function PriceChart({
   const { ref, width } = useContainerWidth();
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<MeasureDrawing | null>(null);
+  // Bars of empty room pulled in from the right. Zero — the newest bar against
+  // the right edge — is where the chart sits until someone scrolls it forward.
+  const [offset, setOffset] = useState(0);
+  const panFrom = useRef<{ x: number; offset: number } | null>(null);
+  const clipId = useId();
+
+  // Another item, or another range, is another set of bars: the future scrolled
+  // to belonged to the old ones.
+  useEffect(() => setOffset(0), [itemCode, prices.length]);
 
   // Letting go of the graph keeps the last-held bar highlighted; only a
   // click elsewhere on the page drops it back to the most recent one.
@@ -196,15 +208,16 @@ export function PriceChart({
   const volumeBottom = volumeTop + volumeHeight;
   const plotRight = width - PADDING.right;
 
+  const span = prices.length - 1;
   const x = (index: number) =>
-    PADDING.left + (prices.length < 2 ? innerWidth / 2 : (index / (prices.length - 1)) * innerWidth);
+    PADDING.left + (span < 1 ? innerWidth / 2 : ((index - offset) / span) * innerWidth);
   const y = (price: number) => priceBottom - ((price - low) / (high - low)) * priceHeight;
   /** The inverse of `y`, clamped: a gesture that strays out of the pane still reads as a price on it. */
   const priceAt = (offsetY: number) =>
     low + clamp((priceBottom - offsetY) / priceHeight, 0, 1) * (high - low);
   const axisX = width - 6; // price and volume labels are right-aligned against the gutter
 
-  const spacing = prices.length > 1 ? innerWidth / (prices.length - 1) : innerWidth;
+  const spacing = span > 0 ? innerWidth / span : innerWidth;
   const barWidth = Math.max(2, Math.min(spacing * 0.6, 24));
   /** A bar on the first or last day is half outside the plot; trim it to the edge. */
   const band = (center: number, size: number) => {
@@ -216,44 +229,63 @@ export function PriceChart({
 
   // With nothing hovered, the highlight sticks to the most recent day.
   const legendIndex = hovered ?? prices.length - 1;
-  const point = prices[legendIndex];
+  // Past the end of the record there is no bar to read, so the crosshair moves
+  // on into the empty room while the figures stay on the last one there was.
+  const dataIndex = Math.min(legendIndex, prices.length - 1);
+  const point = prices[dataIndex];
   const legend = point;
-  const legendBar = transactions[legendIndex];
-  const legendOhlc = ohlcAt(prices, legendIndex);
+  const legendBar = transactions[dataIndex];
+  const legendOhlc = ohlcAt(prices, dataIndex);
   const legendVolume = legendBar?.totalQuantity ?? 0;
   const legendVwap = legendVolume === 0 ? null : (legendBar?.totalValue ?? 0) / legendVolume;
+  const dates = prices.map(p => p.date);
 
   const locate = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const ratio = (event.clientX - bounds.left - PADDING.left) / innerWidth;
-    const index = clamp(Math.round(ratio * (prices.length - 1)), 0, prices.length - 1);
+    const index = clamp(Math.round(offset + ratio * span), 0, lastIndex(prices.length));
     return { index, price: priceAt(event.clientY - bounds.top) };
   };
+
+  const panTo = (next: number) => setOffset(clampOffset(next, prices.length));
 
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
     const { index, price } = locate(event);
     setHovered(index);
+    // Capture keeps the drag alive when a finger slides off the plot.
+    event.currentTarget.setPointerCapture(event.pointerId);
+    // The crosshair is also the hand: dragging it carries the chart along,
+    // which is the only way into the future on a touchscreen.
+    if (tool === "crosshair") panFrom.current = { x: event.clientX, offset };
     if (tool === "line") onDraw({ kind: "line", price });
     if (tool === "measure") {
-      // Capture keeps the drag alive when a finger slides off the plot.
-      event.currentTarget.setPointerCapture(event.pointerId);
       setDraft({ kind: "measure", fromIndex: index, toIndex: index, fromPrice: price, toPrice: price });
     }
   };
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    // Read the bar before the pan lands: measured against the offset it was
+    // grabbed at, the bar under the finger stays under the finger.
     const { index, price } = locate(event);
     setHovered(index);
+    if (panFrom.current) panTo(panFrom.current.offset + (panFrom.current.x - event.clientX) / spacing);
     if (draft) setDraft({ ...draft, toIndex: index, toPrice: price });
   };
 
   const onPointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    panFrom.current = null;
     if (!draft) return;
     const { index, price } = locate(event);
     setDraft(null);
     // A click that never left its bar measures nothing, and a zero-width
     // rectangle on the chart is impossible to select or clear.
     if (index !== draft.fromIndex) onDraw({ ...draft, toIndex: index, toPrice: price });
+  };
+
+  /** A plain vertical wheel still belongs to the page; sideways scrolling is the chart's. */
+  const onWheel = (event: WheelEvent<SVGSVGElement>) => {
+    const delta = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+    if (delta) panTo(offset + delta / spacing);
   };
 
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
@@ -265,12 +297,13 @@ export function PriceChart({
     const step = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
     if (step === 0 || prices.length === 0) return;
     event.preventDefault(); // arrows would otherwise scroll the page out from under the chart
-    setHovered(current =>
-      current === null ? prices.length - 1 : clamp(current + step, 0, prices.length - 1),
-    );
+    const next = clamp((hovered ?? prices.length - 1) + step, 0, lastIndex(prices.length));
+    setHovered(next);
+    // Walking off either edge scrolls the chart rather than losing the crosshair.
+    panTo(Math.min(Math.max(offset, next - span), next));
   };
 
-  const dateTag = point ? formatDate(point.date) : "";
+  const dateTag = point ? formatDate(barDateAt(dates, legendIndex)) : "";
   const dateTagWidth = dateTag.length * LABEL_CHAR_WIDTH + 14;
   const dateTagX = point
     ? Math.min(Math.max(x(legendIndex) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
@@ -330,8 +363,9 @@ export function PriceChart({
     }
 
     const { change, changePct, bars, rising } = measurementOf(drawing);
-    const left = Math.min(x(drawing.fromIndex), x(drawing.toIndex));
-    const right = Math.max(x(drawing.fromIndex), x(drawing.toIndex));
+    // Scrolling can carry half a measurement off the plot; the rest stays put.
+    const left = clamp(Math.min(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
+    const right = clamp(Math.max(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
     const top = y(Math.max(drawing.fromPrice, drawing.toPrice));
     const bottom = y(Math.min(drawing.fromPrice, drawing.toPrice));
     const sign = rising ? "+" : "";
@@ -382,7 +416,7 @@ export function PriceChart({
 
   return (
     <div className="w-full">
-      <div ref={ref} style={{ height: boxHeight }} className="relative w-full">
+      <div ref={ref} style={{ height: boxHeight }} className="relative w-full select-none">
         {message ? (
           <p className="flex h-full items-center justify-center text-sm text-muted">{message}</p>
         ) : (
@@ -422,7 +456,7 @@ export function PriceChart({
 
                   {OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
                     const style = OVERLAY_STYLE[entry.id];
-                    const value = overlayValues[entry.id][legendIndex] ?? null;
+                    const value = overlayValues[entry.id][dataIndex] ?? null;
                     return (
                       <span key={entry.id} className="flex shrink-0 items-center gap-1 text-muted">
                         <span
@@ -439,6 +473,18 @@ export function PriceChart({
                   })}
                 </div>
               )}
+              {offset >= 0.5 && (
+                <button
+                  type="button"
+                  onClick={() => setOffset(0)}
+                  // Inside the plot rather than over the price axis, and below
+                  // the legend on a phone, where the legend has the top of the box.
+                  style={{ top: compact ? COMPACT_LEGEND_HEIGHT + 2 : 2, right: PADDING.right + 4 }}
+                  className="absolute z-10 rounded border border-edge bg-panel px-1.5 py-0.5 text-[11px] text-muted"
+                >
+                  Now ›
+                </button>
+              )}
               <svg
                 width={width}
                 height={height}
@@ -450,9 +496,20 @@ export function PriceChart({
                 onPointerMove={onPointerMove}
                 onPointerDown={onPointerDown}
                 onPointerUp={onPointerUp}
-                onPointerCancel={() => setDraft(null)}
+                onPointerCancel={() => {
+                  panFrom.current = null;
+                  setDraft(null);
+                }}
+                onWheel={onWheel}
                 onKeyDown={onKeyDown}
               >
+                <defs>
+                  {/* Scrolled-away bars must stop at the plot, not run under the axis labels. */}
+                  <clipPath id={clipId}>
+                    <rect x={PADDING.left} y="0" width={Math.max(innerWidth, 0)} height={height} />
+                  </clipPath>
+                </defs>
+
                 {Array.from({ length: ROWS + 1 }, (_, row) => {
                   const price = low + ((high - low) * row) / ROWS;
                   return (
@@ -500,126 +557,134 @@ export function PriceChart({
                   {formatCompact(0)}
                 </text>
 
+                {/* Columns stand still while the bars scroll under them, so the
+                    edge labels stay inside the plot at any offset. */}
                 {Array.from({ length: columns }, (_, column) => {
-                  const index = Math.round((column / (columns - 1)) * (prices.length - 1));
+                  const ratio = column / (columns - 1);
+                  const columnX = PADDING.left + ratio * innerWidth;
+                  const index = Math.round(offset + ratio * span);
                   return (
                     <g key={column}>
-                      <line x1={x(index)} x2={x(index)} y1={priceTop} y2={priceBottom} stroke={GRID} />
+                      <line x1={columnX} x2={columnX} y1={priceTop} y2={priceBottom} stroke={GRID} />
                       <text
-                        x={x(index)}
+                        x={columnX}
                         y={volumeBottom + 15}
                         textAnchor={column === 0 ? "start" : column === columns - 1 ? "end" : "middle"}
                         fontSize="11"
                         fill={AXIS_TEXT}
                       >
-                        {formatDate(prices[index]!.date)}
+                        {formatDate(barDateAt(dates, index))}
                       </text>
                     </g>
                   );
                 })}
 
-                {prices.map((p, i) => {
-                  const volume = transactions[i]?.totalQuantity ?? 0;
-                  const barHeight = (volume / maxVolume) * volumeHeight;
-                  const previous = prices[i - 1]?.price ?? p.price; // the first day has nothing to fall from
-                  return (
-                    <rect
-                      key={p.date}
-                      {...band(x(i), barWidth)}
-                      y={volumeBottom - barHeight}
-                      height={barHeight}
-                      fill={p.price >= previous ? UP : DOWN}
-                      fillOpacity={VOLUME_OPACITY}
-                    />
-                  );
-                })}
-
-                {overlayLines}
-
-                {point && (
-                  <g>
-                    <line
-                      x1={x(legendIndex)}
-                      x2={x(legendIndex)}
-                      y1={priceTop}
-                      y2={volumeBottom}
-                      stroke={AXIS_TEXT}
-                      strokeOpacity="0.5"
-                      strokeDasharray="4 4"
-                    />
-                    <line
-                      x1={PADDING.left}
-                      x2={width - PADDING.right}
-                      y1={y(point.price)}
-                      y2={y(point.price)}
-                      stroke={AXIS_TEXT}
-                      strokeOpacity="0.5"
-                      strokeDasharray="4 4"
-                    />
-                  </g>
-                )}
-
-                {view === "line" ? (
-                  <path
-                    d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
-                    fill="none"
-                    stroke={SERIES}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ) : (
-                  prices.map((p, i) => {
-                    const candleWidth = Math.max(2, barWidth * 0.8);
-                    if (i === 0) {
-                      return (
-                        <rect
-                          key={p.date}
-                          {...band(x(i), candleWidth)}
-                          y={y(p.price) - 1}
-                          height="2"
-                          fill={AXIS_TEXT}
-                        />
-                      );
-                    }
-                    const prev = prices[i - 1]!.price;
-                    const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
-                    const top = y(Math.max(prev, p.price));
-                    const bottom = y(Math.min(prev, p.price));
+                <g clipPath={`url(#${clipId})`}>
+                  {prices.map((p, i) => {
+                    const volume = transactions[i]?.totalQuantity ?? 0;
+                    const barHeight = (volume / maxVolume) * volumeHeight;
+                    const previous = prices[i - 1]?.price ?? p.price; // the first day has nothing to fall from
                     return (
-                      <g key={p.date}>
-                        <line
-                          x1={x(i)}
-                          x2={x(i)}
-                          y1={top}
-                          y2={bottom}
-                          stroke={color}
-                          strokeWidth="1"
-                        />
-                        <rect
-                          {...band(x(i), candleWidth)}
-                          y={top}
-                          height={Math.max(bottom - top, 2)}
-                          fill={color}
-                        />
-                      </g>
+                      <rect
+                        key={p.date}
+                        {...band(x(i), barWidth)}
+                        y={volumeBottom - barHeight}
+                        height={barHeight}
+                        fill={p.price >= previous ? UP : DOWN}
+                        fillOpacity={VOLUME_OPACITY}
+                      />
                     );
-                  })
-                )}
+                  })}
+
+                  {overlayLines}
+
+                  {point && (
+                    <g>
+                      <line
+                        x1={x(legendIndex)}
+                        x2={x(legendIndex)}
+                        y1={priceTop}
+                        y2={volumeBottom}
+                        stroke={AXIS_TEXT}
+                        strokeOpacity="0.5"
+                        strokeDasharray="4 4"
+                      />
+                      <line
+                        x1={PADDING.left}
+                        x2={width - PADDING.right}
+                        y1={y(point.price)}
+                        y2={y(point.price)}
+                        stroke={AXIS_TEXT}
+                        strokeOpacity="0.5"
+                        strokeDasharray="4 4"
+                      />
+                    </g>
+                  )}
+
+                  {view === "line" ? (
+                    <path
+                      d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
+                      fill="none"
+                      stroke={SERIES}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ) : (
+                    prices.map((p, i) => {
+                      const candleWidth = Math.max(2, barWidth * 0.8);
+                      if (i === 0) {
+                        return (
+                          <rect
+                            key={p.date}
+                            {...band(x(i), candleWidth)}
+                            y={y(p.price) - 1}
+                            height="2"
+                            fill={AXIS_TEXT}
+                          />
+                        );
+                      }
+                      const prev = prices[i - 1]!.price;
+                      const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
+                      const top = y(Math.max(prev, p.price));
+                      const bottom = y(Math.min(prev, p.price));
+                      return (
+                        <g key={p.date}>
+                          <line
+                            x1={x(i)}
+                            x2={x(i)}
+                            y1={top}
+                            y2={bottom}
+                            stroke={color}
+                            strokeWidth="1"
+                          />
+                          <rect
+                            {...band(x(i), candleWidth)}
+                            y={top}
+                            height={Math.max(bottom - top, 2)}
+                            fill={color}
+                          />
+                        </g>
+                      );
+                    })
+                  )}
+                </g>
 
                 {drawings.map((drawing, i) => renderDrawing(drawing, `drawing-${i}`))}
                 {draft && renderDrawing(draft, "draft")}
 
                 {point && (
                   <g>
-                    <circle
-                      cx={x(legendIndex)}
-                      cy={y(point.price)}
-                      r="4"
-                      fill={SERIES}
-                      stroke={SURFACE}
-                      strokeWidth="2"
-                    />
+                    <g clipPath={`url(#${clipId})`}>
+                      <circle
+                        cx={x(dataIndex)}
+                        cy={y(point.price)}
+                        r="4"
+                        fill={SERIES}
+                        stroke={SURFACE}
+                        strokeWidth="2"
+                      />
+                    </g>
                     <rect
                       x={width - PADDING.right + 4}
                       y={y(point.price) - 9}
