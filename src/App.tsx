@@ -3,7 +3,7 @@ import { CommandPalette } from "./CommandPalette";
 import { DepthOfMarket } from "./DepthOfMarket";
 import { Header, type MarketItem } from "./Header";
 import { useTransactionHistory } from "./hooks";
-import { sliceRange, type Range } from "./indicators";
+import { type Range } from "./indicators";
 import { PriceChart } from "./PriceChart";
 import { SettlementGrid } from "./SettlementGrid";
 import { quoteFor } from "./stats";
@@ -94,11 +94,12 @@ export function App() {
     };
   }, [attempt]);
 
-  // The header quote and the chart read the same day records, so they are
-  // fetched once here rather than once per panel.
-  const { transactions, loading, error: historyError } = useTransactionHistory(selected);
-  const visible = useMemo(() => sliceRange(transactions, range), [transactions, range]);
-  const quote = useMemo(() => quoteFor(visible), [visible]);
+  // The header quote and the chart read the same bars, so they are fetched
+  // once here rather than once per panel. The range is part of the request now
+  // rather than a slice of it — a short range is drawn from the 15-minute poll
+  // and a long one from the daily records, so they aren't the same series.
+  const { transactions, loading, error: historyError } = useTransactionHistory(selected, range);
+  const quote = useMemo(() => quoteFor(transactions), [transactions]);
   const codes = useMemo(() => items.map(item => item.code), [items]);
 
   // Anything drawn was measured against the bars on screen, so it stops meaning
@@ -183,7 +184,7 @@ export function App() {
               <Panel label="price chart">
                 <PriceChart
                   itemCode={selected}
-                  transactions={visible}
+                  transactions={transactions}
                   loading={loading}
                   error={historyError}
                   view={view}

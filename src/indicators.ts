@@ -1,9 +1,10 @@
 import type { Transaction } from "./hooks";
 
 /**
- * A period longer than the series is normal, not a bug: the range filter can
- * leave fewer days on the chart than the moving average asks for, and the
- * overlay should simply not draw rather than take the chart down.
+ * A period longer than the series is normal, not a bug: a short range, or a
+ * record that hasn't been collecting long, can leave fewer bars on the chart
+ * than the moving average asks for, and the overlay should simply not draw
+ * rather than take the chart down.
  */
 export function sma(values: number[], period: number): (number | null)[] {
   const out: (number | null)[] = new Array(values.length).fill(null);
@@ -25,34 +26,49 @@ export function vwapSeries(transactions: Transaction[]): (number | null)[] {
   for (const t of transactions) {
     value += t.totalValue;
     quantity += t.totalQuantity;
-    // Days before the first trade have no average price to report — a zero
+    // Bars before the first trade have no average price to report — a zero
     // there would draw the VWAP line down to the axis.
     out.push(quantity > 0 ? value / quantity : null);
   }
   return out;
 }
 
-export type Range = "7D" | "14D" | "30D" | "ALL";
+export type Range = "1D" | "3D" | "7D" | "30D" | "90D" | "1Y" | "ALL";
 
-/** Upstream keeps 30 days of daily records, so a longer window than that has nothing to show. */
-export const RANGES: Range[] = ["7D", "14D", "30D", "ALL"];
+/**
+ * The server's own record reaches back as far as it has been running, so these
+ * are no longer capped at the 30 days upstream publishes.
+ */
+export const RANGES: Range[] = ["1D", "3D", "7D", "30D", "90D", "1Y", "ALL"];
 
+/** null asks for everything on file. */
 export function rangeDays(range: Range): number | null {
   switch (range) {
+    case "1D":
+      return 1;
+    case "3D":
+      return 3;
     case "7D":
       return 7;
-    case "14D":
-      return 14;
     case "30D":
       return 30;
+    case "90D":
+      return 90;
+    case "1Y":
+      return 365;
     case "ALL":
       return null;
   }
 }
 
-export function sliceRange<T>(values: T[], range: Range): T[] {
+/**
+ * Resolution follows the range, the way a trading terminal does it: a few days
+ * are drawn from the 15-minute poll, anything longer from the daily records —
+ * a year of quarter-hours would be 35,000 candles in a chart 800px wide.
+ */
+export function isIntraday(range: Range): boolean {
   const days = rangeDays(range);
-  return days === null ? values.slice() : values.slice(-days);
+  return days !== null && days <= 3;
 }
 
 export type VolumeBucket = {

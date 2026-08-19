@@ -5,7 +5,7 @@
 
 import type { Database } from "bun:sqlite";
 import { recordDailyTrading, recordSnapshots } from "./db";
-import { dailyRows, snapshotFromBook } from "./history";
+import { dailyRows, latestDay, snapshotFromBook, type DayTotals } from "./history";
 import { batchPath, chunk, TRPC_UPSTREAM, UPSTREAM_TIMEOUT_MS } from "./trpc";
 
 export const POLL_INTERVAL_MS = 15 * 60 * 1000;
@@ -55,18 +55,29 @@ export async function pollOnce(db: Database, capturedAt = Date.now()): Promise<{
   let days = 0;
 
   for (const group of chunk(itemCodes, POLL_BATCH_SIZE)) {
+    // Trading first: the snapshot carries the day's totals as they stood when
+    // the book was read, so it has to know them before it is built.
+    const today = new Map<string, DayTotals>();
     try {
-      const books = await batchFetch("tradingOrder.getTopOrders", group);
-      snapshots += recordSnapshots(db, group.map((code, index) => snapshotFromBook(code, books[index], capturedAt)));
+      const trading = (await batchFetch("itemTrading.getItemTrading", group)) as Array<{ values?: unknown } | undefined>;
+      const rows = group.flatMap((code, index) => {
+        const parsed = dailyRows(code, trading[index]?.values);
+        today.set(code, latestDay(parsed));
+        return parsed;
+      });
+      days += recordDailyTrading(db, rows);
     } catch (err) {
-      console.error("[history] order book batch failed:", err);
+      console.error("[history] trading batch failed:", err);
     }
 
     try {
-      const trading = (await batchFetch("itemTrading.getItemTrading", group)) as Array<{ values?: unknown } | undefined>;
-      days += recordDailyTrading(db, group.flatMap((code, index) => dailyRows(code, trading[index]?.values)));
+      const books = await batchFetch("tradingOrder.getTopOrders", group);
+      snapshots += recordSnapshots(
+        db,
+        group.map((code, index) => snapshotFromBook(code, books[index], capturedAt, today.get(code))),
+      );
     } catch (err) {
-      console.error("[history] trading batch failed:", err);
+      console.error("[history] order book batch failed:", err);
     }
   }
 

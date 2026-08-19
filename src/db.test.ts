@@ -8,6 +8,8 @@ const snapshot = (capturedAt: number, bestBid: number | null = 1) => ({
   bestAsk: 2,
   bidDepth: 10,
   askDepth: 20,
+  dayValue: 5,
+  dayQuantity: 50,
 });
 
 const day = (valueAt: string, avgValue: number) => ({
@@ -34,7 +36,7 @@ test("a repeated snapshot leaves the recorded one alone", () => {
   recordSnapshots(db, [snapshot(100, 9)]);
 
   expect(readSnapshots(db, "lightAmmo")).toEqual([
-    { capturedAt: 100, bestBid: 1, bestAsk: 2, bidDepth: 10, askDepth: 20 },
+    { capturedAt: 100, bestBid: 1, bestAsk: 2, bidDepth: 10, askDepth: 20, dayValue: 5, dayQuantity: 50 },
   ]);
   db.close();
 });

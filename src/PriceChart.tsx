@@ -8,7 +8,7 @@ import {
 } from "react";
 import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
 import { pointOfControl, sma, volumeProfile, vwapSeries } from "./indicators";
-import { formatCompact, formatPrice } from "./stats";
+import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } from "./stats";
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
@@ -102,9 +102,11 @@ function useContainerWidth() {
   return { ref, width };
 }
 
+/** An axis has room for the time or the day, not both — whichever the bar is. */
 function formatDate(date: string) {
-  const parsed = new Date(`${date}T00:00:00Z`);
+  const parsed = parseBarDate(date);
   if (Number.isNaN(parsed.getTime())) return ""; // an unparseable date reads better as a blank tick than as "Invalid Date"
+  if (isTimestamp(date)) return formatTime(date);
   return parsed.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -113,8 +115,8 @@ function formatDate(date: string) {
 }
 
 /**
- * The API only publishes a daily average, so a "day" opens where the previous
- * day closed and its high/low are just the two ends of that move.
+ * Every bar is an average — a day's trades, or a moment's mid — so a bar opens
+ * where the one before it closed and its high/low are the ends of that move.
  */
 function ohlcAt(prices: PricePoint[], index: number) {
   const close = prices[index]?.price ?? 0;
@@ -148,8 +150,8 @@ export function PriceChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<MeasureDrawing | null>(null);
 
-  // Letting go of the graph keeps the last-held day highlighted; only a
-  // click elsewhere on the page drops it back to the most recent day.
+  // Letting go of the graph keeps the last-held bar highlighted; only a
+  // click elsewhere on the page drops it back to the most recent one.
   useEffect(() => {
     const onPointerDown = (event: globalThis.PointerEvent) => {
       if (!ref.current?.contains(event.target as Node)) setHovered(null);
@@ -176,12 +178,14 @@ export function PriceChart({
   const compact = width > 0 && width < 480;
   const boxHeight = compact ? 260 : 380;
   const height = compact ? boxHeight - COMPACT_LEGEND_HEIGHT : boxHeight;
-  const message = loading
-    ? "Loading…"
-    : error
-      ? "Couldn't load price history."
-      : prices.length
-        ? null
+  // A range change refetches, and the bars already drawn are worth keeping on
+  // screen while it does — only an empty chart has nothing better to show.
+  const message = prices.length
+    ? null
+    : loading
+      ? "Loading…"
+      : error
+        ? "Couldn't load price history."
         : "No price history for this item.";
 
   const values = prices.map(p => p.price);

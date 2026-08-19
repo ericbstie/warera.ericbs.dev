@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS book_snapshot (
   best_ask REAL,
   bid_depth REAL NOT NULL,
   ask_depth REAL NOT NULL,
+  day_value REAL NOT NULL DEFAULT 0,
+  day_quantity REAL NOT NULL DEFAULT 0,
   PRIMARY KEY (item_code, captured_at)
 ) WITHOUT ROWID;
 
@@ -46,14 +48,29 @@ export function openDatabase(file = DB_PATH): Database {
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA synchronous = NORMAL");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/**
+ * The day totals arrived after the first version of this table, and a store
+ * already collecting shouldn't have to be thrown away to gain them. Defaulted
+ * to 0, which reads as "nothing traded then" — true enough of a poll that
+ * never recorded it.
+ */
+function migrate(db: Database): void {
+  const columns = db.query("PRAGMA table_info(book_snapshot)").all() as Array<{ name: string }>;
+  const present = new Set(columns.map(column => column.name));
+  for (const column of ["day_value", "day_quantity"]) {
+    if (!present.has(column)) db.exec(`ALTER TABLE book_snapshot ADD COLUMN ${column} REAL NOT NULL DEFAULT 0`);
+  }
 }
 
 /** A snapshot is an observation of a moment, so a repeat of one is a no-op. */
 export function recordSnapshots(db: Database, rows: BookSnapshot[]): number {
   const insert = db.query(
-    `INSERT INTO book_snapshot (item_code, captured_at, best_bid, best_ask, bid_depth, ask_depth)
-     VALUES ($itemCode, $capturedAt, $bestBid, $bestAsk, $bidDepth, $askDepth)
+    `INSERT INTO book_snapshot (item_code, captured_at, best_bid, best_ask, bid_depth, ask_depth, day_value, day_quantity)
+     VALUES ($itemCode, $capturedAt, $bestBid, $bestAsk, $bidDepth, $askDepth, $dayValue, $dayQuantity)
      ON CONFLICT (item_code, captured_at) DO NOTHING`,
   );
   return db.transaction((values: BookSnapshot[]) => {
@@ -89,12 +106,31 @@ export function readSnapshots(db: Database, itemCode: string, since = 0): Stored
   return db
     .query(
       `SELECT captured_at AS capturedAt, best_bid AS bestBid, best_ask AS bestAsk,
-              bid_depth AS bidDepth, ask_depth AS askDepth
+              bid_depth AS bidDepth, ask_depth AS askDepth,
+              day_value AS dayValue, day_quantity AS dayQuantity
        FROM book_snapshot
        WHERE item_code = $itemCode AND captured_at >= $since
        ORDER BY captured_at`,
     )
     .all({ itemCode, since }) as StoredSnapshot[];
+}
+
+/**
+ * The poll just before a window, which is what the first bar in it needs to
+ * report its own volume rather than everything since midnight.
+ */
+export function readSnapshotBefore(db: Database, itemCode: string, at: number): StoredSnapshot | null {
+  return (db
+    .query(
+      `SELECT captured_at AS capturedAt, best_bid AS bestBid, best_ask AS bestAsk,
+              bid_depth AS bidDepth, ask_depth AS askDepth,
+              day_value AS dayValue, day_quantity AS dayQuantity
+       FROM book_snapshot
+       WHERE item_code = $itemCode AND captured_at < $at
+       ORDER BY captured_at DESC
+       LIMIT 1`,
+    )
+    .get({ itemCode, at }) ?? null) as StoredSnapshot | null;
 }
 
 /** Days are stored as the `YYYY-MM-DD` upstream sends, which sorts as text. */
@@ -108,4 +144,29 @@ export function readDailyTrading(db: Database, itemCode: string, since = ""): St
        ORDER BY value_at`,
     )
     .all({ itemCode, since }) as StoredDaily[];
+}
+
+/**
+ * The ticker wants a week's move for every item at once, which is one query
+ * rather than one per item. The comparison itself stays in weeklyChangePct,
+ * so the ticker means the same thing whichever side computes it.
+ */
+export function readDailyByItem(db: Database, since: string): Map<string, StoredDaily[]> {
+  const rows = db
+    .query(
+      `SELECT item_code AS itemCode, value_at AS valueAt, avg_value AS avgValue, total_value AS totalValue,
+              total_quantity AS totalQuantity, transactions_count AS transactionsCount
+       FROM daily_trading
+       WHERE value_at >= $since
+       ORDER BY item_code, value_at`,
+    )
+    .all({ since }) as Array<StoredDaily & { itemCode: string }>;
+
+  const byItem = new Map<string, StoredDaily[]>();
+  for (const { itemCode, ...row } of rows) {
+    const existing = byItem.get(itemCode);
+    if (existing) existing.push(row);
+    else byItem.set(itemCode, [row]);
+  }
+  return byItem;
 }

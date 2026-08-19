@@ -48,7 +48,7 @@ test("a poll records the book and the daily totals it saw", async () => {
   expect(await pollOnce(db, 1_700_000_000_000)).toEqual({ snapshots: 1, days: 1 });
 
   expect(readSnapshots(db, "lightAmmo")).toEqual([
-    { capturedAt: 1_700_000_000_000, bestBid: 1.1, bestAsk: 1.3, bidDepth: 10, askDepth: 2 },
+    { capturedAt: 1_700_000_000_000, bestBid: 1.1, bestAsk: 1.3, bidDepth: 10, askDepth: 2, dayValue: 12, dayQuantity: 10 },
   ]);
   expect(readDailyTrading(db, "lightAmmo")).toEqual([
     { valueAt: "2026-08-19", avgValue: 1.2, totalValue: 12, totalQuantity: 10, transactionsCount: 3 },

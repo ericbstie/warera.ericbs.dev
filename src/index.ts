@@ -2,7 +2,9 @@ import { serve } from "bun";
 import type { Database } from "bun:sqlite";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
-import { openDatabase, readDailyTrading, readSnapshots } from "./db";
+import { openDatabase, readDailyByItem, readDailyTrading, readSnapshotBefore, readSnapshots } from "./db";
+import { intradayBars } from "./history";
+import { weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
 import { POLL_INTERVAL_MS, startPolling } from "./poller";
 import {
@@ -288,12 +290,32 @@ async function serveIndustrialism(req: Request): Promise<Response> {
 const HISTORY_DEFAULT_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** How much of the record the ticker compares across. */
+const MOVERS_WINDOW_DAYS = 14;
+
 /** `Number("")` is 0 and `Number("abc")` is NaN; neither is a window. */
 function historyDays(raw: string | null): number {
   const days = Number(raw);
   return Number.isFinite(days) && days > 0 ? days : HISTORY_DEFAULT_DAYS;
 }
 
+function day(at: number): string {
+  return new Date(at).toISOString().slice(0, 10);
+}
+
+function jsonResponse(req: Request, body: string, maxAgeSeconds: number): Response {
+  const etag = etagFor(body);
+  const headers = { ETag: etag, "Cache-Control": `public, max-age=${maxAgeSeconds}` };
+  // Nothing changes between polls, so a reload inside one costs a few headers.
+  if (etagMatches(req.headers.get("If-None-Match"), etag)) return new Response(null, { status: 304, headers });
+  return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
+}
+
+/**
+ * Both resolutions answer with the same bar shape, so the chart draws them the
+ * same way — an intraday bar just carries a timestamp where a daily one
+ * carries a date.
+ */
 function serveHistory(req: Request, db: Database): Response {
   const params = new URL(req.url).searchParams;
   const itemCode = params.get("itemCode") ?? "";
@@ -305,15 +327,25 @@ function serveHistory(req: Request, db: Database): Response {
   }
 
   const since = Date.now() - historyDays(params.get("days")) * DAY_MS;
-  const body = JSON.stringify({
-    snapshots: readSnapshots(db, itemCode, since),
-    daily: readDailyTrading(db, itemCode, new Date(since).toISOString().slice(0, 10)),
-  });
+  const bars = params.get("intraday")
+    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since))
+    : readDailyTrading(db, itemCode, day(since));
 
-  const etag = etagFor(body);
-  const headers = { ETag: etag, "Cache-Control": `public, max-age=${POLL_INTERVAL_MS / 1000}` };
-  if (etagMatches(req.headers.get("If-None-Match"), etag)) return new Response(null, { status: 304, headers });
-  return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
+  return jsonResponse(req, JSON.stringify({ bars }), POLL_INTERVAL_MS / 1000);
+}
+
+/** The whole strip in one query, where it used to be a batch call per browser. */
+function serveMovers(req: Request, db: Database): Response {
+  const byItem = readDailyByItem(db, day(Date.now() - MOVERS_WINDOW_DAYS * DAY_MS));
+
+  const movers: Mover[] = [];
+  for (const [code, rows] of byItem) {
+    const changePct = weeklyChangePct(rows);
+    if (changePct !== null) movers.push({ code, changePct });
+  }
+  movers.sort((a, b) => b.changePct - a.changePct);
+
+  return jsonResponse(req, JSON.stringify({ movers }), POLL_INTERVAL_MS / 1000);
 }
 
 /**
@@ -389,6 +421,7 @@ const server = isProduction
         error: onError,
         routes: {
           "/api/history": req => serveHistory(req, historyDb),
+          "/api/movers": req => serveMovers(req, historyDb),
           "/api/industrialism": serveIndustrialism,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
@@ -404,6 +437,7 @@ const server = isProduction
       error: onError,
       routes: {
         "/api/history": req => serveHistory(req, historyDb),
+        "/api/movers": req => serveMovers(req, historyDb),
         "/api/industrialism": serveIndustrialism,
         "/api/trpc/*": proxyTrpc,
         "/*": index,

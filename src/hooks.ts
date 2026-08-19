@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isIntraday, rangeDays, type Range } from "./indicators";
 
 export type Transaction = {
   valueAt: string;
@@ -31,22 +32,27 @@ export function usableTransactions(values: unknown): Transaction[] {
     .map(t => ({ ...t, totalQuantity: isFiniteNumber(t.totalQuantity) ? t.totalQuantity : 0 }));
 }
 
-export async function fetchTransactionHistory(itemCode: string): Promise<Transaction[]> {
-  const input = encodeURIComponent(JSON.stringify({ itemCode }));
-  const res = await fetch(`/api/trpc/itemTrading.getItemTrading?input=${input}`);
+/**
+ * The server's own record rather than upstream's: upstream publishes 30 days of
+ * daily averages and nothing finer, while this reaches back as far as the
+ * poller has been running and down to the quarter-hour.
+ */
+export function historyPath(itemCode: string, range: Range): string {
+  const days = rangeDays(range);
+  const params = new URLSearchParams({ itemCode });
+  if (days !== null) params.set("days", String(days));
+  if (isIntraday(range)) params.set("intraday", "1");
+  return `/api/history?${params}`;
+}
+
+export async function fetchTransactionHistory(itemCode: string, range: Range): Promise<Transaction[]> {
+  const res = await fetch(historyPath(itemCode, range));
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   // Reject an unrecognised shape rather than reading it as "never traded" —
   // an empty chart and a broken API should not look the same.
-  if (!json?.result?.data) throw new Error("Price history came back in an unexpected shape");
-  return usableTransactions(json.result.data.values ?? []);
-}
-
-/** Upstream takes tRPC calls in batches, so every item's history costs one request. */
-export function tradingBatchPath(itemCodes: string[]): string {
-  const procedures = Array(itemCodes.length).fill("itemTrading.getItemTrading").join(",");
-  const input = JSON.stringify(Object.fromEntries(itemCodes.map((code, index) => [index, { itemCode: code }])));
-  return `${procedures}?batch=1&input=${encodeURIComponent(input)}`;
+  if (!Array.isArray(json?.bars)) throw new Error("Price history came back in an unexpected shape");
+  return usableTransactions(json.bars);
 }
 
 export type Mover = { code: string; changePct: number };
@@ -54,7 +60,8 @@ export type Mover = { code: string; changePct: number };
 /**
  * Days are only recorded when an item traded, so "seven days ago" is the record
  * a week back rather than seven entries back. Anything without both ends of the
- * window has no move to report.
+ * window has no move to report. The server runs this over its own records now,
+ * so the ticker means the same thing wherever it is computed.
  */
 export function weeklyChangePct(transactions: Transaction[], days = 7): number | null {
   const last = transactions[transactions.length - 1];
@@ -67,17 +74,22 @@ export function weeklyChangePct(transactions: Transaction[], days = 7): number |
   return ((last.avgValue - earlier.avgValue) / earlier.avgValue) * 100;
 }
 
+/**
+ * One request for the whole strip: the server already holds every item's week
+ * and compares them there, where it used to be one batched upstream call per
+ * page load.
+ */
 export async function fetchWeeklyMovers(itemCodes: string[]): Promise<Mover[]> {
   if (!itemCodes.length) return [];
 
-  const res = await fetch(`/api/trpc/${tradingBatchPath(itemCodes)}`);
-  const entries = await res.json();
-  if (!Array.isArray(entries)) throw new Error("Batched price history came back in an unexpected shape");
+  const res = await fetch("/api/movers");
+  const json = await res.json();
+  if (!Array.isArray(json?.movers)) throw new Error("Weekly movers came back in an unexpected shape");
 
-  return itemCodes.flatMap((code, index) => {
-    const changePct = weeklyChangePct(usableTransactions(entries[index]?.result?.data?.values));
-    return changePct === null ? [] : [{ code, changePct }];
-  });
+  // The strip only shows what the picker lists, so an item the record still
+  // holds but the game no longer trades stays off it.
+  const listed = new Set(itemCodes);
+  return (json.movers as Mover[]).filter(mover => listed.has(mover.code) && isFiniteNumber(mover.changePct));
 }
 
 export function useWeeklyMovers(itemCodes: string[]): Mover[] {
@@ -107,13 +119,17 @@ export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
   return transactions.map(t => ({ date: t.valueAt, price: t.avgValue }));
 }
 
-export function useTransactionHistory(itemCode: string) {
+export function useTransactionHistory(itemCode: string, range: Range) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Switching item makes the bars on screen wrong outright. Switching range
+  // only asks the same story at another resolution, so those stay up until the
+  // new ones land rather than blinking through an empty chart.
+  useEffect(() => setTransactions([]), [itemCode]);
+
   useEffect(() => {
-    setTransactions([]);
     setError(null);
     if (!itemCode) {
       setLoading(false);
@@ -122,12 +138,16 @@ export function useTransactionHistory(itemCode: string) {
 
     let cancelled = false;
     setLoading(true);
-    fetchTransactionHistory(itemCode)
+    fetchTransactionHistory(itemCode, range)
       .then(values => {
         if (!cancelled) setTransactions(values);
       })
       .catch(err => {
-        if (!cancelled) setError(err as Error);
+        if (cancelled) return;
+        // Keeping the last range's bars up here would label a failed request as
+        // a successful one, so a failure clears them and says so instead.
+        setTransactions([]);
+        setError(err as Error);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -136,13 +156,13 @@ export function useTransactionHistory(itemCode: string) {
     return () => {
       cancelled = true;
     };
-  }, [itemCode]);
+  }, [itemCode, range]);
 
   return { transactions, loading, error };
 }
 
-export function usePriceHistory(itemCode: string) {
-  const { transactions, loading, error } = useTransactionHistory(itemCode);
+export function usePriceHistory(itemCode: string, range: Range) {
+  const { transactions, loading, error } = useTransactionHistory(itemCode, range);
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   return { prices, loading, error };
 }
