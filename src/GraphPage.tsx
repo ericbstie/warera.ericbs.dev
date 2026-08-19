@@ -77,7 +77,7 @@ export function GraphPage() {
   }, [reset]);
 
   return (
-    <>
+    <div className="flex flex-col lg:h-dvh lg:overflow-hidden">
       <Header
         items={items}
         selected={selected}
@@ -85,10 +85,17 @@ export function GraphPage() {
         quote={quote}
         loading={loading}
       />
-      <main className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-4 pt-6">
-        {error && <ItemListError onRetry={retry} />}
 
-        <section className="overflow-hidden rounded border border-edge bg-canvas">
+      {error && (
+        <div className="px-1 pt-1">
+          <ItemListError onRetry={retry} />
+        </div>
+      )}
+
+      {/* The chart takes whatever the book leaves, and the book stands beside
+          it on a wide screen and below it on a narrow one. */}
+      <main className="flex min-h-0 flex-1 flex-col gap-1 p-1 lg:flex-row">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded border border-edge bg-canvas">
           <Toolbar
             range={range}
             onRange={setRange}
@@ -98,14 +105,14 @@ export function GraphPage() {
             onToggleOverlay={toggleOverlay}
           />
 
-          <div className="flex flex-col sm:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
             <ToolRail
               tool={tool}
               onTool={setTool}
               onClear={() => setDrawings([])}
               hasDrawings={drawings.length > 0}
             />
-            <div className="min-w-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1">
               <Panel label="price chart">
                 <PriceChart
                   itemCode={selected}
@@ -124,9 +131,11 @@ export function GraphPage() {
         </section>
 
         {/* The order book draws its own card, so it needs no wrapper of its own. */}
-        <Panel label="order book">
-          <DepthOfMarket itemCode={selected} />
-        </Panel>
+        <aside className="h-[55vh] shrink-0 lg:h-auto lg:w-80 xl:w-96">
+          <Panel label="order book">
+            <DepthOfMarket itemCode={selected} />
+          </Panel>
+        </aside>
       </main>
 
       <CommandPalette
@@ -135,6 +144,6 @@ export function GraphPage() {
         onOpenChange={setSearching}
         onSelect={setSelected}
       />
-    </>
+    </div>
   );
 }

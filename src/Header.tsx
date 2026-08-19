@@ -93,8 +93,8 @@ export function Header({
   const tone = rising ? "text-up" : "text-down";
 
   return (
-    <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-      <div className="mx-auto flex max-w-7xl flex-col gap-y-3 px-4 pb-4 pt-2.5">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-panel">
+      <div className="flex flex-col gap-y-3 px-2 pb-3 pt-2.5">
         <TitleBar />
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">

@@ -41,6 +41,8 @@ const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
 /** Rough advance of the 11px label face — enough to keep a tag inside the plot. */
 const LABEL_CHAR_WIDTH = 6;
+/** Below this, a measured box is a layout still settling rather than a chart. */
+const MIN_BOX_HEIGHT = 200;
 
 type MeasureDrawing = Extract<Drawing, { kind: "measure" }>;
 
@@ -82,21 +84,25 @@ function seriesPath(
   return path.trim();
 }
 
-function useContainerWidth() {
+/**
+ * The chart is drawn to the box it is given rather than to a fixed size, so a
+ * layout that hands it the whole screen gets a chart that fills it.
+ */
+function useContainerSize() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
+      if (entry) setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  return { ref, width };
+  return { ref, ...size };
 }
 
 /** An axis has room for the time or the day, not both — whichever the bar is. */
@@ -143,7 +149,7 @@ export function PriceChart({
   onDraw: (drawing: Drawing) => void;
 }) {
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
-  const { ref, width } = useContainerWidth();
+  const { ref, width, height: boxed } = useContainerSize();
   const [hovered, setHovered] = useState<number | null>(null);
   const [draft, setDraft] = useState<MeasureDrawing | null>(null);
   // Bars of empty room pulled in from the right. Zero — the newest bar against
@@ -179,7 +185,9 @@ export function PriceChart({
   // price axis. There it sits above the chart instead, and drops the values a
   // small screen can do without.
   const compact = width > 0 && width < 480;
-  const boxHeight = compact ? 260 : 380;
+  // A stacked layout leaves the box to size itself, and then the chart keeps
+  // the height it always had.
+  const boxHeight = boxed > MIN_BOX_HEIGHT ? boxed : compact ? 260 : 380;
   const height = compact ? boxHeight - COMPACT_LEGEND_HEIGHT : boxHeight;
   // A range change refetches, and the bars already drawn are worth keeping on
   // screen while it does — only an empty chart has nothing better to show.
@@ -415,8 +423,8 @@ export function PriceChart({
   };
 
   return (
-    <div className="w-full">
-      <div ref={ref} style={{ height: boxHeight }} className="relative w-full select-none">
+    <div ref={ref} className="h-full w-full">
+      <div style={{ height: boxHeight }} className="relative w-full select-none">
         {message ? (
           <p className="flex h-full items-center justify-center text-sm text-muted">{message}</p>
         ) : (
