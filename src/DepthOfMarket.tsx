@@ -13,15 +13,20 @@ const TICK = 0.001;
 // A hovered price sits close enough to the best price's own label to print on
 // top of it, so it only shows once far enough from the spread.
 const PRICE_OVERLAP_ROWS = 3;
-// One row per tick, so a book with a far-out order would otherwise run to
-// thousands of rows. The rows nearest the spread are the ones worth showing.
+// One cell per tick, so a book with a far-out order would otherwise run to
+// thousands of cells. The ones nearest the spread are the ones worth showing.
 const MAX_ROWS = 250;
-// A row reserves the same height whether or not it carries an order, so price
-// reads as an even axis down the book.
+// A cell reserves the same size whether or not it carries an order, so price
+// reads as an even axis along the book.
 const ROW_HEIGHT = "h-3 shrink-0 sm:h-3.5";
-// Price runs down the left edge; the bars run out to the right of it.
+const COLUMN_WIDTH = "w-4 shrink-0 sm:w-5";
+// Price runs along one edge; the bars run away from it.
 const PRICE_GUTTER = "w-11 shrink-0 sm:w-12";
+const PRICE_AXIS = "h-3.5 shrink-0";
 const LABEL = "absolute whitespace-nowrap text-[9px] tabular-nums sm:text-[10px]";
+// The panel stands beside the chart from `lg` up and under it below, so price
+// runs down a tall narrow book there and across a short wide one here.
+const WIDE_SCREEN = "(min-width: 1024px)";
 
 type Level = { price: number; quantity: number };
 
@@ -55,17 +60,34 @@ function buildLevels(orders: Order[], side: "bid" | "ask"): Level[] {
     const tick = bestTick + index * step;
     rows.push({ price: tick * TICK, quantity: quantities.get(tick) ?? 0 });
   }
-  // Bids were walked down from the best bid, so flip them to read top to bottom.
+  // Bids were walked down from the best bid, so flip them to run worst-first
+  // and end at the spread, which is where the asks then carry on from.
   return side === "bid" ? rows.reverse() : rows;
 }
 
-function Row({
+/** True while the book is under the chart rather than beside it. */
+function useHorizontal() {
+  const [horizontal, setHorizontal] = useState(() => !window.matchMedia(WIDE_SCREEN).matches);
+
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_SCREEN);
+    const sync = () => setHorizontal(!query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  return horizontal;
+}
+
+function Cell({
   level,
   color,
   maxQuantity,
   active,
   best,
   nearSpread,
+  horizontal,
   onActivate,
 }: {
   level: Level;
@@ -74,12 +96,51 @@ function Row({
   active: boolean;
   best: "bid" | "ask" | null;
   nearSpread: boolean;
+  horizontal: boolean;
   onActivate: () => void;
 }) {
   const pct = maxQuantity > 0 ? (level.quantity / maxQuantity) * 100 : 0;
-  // The two standing prices meet at the spread, so each hangs off the edge of
-  // its row that faces away from it rather than sitting centred, where the two
-  // would print over each other.
+  const depth = `${pct}%`;
+  // A resting tick that rounds to nothing still deserves to be visible.
+  const thinnest = level.quantity > 0 ? 2 : 0;
+  const showPrice = best || (active && !nearSpread);
+
+  if (horizontal) {
+    // The two standing prices meet at the spread, so each hangs off the side of
+    // its column that faces away from it rather than sitting centred, where the
+    // two would print over each other.
+    const anchor =
+      best === "bid" ? "right-0.5" : best === "ask" ? "left-0.5" : "left-1/2 -translate-x-1/2";
+    return (
+      <div
+        className={`relative flex cursor-pointer flex-col ${COLUMN_WIDTH}`}
+        style={{ backgroundColor: active ? HIGHLIGHT : "transparent", borderRight: `1px solid ${GRIDLINE}` }}
+        onPointerEnter={onActivate}
+      >
+        {/* Depth grows up out of the price axis that runs along the foot. */}
+        <div className="relative min-h-0 w-full flex-1">
+          <div
+            className="absolute inset-x-0 bottom-0"
+            style={{ height: depth, minHeight: thinnest, backgroundColor: color }}
+          />
+          {active && (
+            <span className={`${LABEL} left-1/2 top-0 -translate-x-1/2`} style={{ color: TEXT }}>
+              {formatQuantity(level.quantity)}
+            </span>
+          )}
+        </div>
+        {/* Price stands under the column it belongs to, clear of every bar. */}
+        <div className={`relative w-full ${PRICE_AXIS}`} style={{ borderTop: `1px solid ${GRIDLINE}` }}>
+          {showPrice && (
+            <span className={`${LABEL} bottom-0 ${anchor}`} style={{ color: active ? TEXT : color }}>
+              {formatPrice(level.price)}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const anchor =
     best === "bid" ? "bottom-0" : best === "ask" ? "top-0" : "top-1/2 -translate-y-1/2";
   return (
@@ -90,18 +151,14 @@ function Row({
     >
       {/* Price stands beside the row it belongs to, clear of every bar. */}
       <div className={`relative h-full ${PRICE_GUTTER}`} style={{ borderRight: `1px solid ${GRIDLINE}` }}>
-        {(best || (active && !nearSpread)) && (
+        {showPrice && (
           <span className={`${LABEL} right-1 ${anchor}`} style={{ color: active ? TEXT : color }}>
             {formatPrice(level.price)}
           </span>
         )}
       </div>
       <div className="relative h-full min-w-0 flex-1">
-        {/* A resting tick that rounds to nothing still deserves to be visible. */}
-        <div
-          className="h-full"
-          style={{ width: `${pct}%`, minWidth: level.quantity > 0 ? 2 : 0, backgroundColor: color }}
-        />
+        <div className="h-full" style={{ width: depth, minWidth: thinnest, backgroundColor: color }} />
         {active && (
           <span className={`${LABEL} right-1 top-1/2 -translate-y-1/2`} style={{ color: TEXT }}>
             {formatQuantity(level.quantity)}
@@ -114,13 +171,14 @@ function Row({
 
 export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   const { buyOrders, sellOrders, loading, error } = useTransactions(itemCode);
-  // Hovering reads a row on a pointer; tapping does the same on touch.
+  // Hovering reads a level on a pointer; tapping does the same on touch.
   const [active, setActive] = useState<Level | null>(null);
+  const horizontal = useHorizontal();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const spreadRef = useRef<HTMLDivElement>(null);
 
-  // Each side steps away from its best price one tick at a time, so row n is
-  // always 0.001 further out than row n - 1 whether or not orders rest there.
+  // Each side steps away from its best price one tick at a time, so cell n is
+  // always 0.001 further out than cell n - 1 whether or not orders rest there.
   const bids = useMemo(() => buildLevels(buyOrders, "bid"), [buyOrders]);
   const asks = useMemo(() => buildLevels(sellOrders, "ask"), [sellOrders]);
   const maxQuantity = useMemo(
@@ -129,8 +187,8 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
   );
 
   // The spread is the part of a deep book worth opening on rather than the far
-  // end of the bids. The panel settles to its final height after the book has
-  // drawn on some layouts, so the same centring runs on every height it is given.
+  // end of the bids. The panel settles to its final size after the book has
+  // drawn on some layouts, so the same centring runs on every size it is given.
   useLayoutEffect(() => {
     setActive(null);
     const scroller = scrollerRef.current;
@@ -138,15 +196,18 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
     if (!scroller || !spreadLine) return;
 
     const centre = () => {
-      scroller.scrollTop = spreadLine.offsetTop + spreadLine.offsetHeight / 2 - scroller.clientHeight / 2;
+      const spread = spreadLine.getBoundingClientRect();
+      const view = scroller.getBoundingClientRect();
+      if (horizontal) scroller.scrollLeft += spread.left + spread.width / 2 - (view.left + view.width / 2);
+      else scroller.scrollTop += spread.top + spread.height / 2 - (view.top + view.height / 2);
     };
     centre();
     const observer = new ResizeObserver(centre);
     observer.observe(scroller);
     return () => observer.disconnect();
-  }, [bids, asks]);
+  }, [bids, asks, horizontal]);
 
-  // A pointer that leaves the diagram drops the row it was reading; a touch
+  // A pointer that leaves the diagram drops the level it was reading; a touch
   // has to be told, and anywhere off the diagram is where it gets told.
   useEffect(() => {
     if (!active) return;
@@ -184,11 +245,12 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
             <span className="flex-1" />
             <span style={{ color: ASK_COLOR }}>Asks</span>
           </div>
-          {/* Price runs top to bottom down one strip, so both sides share an
-              axis and the depth on each reads as a bar against the other. */}
+          {/* Price runs along one strip — down the panel beside the chart, and
+              across it below — so both sides share an axis and the depth on
+              each reads as a bar against the other. */}
           <div
             ref={scrollerRef}
-            className="min-h-0 flex-1 overflow-y-auto"
+            className={horizontal ? "min-h-0 min-w-0 flex-1 overflow-x-auto" : "min-h-0 flex-1 overflow-y-auto"}
             onPointerLeave={event => {
               if (event.pointerType === "mouse") setActive(null);
             }}
@@ -196,11 +258,11 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
             {/* Safe centring holds a shallow book in the middle of the panel
                 without pushing half of a deep one out of the scroller's reach. */}
             <div
-              className="flex min-h-full flex-col"
+              className={`flex ${horizontal ? "h-full min-w-full flex-row" : "min-h-full flex-col"}`}
               style={{ justifyContent: "safe center" }}
             >
               {bids.map((level, index) => (
-                <Row
+                <Cell
                   key={level.price}
                   level={level}
                   color={BID_COLOR}
@@ -208,12 +270,17 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   active={active === level}
                   best={index === bids.length - 1 ? "bid" : null}
                   nearSpread={bids.length - 1 - index < PRICE_OVERLAP_ROWS}
+                  horizontal={horizontal}
                   onActivate={() => setActive(level)}
                 />
               ))}
-              <div ref={spreadRef} className="h-px w-full shrink-0" style={{ backgroundColor: BORDER }} />
+              <div
+                ref={spreadRef}
+                className={horizontal ? "h-full w-px shrink-0" : "h-px w-full shrink-0"}
+                style={{ backgroundColor: BORDER }}
+              />
               {asks.map((level, index) => (
-                <Row
+                <Cell
                   key={level.price}
                   level={level}
                   color={ASK_COLOR}
@@ -221,6 +288,7 @@ export function DepthOfMarket({ itemCode }: { itemCode: string }) {
                   active={active === level}
                   best={index === 0 ? "ask" : null}
                   nearSpread={index < PRICE_OVERLAP_ROWS}
+                  horizontal={horizontal}
                   onActivate={() => setActive(level)}
                 />
               ))}

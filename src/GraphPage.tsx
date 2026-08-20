@@ -134,8 +134,10 @@ export function GraphPage() {
           </div>
         </section>
 
-        {/* The order book draws its own card, so it needs no wrapper of its own. */}
-        <aside className="h-[55vh] shrink-0 lg:h-auto lg:w-80 xl:w-96">
+        {/* The order book draws its own card, so it needs no wrapper of its own.
+            Under the chart it lays price out across the panel, so it wants a
+            short wide box rather than the tall one it stands in beside it. */}
+        <aside className="h-64 shrink-0 lg:h-auto lg:w-80 xl:w-96">
           <Panel label="order book">
             <DepthOfMarket itemCode={selected} />
           </Panel>
