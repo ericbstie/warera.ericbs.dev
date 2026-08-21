@@ -11,7 +11,18 @@ export type Transaction = {
 
 export type PricePoint = { date: string; price: number };
 
-export type MarketItem = { code: string; type: string };
+/**
+ * The production fields are only on the items a company can be set to make, so
+ * everything past the code and type is absent for a weapon or a case.
+ */
+export type MarketItem = {
+  code: string;
+  type: string;
+  productionPoints?: number;
+  productionNeeds?: Record<string, number>;
+  isDeposit?: boolean;
+  climates?: string[];
+};
 
 export function itemIcon(code: string) {
   return `https://media.warera.io/images/items/${code}.png?v=33`;
@@ -182,14 +193,18 @@ export async function fetchItems(): Promise<MarketItem[]> {
   });
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
-  const items = json?.result?.data?.items as
-    | Record<string, { isTradable?: boolean; type?: string }>
-    | undefined;
+  const items = json?.result?.data?.items as Record<string, Omit<MarketItem, "code" | "type"> & {
+    isTradable?: boolean;
+    type?: string;
+  }> | undefined;
   if (!items) throw new Error("Item list came back in an unexpected shape");
   return Object.keys(items)
     .filter(code => items[code]?.isTradable)
     .sort()
-    .map(code => ({ code, type: items[code]?.type ?? "" }));
+    .map(code => {
+      const { productionPoints, productionNeeds, isDeposit, climates } = items[code]!;
+      return { code, type: items[code]?.type ?? "", productionPoints, productionNeeds, isDeposit, climates };
+    });
 }
 
 /** Both pages are built out of this list, so both fetch it the same way. */

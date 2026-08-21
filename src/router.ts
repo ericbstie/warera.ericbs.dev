@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 
-export type PageId = "graph" | "bonuses";
+export type PageId = "graph" | "bonuses" | "wages";
 
 export const ROUTES: Record<PageId, string> = {
   graph: "/",
   bonuses: "/production-bonuses",
+  wages: "/wage-calculator",
 };
 
 /** The server hands the app back for any path, so an unknown one lands on the chart. */
 export function pageFor(path: string): PageId {
-  return path.replace(/\/+$/, "") === ROUTES.bonuses ? "bonuses" : "graph";
+  const here = path.replace(/\/+$/, "");
+  const match = (Object.keys(ROUTES) as PageId[]).find(page => ROUTES[page] === here);
+  return match ?? "graph";
 }
 
 /**

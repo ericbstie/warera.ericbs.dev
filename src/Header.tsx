@@ -25,7 +25,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ItemPicker({
+export function ItemPicker({
   items,
   selected,
   onSelect,
