@@ -8,13 +8,13 @@
 
 import { useEffect, useState } from "react";
 import { isFiniteNumber, type MarketItem } from "./hooks";
-import { SPECIALIZATION_BONUS, type Country } from "./settlement";
-
-/** `company.depositResourceBonus`: what a raw resource earns where its climate suits it. */
-export const DEPOSIT_RESOURCE_BONUS = 30;
+import { DEPOSIT_ETHIC_BONUS, SPECIALIZATION_BONUS, type Country } from "./settlement";
 
 /** The game posts wages to the thousandth, so that is as close to break even as one can sit. */
 export const WAGE_STEP = 0.001;
+
+/** The industrialism a ruling party has to reach for its country's deposits to go quiet. */
+const INDUSTRIALIST = 2;
 
 export type Deposit = { type: string; bonusPercent: number; startsAt?: string; endsAt?: string };
 
@@ -29,8 +29,8 @@ export type Region = {
 export type Bonus = {
   strategic: number;
   specialization: number;
-  resource: number;
   deposit: number;
+  depositEthic: number;
   total: number;
 };
 
@@ -61,7 +61,7 @@ export function isProducible(item: MarketItem): boolean {
   return isFiniteNumber(item.productionPoints) && item.productionPoints > 0;
 }
 
-/** A raw resource only grows where its climate allows, and earns the resource bonus for it. */
+/** A raw resource only grows where its climate allows. The weather permits, it does not pay. */
 export function suitsClimate(item: MarketItem, region: Region): boolean {
   return Boolean(item.isDeposit) && (item.climates ?? []).includes(region.climate);
 }
@@ -89,20 +89,27 @@ export function bonusFor(
   industrialism: number,
   now = Date.now(),
 ): Bonus {
+  // A country's strategic resources only lift the one item it specializes in.
+  const specializes = country.specializedItem === item.code;
   const percent = country.strategicResources?.bonuses?.productionPercent;
-  const strategic = isFiniteNumber(percent) ? percent : 0;
-  const specialization =
-    country.specializedItem === item.code ? (SPECIALIZATION_BONUS[industrialism] ?? 0) : 0;
-  const resource = suitsClimate(item, region) ? DEPOSIT_RESOURCE_BONUS : 0;
-  const deposit =
-    region.deposit?.type === item.code && depositActive(region.deposit, now) ? region.deposit.bonusPercent : 0;
+  const strategic = specializes && isFiniteNumber(percent) ? percent : 0;
+  const specialization = specializes ? (SPECIALIZATION_BONUS[industrialism] ?? 0) : 0;
+
+  // The deposit is the only thing that pays a raw resource, and it pays where it
+  // is, not everywhere its climate is. A fully industrialist country is the one
+  // place it pays nothing: deposits can't spawn under that ethic, and the game
+  // hands out no bonus for one left over from before it.
+  const onDeposit =
+    industrialism !== INDUSTRIALIST && region.deposit?.type === item.code && depositActive(region.deposit, now);
+  const deposit = onDeposit ? region.deposit!.bonusPercent : 0;
+  const depositEthic = onDeposit ? (DEPOSIT_ETHIC_BONUS[industrialism] ?? 0) : 0;
 
   return {
     strategic,
     specialization,
-    resource,
     deposit,
-    total: strategic + specialization + resource + deposit,
+    depositEthic,
+    total: strategic + specialization + deposit + depositEthic,
   };
 }
 

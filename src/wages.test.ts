@@ -25,11 +25,14 @@ const IRON: MarketItem = { code: "iron", type: "raw", productionPoints: 1, isDep
 const STEEL: MarketItem = { code: "steel", type: "product", productionPoints: 10, productionNeeds: { iron: 10 } };
 const KNIFE: MarketItem = { code: "knife", type: "weapon" };
 
+// No strategic resources and nothing to specialize in, but an agrarian ruling
+// party, which is what pays a deposit twice over.
 const COSTA_RICA: Country = {
   _id: "cr",
   name: "Costa Rica",
   taxes: { income: 1, market: 1, selfWork: 1 },
 };
+const AGRARIAN = -2;
 
 const WESTERN_COSTA_RICA: Region = {
   id: "cr-west",
@@ -52,10 +55,10 @@ const CENTRAL_THAILAND: Region = { id: "th-central", name: "Central Thailand", c
 const NOW = Date.parse("2026-08-21T16:00:00.000Z");
 
 test("grain in Costa Rica prices the placement the game showed", () => {
-  // A tropical region grows grain (+30) and is running a grain deposit (+30).
+  // A running grain deposit (+30), doubled by an agrarian ruling party (+30).
   // The game had this one posted at 0.122, showing a net benefit of 0 and 0.121
   // reaching the worker.
-  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
+  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
 
   expect(wage.bonus.total).toBe(60);
   expect(wage.output).toBeCloseTo(1.6, 6);
@@ -67,7 +70,7 @@ test("grain in Costa Rica prices the placement the game showed", () => {
 test("grain in Costa Rica will not recommend the wage the game was posted at", () => {
   // 0.122 was a shade over break even and quietly cost the company 0.0004 a
   // work; the most it can actually pay is the step below.
-  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
+  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
 
   expect(wage.posted).toBeCloseTo(0.121, 6);
   expect(wage.profit).toBeCloseTo(0.0006, 6);
@@ -96,7 +99,7 @@ test("steel in Thailand prices the placement the game showed", () => {
 test("the wage a worker takes home is taxed on what is posted, not on break even", () => {
   // Both placements above settle this: taxing the unrounded break-even misses
   // the game by a thousandth, and misses it in a different direction each time.
-  const grain = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
+  const grain = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
   const steel = wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625, iron: 0.081 }, NOW)!;
 
   expect(grain.afterTax).toBeCloseTo(grain.posted * 0.99, 9);
@@ -112,21 +115,53 @@ test("the posted wage never rises above break even", () => {
 });
 
 test("splits the bonus into where each part of it came from", () => {
-  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 2, NOW)).toEqual({
+  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, NOW)).toEqual({
     strategic: 0,
     specialization: 0,
-    resource: 30,
     deposit: 30,
+    depositEthic: 30,
     total: 60,
   });
 
   expect(bonusFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, NOW)).toEqual({
     strategic: 30.75,
     specialization: 30,
-    resource: 0,
     deposit: 0,
+    depositEthic: 0,
     total: 60.75,
   });
+});
+
+test("a country's strategic resources only lift the one item it specializes in", () => {
+  // The game had lead in Latvia at +55: 25 for the strategic resources and 30
+  // for specializing in lead. Iron in the same country earns neither, however
+  // many strategic resources sit under it.
+  const latvia: Country = {
+    _id: "lv",
+    name: "Latvia",
+    taxes: { income: 10, market: 1, selfWork: 1 },
+    specializedItem: "iron",
+    strategicResources: { bonuses: { productionPercent: 25 } },
+  };
+  const region: Region = { id: "lv-1", name: "Vidzeme", countryId: "lv", climate: "moderate" };
+
+  expect(bonusFor(IRON, region, latvia, 2, NOW).total).toBe(55);
+  expect(bonusFor(GRAIN, region, latvia, 2, NOW)).toEqual({
+    strategic: 0,
+    specialization: 0,
+    deposit: 0,
+    depositEthic: 0,
+    total: 0,
+  });
+});
+
+test("a climate a resource suits pays nothing on its own", () => {
+  // The bug this replaced handed every raw resource +30 wherever its climate
+  // allowed it, which put lead in the calculator at +85 where the game says +55.
+  const thai = bonusFor(IRON, CENTRAL_THAILAND, THAILAND, 2, NOW);
+
+  expect(canProduceIn(IRON, CENTRAL_THAILAND)).toBe(true);
+  expect(thai.total).toBe(0);
 });
 
 test("a deposit only counts while it is running", () => {
@@ -135,14 +170,15 @@ test("a deposit only counts while it is running", () => {
   expect(depositActive(deposit, NOW)).toBe(true);
   expect(depositActive(deposit, Date.parse("2026-08-20T00:00:00.000Z"))).toBe(false);
   expect(depositActive(deposit, Date.parse("2026-08-26T00:00:00.000Z"))).toBe(false);
-  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, Date.parse("2026-08-26T00:00:00.000Z")).total).toBe(30);
+  // And with the deposit gone there is nothing left for the ethic to double.
+  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, Date.parse("2026-08-26T00:00:00.000Z")).total).toBe(0);
 });
 
 test("a raw resource only grows where its climate suits it", () => {
   const polar: Region = { id: "p", name: "Polar", countryId: "cr", climate: "polar" };
 
   expect(canProduceIn(GRAIN, polar)).toBe(false);
-  expect(wageFor(GRAIN, polar, COSTA_RICA, 0, { grain: 0.076 }, NOW)).toBeNull();
+  expect(wageFor(GRAIN, polar, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)).toBeNull();
   // Nothing refined cares about the weather.
   expect(canProduceIn(STEEL, polar)).toBe(true);
 });
@@ -153,7 +189,7 @@ test("nothing a company can't be set to produce is costed", () => {
 });
 
 test("an unquoted item or input has no wage rather than a wage of zero", () => {
-  expect(wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, {}, NOW)).toBeNull();
+  expect(wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, {}, NOW)).toBeNull();
   expect(wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625 }, NOW)).toBeNull();
 });
 

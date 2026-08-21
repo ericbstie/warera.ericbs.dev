@@ -14,10 +14,20 @@ function country(id: string, productionPercent: number, specializedItem?: string
   };
 }
 
-test("ranks by strategic bonus when nobody specializes", () => {
-  const countries = [country("low", 5), country("high", 20), country("mid", 12)];
+test("strategic resources pay for the specialized item and nothing else", () => {
+  // The game only lifts what a country specializes in, so strategic resources
+  // buy an iron company nothing in a country that has settled on wood.
+  const countries = [country("low", 5, "iron"), country("high", 20, "iron"), country("elsewhere", 40, "wood")];
+  const ranked = rankPlacements(countries, {}, "iron");
 
-  expect(rankPlacements(countries, {}, "iron").map(p => p.country)).toEqual(["high", "mid", "low"]);
+  expect(ranked.map(p => p.country)).toEqual(["high", "low", "elsewhere"]);
+  expect(ranked.map(p => p.totalBonus)).toEqual([20, 5, 0]);
+});
+
+test("a specializing country adds its ethic on top of its strategic resources", () => {
+  const top = rankPlacements([country("both", 25, "iron")], { both: 2 }, "iron")[0]!;
+
+  expect(top).toMatchObject({ strategicBonus: 25, specializationBonus: 30, totalBonus: 55 });
 });
 
 test("adds 30% for a matching specialization at industrialism 2", () => {

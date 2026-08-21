@@ -38,8 +38,8 @@ function BonusBreakdown({ wage }: { wage: Wage }) {
   const parts = [
     { label: "Strategic", value: wage.bonus.strategic },
     { label: "Specialization", value: wage.bonus.specialization },
-    { label: "Resource", value: wage.bonus.resource },
     { label: "Deposit", value: wage.bonus.deposit },
+    { label: "Deposit ethic", value: wage.bonus.depositEthic },
   ].filter(part => part.value > 0);
 
   if (!parts.length) return <p className="text-xs text-muted">No bonus applies here.</p>;

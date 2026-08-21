@@ -225,10 +225,12 @@ async function proxyTrpc(req: Request): Promise<Response> {
 }
 
 // --- industrialism aggregate ----------------------------------------------
-// The settlement grid needs one party ethic per specializing country, which
-// used to be 150+ separate browser requests. Upstream takes tRPC calls in
-// batches, so the whole set collapses into a handful of requests here and a
-// single one from the browser.
+// The settlement grid needs one party ethic per country with a government —
+// the ethic pays an industrialist country for what it specializes in and an
+// agrarian one for its deposits, so a country without a specialization still
+// has a level worth reading. That used to be 150+ separate browser requests.
+// Upstream takes tRPC calls in batches, so the whole set collapses into a
+// handful of requests here and a single one from the browser.
 
 async function fetchPartyLevels(partyIds: string[]): Promise<Record<string, number>> {
   const res = await fetch(`${TRPC_UPSTREAM}/${partyBatchPath(partyIds)}`, {
@@ -255,14 +257,14 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
     specializedItem?: string;
     rulingParty?: string;
   }>;
-  const specializing = all.filter(country => country.specializedItem && country.rulingParty);
+  const governed = all.filter(country => country.rulingParty);
 
   const byParty: Record<string, number> = {};
-  for (const group of chunk([...new Set(specializing.map(country => country.rulingParty!))], PARTY_BATCH_SIZE)) {
+  for (const group of chunk([...new Set(governed.map(country => country.rulingParty!))], PARTY_BATCH_SIZE)) {
     Object.assign(byParty, await fetchPartyLevels(group));
   }
 
-  const body = JSON.stringify(levelsByCountry(specializing, byParty));
+  const body = JSON.stringify(levelsByCountry(governed, byParty));
   return {
     status: 200,
     body,

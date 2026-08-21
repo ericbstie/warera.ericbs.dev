@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { isFiniteNumber } from "./hooks";
 
+/**
+ * An industrialist ruling party lifts what its country specializes in, and an
+ * agrarian one lifts what a deposit is running, by the level of the ethic.
+ * Neither country gets the other's bonus: the axis runs one way or the other.
+ */
 export const SPECIALIZATION_BONUS: Record<number, number> = { 1: 10, 2: 30 };
+export const DEPOSIT_ETHIC_BONUS: Record<number, number> = { "-1": 10, "-2": 30 };
 const CONCURRENCY = 8;
 
 export type Taxes = { income: number; market: number; selfWork: number };
@@ -62,15 +68,17 @@ export async function fetchIndustrialism(countries: Country[]): Promise<Industri
 }
 
 export async function fetchIndustrialismPerCountry(countries: Country[]): Promise<Industrialism> {
-  const specializing = countries.filter(country => country.specializedItem && country.rulingParty);
+  // Every country with a government, not only the ones that specialize: an
+  // agrarian country can't pick a specialization and still earns on its deposits.
+  const governed = countries.filter(country => country.rulingParty);
   const levels: Record<string, number> = {};
   let missing = 0;
   let next = 0;
 
   await Promise.all(
     Array.from({ length: CONCURRENCY }, async () => {
-      while (next < specializing.length) {
-        const country = specializing[next++]!;
+      while (next < governed.length) {
+        const country = governed[next++]!;
         const input = encodeURIComponent(JSON.stringify({ partyId: country.rulingParty }));
         try {
           const res = await fetch(`/api/trpc/party.getById?input=${input}`);
@@ -104,13 +112,15 @@ export function rankPlacements(
 ): Placement[] {
   return countries
     .map(country => {
+      // A country's strategic resources only lift the one item it specializes
+      // in, so everything else it makes is worth the same there as anywhere.
+      const specializes = country.specializedItem === itemCode;
       // ?? 0 would pass a numeric string straight through, and "10" + 0 is "100".
       const percent = country.strategicResources?.bonuses?.productionPercent;
-      const strategicBonus = isFiniteNumber(percent) ? percent : 0;
-      const specializationBonus =
-        country.specializedItem === itemCode
-          ? (SPECIALIZATION_BONUS[industrialism[country._id] ?? 0] ?? 0)
-          : 0;
+      const strategicBonus = specializes && isFiniteNumber(percent) ? percent : 0;
+      const specializationBonus = specializes
+        ? (SPECIALIZATION_BONUS[industrialism[country._id] ?? 0] ?? 0)
+        : 0;
       return {
         id: country._id,
         country: country.name,
