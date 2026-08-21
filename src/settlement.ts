@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { isFiniteNumber } from "./hooks";
 
-const SPECIALIZATION_BONUS: Record<number, number> = { 1: 10, 2: 30 };
+export const SPECIALIZATION_BONUS: Record<number, number> = { 1: 10, 2: 30 };
 const CONCURRENCY = 8;
 
 export type Taxes = { income: number; market: number; selfWork: number };

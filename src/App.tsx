@@ -1,5 +1,6 @@
 import { BonusesPage } from "./BonusesPage";
 import { GraphPage } from "./GraphPage";
+import { WageCalculatorPage } from "./WageCalculatorPage";
 import { pageFor, usePath } from "./router";
 import "./index.css";
 
@@ -8,7 +9,7 @@ export function App() {
 
   return (
     <div className="min-h-screen">
-      {page === "bonuses" ? <BonusesPage /> : <GraphPage />}
+      {page === "bonuses" ? <BonusesPage /> : page === "wages" ? <WageCalculatorPage /> : <GraphPage />}
     </div>
   );
 }
