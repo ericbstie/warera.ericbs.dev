@@ -44,12 +44,13 @@ export type Wage = {
   revenue: number;
   inputs: Input[];
   inputCost: number;
-  /** The wage at which the company makes exactly nothing. */
+  /** The wage at which the company makes exactly nothing, to the last decimal. */
   breakEven: number;
-  /** That wage as it can actually be posted, and what the company keeps at it. */
+  /** The most of that the game lets one actually post, and what is left over at it. */
   posted: number;
   profit: number;
   incomeTax: number;
+  /** What the worker keeps of the posted wage — the game taxes what is paid, not the break-even. */
   afterTax: number;
 };
 
@@ -60,11 +61,15 @@ export function isProducible(item: MarketItem): boolean {
   return isFiniteNumber(item.productionPoints) && item.productionPoints > 0;
 }
 
-/** A raw resource only grows where its climate allows; anything refined travels. */
+/** A raw resource only grows where its climate allows, and earns the resource bonus for it. */
+export function suitsClimate(item: MarketItem, region: Region): boolean {
+  return Boolean(item.isDeposit) && (item.climates ?? []).includes(region.climate);
+}
+
+/** Anything refined travels; a raw resource is stuck with the weather. */
 export function canProduceIn(item: MarketItem, region: Region): boolean {
   if (!isProducible(item)) return false;
-  if (!item.isDeposit) return true;
-  return (item.climates ?? []).includes(region.climate);
+  return !item.isDeposit || suitsClimate(item, region);
 }
 
 /** Deposits run out, and an expired one stays in the region record for a while. */
@@ -88,7 +93,7 @@ export function bonusFor(
   const strategic = isFiniteNumber(percent) ? percent : 0;
   const specialization =
     country.specializedItem === item.code ? (SPECIALIZATION_BONUS[industrialism] ?? 0) : 0;
-  const resource = item.isDeposit && (item.climates ?? []).includes(region.climate) ? DEPOSIT_RESOURCE_BONUS : 0;
+  const resource = suitsClimate(item, region) ? DEPOSIT_RESOURCE_BONUS : 0;
   const deposit =
     region.deposit?.type === item.code && depositActive(region.deposit, now) ? region.deposit.bonusPercent : 0;
 
@@ -107,8 +112,16 @@ function priced(prices: Record<string, number>, code: string): number | null {
   return isFiniteNumber(price) && price > 0 ? price : null;
 }
 
-export function roundToStep(value: number, step = WAGE_STEP): number {
-  return Math.round(value / step) * step;
+/**
+ * Down to the step, never up: a wage posted above break even loses the company
+ * money on every work, so the nearest step is the wrong one nearly half the time.
+ */
+export function floorToStep(value: number, step = WAGE_STEP): number {
+  // 0.12 / 0.001 is 119.99999999999999 in binary floating point, and flooring
+  // that would drop a whole step. Nine places is far past anything the game
+  // quotes, so this rounding only ever undoes that error.
+  const steps = Math.floor(Number((value / step).toFixed(9)));
+  return Number((steps * step).toFixed(9));
 }
 
 /**
@@ -145,7 +158,7 @@ export function wageFor(
   const revenue = output * salePrice;
   const inputCost = inputs.reduce((total, input) => total + input.cost, 0);
   const breakEven = revenue - inputCost;
-  const posted = roundToStep(breakEven);
+  const posted = floorToStep(breakEven);
   const incomeTax = isFiniteNumber(country.taxes?.income) ? country.taxes!.income : 0;
 
   return {
@@ -159,7 +172,7 @@ export function wageFor(
     posted,
     profit: breakEven - posted,
     incomeTax,
-    afterTax: breakEven * (1 - incomeTax / 100),
+    afterTax: posted * (1 - incomeTax / 100),
   };
 }
 
@@ -233,7 +246,10 @@ export function topOrdersBatchPath(itemCodes: string[]): string {
 
 /**
  * The best bid, because that is what a company selling its output into the book
- * gets — and what it pays for the inputs it buys back out of the same book.
+ * gets. The inputs are priced off the bid too, which assumes a company patient
+ * enough to post its own buy order at the top of the book rather than lift the
+ * ask — worth a step or two of wage on a refined item, and what the placements
+ * this was checked against agree with.
  */
 export function bestBids(itemCodes: string[], entries: unknown): Record<string, number> {
   const prices: Record<string, number> = {};
@@ -270,11 +286,18 @@ export function useWageData(itemCodes: string[]) {
   const key = itemCodes.join(",");
 
   useEffect(() => {
-    if (!key) return;
     let cancelled = false;
-    setLoading(true);
     setError(null);
 
+    // Nothing to price is an answer, so it settles rather than spinning forever.
+    if (!key) {
+      setRegions([]);
+      setPrices({});
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     Promise.all([fetchRegions(), fetchPrices(key.split(","))])
       .then(([list, book]) => {
         if (cancelled) return;

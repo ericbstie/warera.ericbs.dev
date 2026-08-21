@@ -214,7 +214,7 @@ function PlacementTable({ placements }: { placements: Placement[] }) {
               <td className="hidden py-1.5 pl-1 text-right tabular-nums text-muted sm:table-cell">
                 {percent(placement.wage.incomeTax)}
               </td>
-              <td className="py-1.5 pl-1 text-right tabular-nums">{formatPrice(placement.wage.breakEven)}</td>
+              <td className="py-1.5 pl-1 text-right tabular-nums">{formatPrice(placement.wage.posted)}</td>
               <td className="py-1.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
                 {formatPrice(placement.wage.afterTax)}
               </td>
@@ -320,7 +320,7 @@ export function WageCalculatorPage() {
                 <Stat label="Production bonus" value={percent(wage.bonus.total, "+")} hint={`${wage.output.toFixed(4)} per work`} />
                 <Stat
                   label="Wage"
-                  value={formatPrice(wage.breakEven)}
+                  value={formatPrice(wage.posted)}
                   hint={
                     wage.inputs.length
                       ? `${formatPrice(wage.revenue)} sold, ${formatPrice(wage.inputCost)} bought`
@@ -333,12 +333,12 @@ export function WageCalculatorPage() {
                   hint={`${percent(wage.incomeTax)} income tax`}
                   tone="var(--up)"
                 />
-                {/* Posting the wage costs the last decimal, and this is what the
-                    company is left holding once it has. */}
+                {/* The wage can only be posted to the thousandth, so it lands a
+                    shade under break even and the company keeps the difference. */}
                 <Stat
                   label="Net benefit"
-                  value={formatPrice(Number(wage.profit.toFixed(3)) || 0)}
-                  hint={`posted at ${formatPrice(wage.posted)}`}
+                  value={formatPrice(wage.profit)}
+                  hint={`break even at ${formatPrice(wage.breakEven, 4)}`}
                 />
               </div>
 

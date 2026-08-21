@@ -1,7 +1,24 @@
 import { expect, test } from "bun:test";
 import type { MarketItem } from "./hooks";
 import type { Country } from "./settlement";
-import { bestBids, bonusFor, canProduceIn, depositActive, rankPlacements, toRegions, wageFor, type Region } from "./wages";
+import {
+  bestBids,
+  bonusFor,
+  canProduceIn,
+  depositActive,
+  floorToStep,
+  rankPlacements,
+  toRegions,
+  wageFor,
+  type Region,
+} from "./wages";
+
+/** The game quotes wages and benefits to the thousandth, so compare where it rounds. */
+const to3 = (value: number) => {
+  const rounded = Number(value.toFixed(3));
+  // A hair under break even rounds to -0, which the game shows as a plain 0.
+  return rounded === 0 ? 0 : rounded;
+};
 
 const GRAIN: MarketItem = { code: "grain", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "tropical"] };
 const IRON: MarketItem = { code: "iron", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "arid", "tropical", "polar"] };
@@ -34,28 +51,64 @@ const CENTRAL_THAILAND: Region = { id: "th-central", name: "Central Thailand", c
 
 const NOW = Date.parse("2026-08-21T16:00:00.000Z");
 
-test("grain in Costa Rica breaks even where the game says it does", () => {
+test("grain in Costa Rica prices the placement the game showed", () => {
   // A tropical region grows grain (+30) and is running a grain deposit (+30).
+  // The game had this one posted at 0.122, showing a net benefit of 0 and 0.121
+  // reaching the worker.
   const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
 
   expect(wage.bonus.total).toBe(60);
   expect(wage.output).toBeCloseTo(1.6, 6);
   expect(wage.breakEven).toBeCloseTo(0.1216, 6);
-  expect(wage.afterTax).toBeCloseTo(0.1204, 4);
+  expect(to3(wage.breakEven - 0.122)).toBe(0);
+  expect(to3(0.122 * (1 - wage.incomeTax / 100))).toBe(0.121);
 });
 
-test("steel in Thailand breaks even where the game says it does", () => {
+test("grain in Costa Rica will not recommend the wage the game was posted at", () => {
+  // 0.122 was a shade over break even and quietly cost the company 0.0004 a
+  // work; the most it can actually pay is the step below.
+  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
+
+  expect(wage.posted).toBeCloseTo(0.121, 6);
+  expect(wage.profit).toBeCloseTo(0.0006, 6);
+  expect(to3(wage.afterTax)).toBe(0.12);
+});
+
+test("steel in Thailand prices the placement the game showed", () => {
   // 30.75 strategic and 30 for specializing in steel at industrialism 2, with
-  // the iron it eats bought back out of the same book.
+  // the iron it eats bought back out of the same book. The game had this one
+  // posted at 0.130, showing a net benefit of 0.001 and 0.120 reaching the worker.
   const wage = wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625, iron: 0.081 }, NOW)!;
 
   expect(wage.bonus.total).toBeCloseTo(60.75, 6);
   expect(wage.output).toBeCloseTo(0.16075, 6);
   expect(wage.inputs).toEqual([{ code: "iron", quantity: 1.6075, price: 0.081, cost: 1.6075 * 0.081 }]);
-  expect(wage.breakEven).toBeCloseTo(0.131, 3);
-  // Posted at the thousandth the game allows, the company keeps a tenth of a cent.
+  expect(wage.breakEven).toBeCloseTo(0.131011, 6);
+  expect(to3(wage.breakEven - 0.13)).toBe(0.001);
+  expect(to3(0.13 * (1 - wage.incomeTax / 100))).toBe(0.12);
+
+  // One more step was going spare, and the company keeps a hundredth of a cent of it.
   expect(wage.posted).toBeCloseTo(0.131, 6);
   expect(wage.profit).toBeCloseTo(0.000011, 6);
+  expect(to3(wage.afterTax)).toBe(0.121);
+});
+
+test("the wage a worker takes home is taxed on what is posted, not on break even", () => {
+  // Both placements above settle this: taxing the unrounded break-even misses
+  // the game by a thousandth, and misses it in a different direction each time.
+  const grain = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, 0, { grain: 0.076 }, NOW)!;
+  const steel = wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625, iron: 0.081 }, NOW)!;
+
+  expect(grain.afterTax).toBeCloseTo(grain.posted * 0.99, 9);
+  expect(steel.afterTax).toBeCloseTo(steel.posted * 0.92, 9);
+});
+
+test("the posted wage never rises above break even", () => {
+  expect(floorToStep(0.1216)).toBeCloseTo(0.121, 9);
+  expect(floorToStep(0.13101125)).toBeCloseTo(0.131, 9);
+  // 0.12 / 0.001 is 119.99999999999999, which a bare Math.floor turns into 0.119.
+  expect(floorToStep(0.12)).toBeCloseTo(0.12, 9);
+  expect(floorToStep(0.131)).toBeCloseTo(0.131, 9);
 });
 
 test("splits the bonus into where each part of it came from", () => {
