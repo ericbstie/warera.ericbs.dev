@@ -2,12 +2,36 @@ import { useEffect, useState } from "react";
 import { isFiniteNumber } from "./hooks";
 
 /**
- * An industrialist ruling party lifts what its country specializes in, and an
- * agrarian one lifts what a deposit is running, by the level of the ethic.
- * Neither country gets the other's bonus: the axis runs one way or the other.
+ * A ruling party's ethic pays for a whole class of goods, not for whatever its
+ * country happens to specialize in. An industrialist party lifts the
+ * construction chain and ammunition; an agrarian one lifts what the land grows.
+ * The prepared goods — bread, steak, cooked fish, cocaine — sit on neither end
+ * of the axis and earn nothing from any ethic, however fanatical.
  */
-export const SPECIALIZATION_BONUS: Record<number, number> = { 1: 10, 2: 30 };
-export const DEPOSIT_ETHIC_BONUS: Record<number, number> = { "-1": 10, "-2": 30 };
+export const INDUSTRIAL_ITEMS = new Set([
+  "iron",
+  "limestone",
+  "lead",
+  "petroleum",
+  "wood",
+  "steel",
+  "concrete",
+  "oil",
+  "paper",
+  "lightAmmo",
+  "ammo",
+  "heavyAmmo",
+]);
+export const AGRARIAN_ITEMS = new Set(["grain", "livestock", "fish", "coca"]);
+
+/** How much the ethic pays, by the level the ruling party holds it at. */
+export const INDUSTRIALIST_BONUS: Record<number, number> = { 1: 10, 2: 30 };
+export const AGRARIAN_BONUS: Record<number, number> = { "-1": 10, "-2": 30 };
+
+/** The far ends of the axis, where a government starts giving things up. */
+export const FANATIC_INDUSTRIALIST = 2;
+export const FANATIC_AGRARIAN = -2;
+
 const CONCURRENCY = 8;
 
 export type Taxes = { income: number; market: number; selfWork: number };
@@ -26,10 +50,33 @@ export type Placement = {
   id: string;
   country: string;
   strategicBonus: number;
-  specializationBonus: number;
+  ethicBonus: number;
   totalBonus: number;
   taxes?: Taxes;
 };
+
+/**
+ * What the ruling party's ethic is worth on an item. It follows the item, not
+ * the country's specialization, so an industrialist country lifts every one of
+ * its steel and ammunition companies and none of its bakeries.
+ */
+export function ethicBonusFor(itemCode: string, industrialism: number): number {
+  if (AGRARIAN_ITEMS.has(itemCode)) return AGRARIAN_BONUS[industrialism] ?? 0;
+  if (INDUSTRIAL_ITEMS.has(itemCode)) return INDUSTRIALIST_BONUS[industrialism] ?? 0;
+  return 0;
+}
+
+/**
+ * A country's strategic resources only lift the one item it specializes in —
+ * and a fanatic agrarian government has given up the law that picks one, so
+ * whatever specialization it is still listed with pays nothing.
+ */
+export function strategicBonusFor(country: Country, itemCode: string, industrialism: number): number {
+  if (industrialism === FANATIC_AGRARIAN || country.specializedItem !== itemCode) return 0;
+  // ?? 0 would pass a numeric string straight through, and "10" + 0 is "100".
+  const percent = country.strategicResources?.bonuses?.productionPercent;
+  return isFiniteNumber(percent) ? percent : 0;
+}
 
 /**
  * `complete` is false when some level had to be assumed rather than read. The
@@ -112,21 +159,15 @@ export function rankPlacements(
 ): Placement[] {
   return countries
     .map(country => {
-      // A country's strategic resources only lift the one item it specializes
-      // in, so everything else it makes is worth the same there as anywhere.
-      const specializes = country.specializedItem === itemCode;
-      // ?? 0 would pass a numeric string straight through, and "10" + 0 is "100".
-      const percent = country.strategicResources?.bonuses?.productionPercent;
-      const strategicBonus = specializes && isFiniteNumber(percent) ? percent : 0;
-      const specializationBonus = specializes
-        ? (SPECIALIZATION_BONUS[industrialism[country._id] ?? 0] ?? 0)
-        : 0;
+      const level = industrialism[country._id] ?? 0;
+      const strategicBonus = strategicBonusFor(country, itemCode, level);
+      const ethicBonus = ethicBonusFor(itemCode, level);
       return {
         id: country._id,
         country: country.name,
         strategicBonus,
-        specializationBonus,
-        totalBonus: strategicBonus + specializationBonus,
+        ethicBonus,
+        totalBonus: strategicBonus + ethicBonus,
         taxes: country.taxes,
       };
     })

@@ -27,15 +27,15 @@ test("strategic resources pay for the specialized item and nothing else", () => 
 test("a specializing country adds its ethic on top of its strategic resources", () => {
   const top = rankPlacements([country("both", 25, "iron")], { both: 2 }, "iron")[0]!;
 
-  expect(top).toMatchObject({ strategicBonus: 25, specializationBonus: 30, totalBonus: 55 });
+  expect(top).toMatchObject({ strategicBonus: 25, ethicBonus: 30, totalBonus: 55 });
 });
 
-test("adds 30% for a matching specialization at industrialism 2", () => {
-  const countries = [country("strategic", 25), country("specialist", 0, "iron")];
-  const top = rankPlacements(countries, { specialist: 2 }, "iron")[0]!;
+test("adds 30% for an industrial item at industrialism 2", () => {
+  const countries = [country("strategic", 25), country("industrialist", 0, "iron")];
+  const top = rankPlacements(countries, { industrialist: 2 }, "iron")[0]!;
 
-  expect(top.country).toBe("specialist");
-  expect(top.specializationBonus).toBe(30);
+  expect(top.country).toBe("industrialist");
+  expect(top.ethicBonus).toBe(30);
   expect(top.totalBonus).toBe(30);
 });
 
@@ -46,10 +46,16 @@ test("adds 10% at industrialism 1 and nothing at 0", () => {
   expect(ranked.map(p => p.totalBonus)).toEqual([10, 0]);
 });
 
-test("only applies the specialization to its own item", () => {
-  const countries = [country("specialist", 0, "iron")];
+test("the ethic pays on the item's own axis, not on the specialization", () => {
+  // Wood is industrial too, so an industrialist country lifts it whether or not
+  // it is the item that country specializes in.
+  const countries = [country("industrialist", 0, "iron")];
 
-  expect(rankPlacements(countries, { specialist: 2 }, "wood")[0]!.totalBonus).toBe(0);
+  expect(rankPlacements(countries, { industrialist: 2 }, "wood")[0]!.totalBonus).toBe(30);
+  // Cooked fish is prepared rather than grown or dug, so neither end pays.
+  expect(rankPlacements(countries, { industrialist: 2 }, "cookedFish")[0]!.totalBonus).toBe(0);
+  // And an agrarian party pays for grain where an industrialist one does not.
+  expect(rankPlacements(countries, { industrialist: -2 }, "grain")[0]!.totalBonus).toBe(30);
 });
 
 test("keeps taxes and caps the list at the limit", () => {

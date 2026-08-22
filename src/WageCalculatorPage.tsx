@@ -37,9 +37,8 @@ function Stat({ label, value, hint, tone }: { label: string; value: string; hint
 function BonusBreakdown({ wage }: { wage: Wage }) {
   const parts = [
     { label: "Strategic", value: wage.bonus.strategic },
-    { label: "Specialization", value: wage.bonus.specialization },
+    { label: "Ruling party", value: wage.bonus.ethic },
     { label: "Deposit", value: wage.bonus.deposit },
-    { label: "Deposit ethic", value: wage.bonus.depositEthic },
   ].filter(part => part.value > 0);
 
   if (!parts.length) return <p className="text-xs text-muted">No bonus applies here.</p>;
@@ -231,7 +230,7 @@ export function WageCalculatorPage() {
   const { countries, industrialism, loading: settling, error: settlementError } = useSettlementData();
 
   const producible = useMemo(() => items.filter(isProducible), [items]);
-  const { regions, prices, loading: pricing, error: marketError } = useWageData(producible.map(item => item.code));
+  const { regions, prices, loading: pricing, error: marketError } = useWageData();
 
   const [itemCode, setItemCode] = useState("");
   const [regionId, setRegionId] = useState("");
@@ -296,7 +295,7 @@ export function WageCalculatorPage() {
         <div>
           <h1 className="text-lg font-semibold">Wage Calculator</h1>
           <p className="pt-1 text-sm text-muted">
-            The most a company can pay for one work and still break even, and what the worker keeps of it.
+            The most a company can pay per production point and still break even, and what the worker keeps of it.
           </p>
         </div>
 
@@ -316,8 +315,12 @@ export function WageCalculatorPage() {
           ) : (
             <section className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                <Stat label="Sale price" value={formatPrice(wage.salePrice)} hint="best bid" />
-                <Stat label="Production bonus" value={percent(wage.bonus.total, "+")} hint={`${wage.output.toFixed(4)} per work`} />
+                <Stat label="Sale price" value={formatPrice(wage.salePrice)} hint="market price" />
+                <Stat
+                  label="Production bonus"
+                  value={percent(wage.bonus.total, "+")}
+                  hint={`${wage.output.toFixed(4)} per point`}
+                />
                 <Stat
                   label="Wage"
                   value={formatPrice(wage.posted)}
@@ -334,11 +337,12 @@ export function WageCalculatorPage() {
                   tone="var(--up)"
                 />
                 {/* The wage can only be posted to the thousandth, so it lands a
-                    shade under break even and the company keeps the difference. */}
+                    shade under break even and the company keeps the difference,
+                    counted over a whole item's worth of production points. */}
                 <Stat
                   label="Net benefit"
-                  value={formatPrice(wage.profit)}
-                  hint={`break even at ${formatPrice(wage.breakEven, 4)}`}
+                  value={formatPrice(wage.netBenefit)}
+                  hint={`per item, break even at ${formatPrice(wage.breakEven, 4)}`}
                 />
               </div>
 

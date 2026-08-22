@@ -16,6 +16,7 @@ export const TRPC_TTL_MS: Record<string, number> = {
   "party.getById": 60 * 60 * 1000,
   "gameConfig.getGameConfig": 60 * 60 * 1000,
   "itemTrading.getItemTrading": 10 * 60 * 1000,
+  "itemTrading.getPrices": 60 * 1000,
   "tradingOrder.getTopOrders": 45 * 1000,
 };
 

@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import type { MarketItem } from "./hooks";
 import type { Country } from "./settlement";
 import {
-  bestBids,
   bonusFor,
-  canProduceIn,
   depositActive,
   floorToStep,
+  isProducible,
   rankPlacements,
+  toPrices,
   toRegions,
   wageFor,
   type Region,
@@ -22,199 +22,243 @@ const to3 = (value: number) => {
 
 const GRAIN: MarketItem = { code: "grain", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "tropical"] };
 const IRON: MarketItem = { code: "iron", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "arid", "tropical", "polar"] };
+const FISH: MarketItem = { code: "fish", type: "raw", productionPoints: 40, isDeposit: true, climates: ["polar"] };
 const STEEL: MarketItem = { code: "steel", type: "product", productionPoints: 10, productionNeeds: { iron: 10 } };
+const CONCRETE: MarketItem = { code: "concrete", type: "product", productionPoints: 10, productionNeeds: { limestone: 10 } };
+const COOKED_FISH: MarketItem = { code: "cookedFish", type: "product", productionPoints: 40, productionNeeds: { fish: 1 } };
 const KNIFE: MarketItem = { code: "knife", type: "weapon" };
 
-// No strategic resources and nothing to specialize in, but an agrarian ruling
-// party, which is what pays a deposit twice over.
-const COSTA_RICA: Country = {
-  _id: "cr",
-  name: "Costa Rica",
-  taxes: { income: 1, market: 1, selfWork: 1 },
+// The four placements below were read off the game on 2026-08-22, with the
+// market prices it was quoting at the time. Every ruling party involved was a
+// fanatic industrialist.
+const PRICES = {
+  cookedFish: 7.634753243944623,
+  fish: 3.3201606714628267,
+  steel: 1.6230574941841207,
+  iron: 0.081567896092557,
+  concrete: 1.5969398156201122,
+  limestone: 0.0796050289880947,
+  grain: 0.0758635864057438,
 };
-const AGRARIAN = -2;
+const FANATIC_INDUSTRIALIST = 2;
+const FANATIC_AGRARIAN = -2;
 
-const WESTERN_COSTA_RICA: Region = {
-  id: "cr-west",
-  name: "Western Costa Rica",
-  countryId: "cr",
-  climate: "tropical",
-  deposit: { type: "grain", bonusPercent: 30, startsAt: "2026-08-21T01:02:51.290Z", endsAt: "2026-08-25T01:02:51.290Z" },
+const ARGENTINA: Country = {
+  _id: "ar",
+  name: "Argentina",
+  taxes: { income: 10, market: 3, selfWork: 45 },
+  specializedItem: "cookedFish",
+  strategicResources: { bonuses: { productionPercent: 5 } },
 };
+const RESISTENCIA: Region = { id: "ar-res", name: "Resistencia", countryId: "ar", climate: "moderate" };
 
 const THAILAND: Country = {
   _id: "th",
   name: "Thailand",
   taxes: { income: 8, market: 1, selfWork: 2 },
   specializedItem: "steel",
-  strategicResources: { bonuses: { productionPercent: 30.75 } },
+  strategicResources: { bonuses: { productionPercent: 30.5 } },
 };
+const MARATHA: Region = { id: "th-mar", name: "Maratha", countryId: "th", climate: "tropical" };
 
-const CENTRAL_THAILAND: Region = { id: "th-central", name: "Central Thailand", countryId: "th", climate: "tropical" };
+const INDONESIA: Country = {
+  _id: "id",
+  name: "Indonesia",
+  taxes: { income: 9, market: 1, selfWork: 1 },
+  specializedItem: "iron",
+  strategicResources: { bonuses: { productionPercent: 30 } },
+};
+const TIMOR_LESTE: Region = { id: "id-tl", name: "Timor-Leste", countryId: "id", climate: "tropical" };
 
-const NOW = Date.parse("2026-08-21T16:00:00.000Z");
+const CHILE: Country = {
+  _id: "cl",
+  name: "Chile",
+  taxes: { income: 9, market: 10, selfWork: 0.01 },
+  specializedItem: "concrete",
+  strategicResources: { bonuses: { productionPercent: 30.5 } },
+};
+const CHUGOKU: Region = { id: "cl-chu", name: "Chugoku", countryId: "cl", climate: "moderate" };
 
-test("grain in Costa Rica prices the placement the game showed", () => {
-  // A running grain deposit (+30), doubled by an agrarian ruling party (+30).
-  // The game had this one posted at 0.122, showing a net benefit of 0 and 0.121
-  // reaching the worker.
-  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
+const NOW = Date.parse("2026-08-22T07:00:00.000Z");
+
+test("cooked fish in Argentina, Resistencia", () => {
+  // The game showed 0.113, 0.102 reaching the worker and a net benefit of 0.01.
+  // Cooked fish is a prepared good: it sits on neither end of the industrialism
+  // axis, so a fanatic industrialist ruling party adds nothing to Argentina's
+  // 5% of strategic resources. Reading it as a specialization bonus and paying
+  // +35% is what put this placement at 0.145.
+  const wage = wageFor(COOKED_FISH, RESISTENCIA, ARGENTINA, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
+
+  expect(wage.bonus).toEqual({ strategic: 5, ethic: 0, deposit: 0, total: 5 });
+  expect(wage.posted).toBeCloseTo(0.113, 9);
+  expect(to3(wage.afterTax)).toBe(0.102);
+  expect(to3(wage.netBenefit)).toBe(0.01);
+});
+
+test("steel in Thailand, Maratha", () => {
+  // The game showed 0.129, 0.119 to the worker and a net benefit of 0.006.
+  // Steel is an industrial good, so the ethic pays on top of the 30.5% Thailand
+  // draws from its strategic resources.
+  const wage = wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
+
+  expect(wage.bonus).toEqual({ strategic: 30.5, ethic: 30, deposit: 0, total: 60.5 });
+  expect(wage.inputs).toEqual([
+    { code: "iron", quantity: 1.605, price: PRICES.iron, cost: 1.605 * PRICES.iron },
+  ]);
+  expect(wage.posted).toBeCloseTo(0.129, 9);
+  expect(to3(wage.afterTax)).toBe(0.119);
+  expect(to3(wage.netBenefit)).toBe(0.006);
+});
+
+test("iron in Indonesia, Timor-Leste", () => {
+  // The game showed 0.130, 0.118 to the worker and a net benefit of 0 — this
+  // one sits a whisker under half a thousandth of break even.
+  const wage = wageFor(IRON, TIMOR_LESTE, INDONESIA, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
 
   expect(wage.bonus.total).toBe(60);
-  expect(wage.output).toBeCloseTo(1.6, 6);
-  expect(wage.breakEven).toBeCloseTo(0.1216, 6);
-  expect(to3(wage.breakEven - 0.122)).toBe(0);
-  expect(to3(0.122 * (1 - wage.incomeTax / 100))).toBe(0.121);
+  expect(wage.posted).toBeCloseTo(0.13, 9);
+  expect(to3(wage.afterTax)).toBe(0.118);
+  expect(wage.netBenefit).toBeLessThan(0.001);
 });
 
-test("grain in Costa Rica will not recommend the wage the game was posted at", () => {
-  // 0.122 was a shade over break even and quietly cost the company 0.0004 a
-  // work; the most it can actually pay is the step below.
-  const wage = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
+test("concrete in Chile, Chugoku", () => {
+  // The game showed 0.128, 0.116 to the worker and a net benefit of 0.005.
+  const wage = wageFor(CONCRETE, CHUGOKU, CHILE, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
 
-  expect(wage.posted).toBeCloseTo(0.121, 6);
-  expect(wage.profit).toBeCloseTo(0.0006, 6);
-  expect(to3(wage.afterTax)).toBe(0.12);
+  expect(wage.bonus.total).toBeCloseTo(60.5, 9);
+  expect(wage.posted).toBeCloseTo(0.128, 9);
+  expect(to3(wage.afterTax)).toBe(0.116);
+  expect(to3(wage.netBenefit)).toBe(0.005);
 });
 
-test("steel in Thailand prices the placement the game showed", () => {
-  // 30.75 strategic and 30 for specializing in steel at industrialism 2, with
-  // the iron it eats bought back out of the same book. The game had this one
-  // posted at 0.130, showing a net benefit of 0.001 and 0.120 reaching the worker.
-  const wage = wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625, iron: 0.081 }, NOW)!;
+test("the net benefit is counted over a whole item's production points", () => {
+  // A thousandth of wage on one production point is ten thousandths across the
+  // ten points a steel costs, which is the figure the game puts on the screen.
+  const steel = wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
+  const iron = wageFor(IRON, TIMOR_LESTE, INDONESIA, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
 
-  expect(wage.bonus.total).toBeCloseTo(60.75, 6);
-  expect(wage.output).toBeCloseTo(0.16075, 6);
-  expect(wage.inputs).toEqual([{ code: "iron", quantity: 1.6075, price: 0.081, cost: 1.6075 * 0.081 }]);
-  expect(wage.breakEven).toBeCloseTo(0.131011, 6);
-  expect(to3(wage.breakEven - 0.13)).toBe(0.001);
-  expect(to3(0.13 * (1 - wage.incomeTax / 100))).toBe(0.12);
-
-  // One more step was going spare, and the company keeps a hundredth of a cent of it.
-  expect(wage.posted).toBeCloseTo(0.131, 6);
-  expect(wage.profit).toBeCloseTo(0.000011, 6);
-  expect(to3(wage.afterTax)).toBe(0.121);
+  expect(steel.netBenefit).toBeCloseTo((steel.breakEven - steel.posted) * 10, 12);
+  // One point makes one iron, so there is nothing to multiply.
+  expect(iron.netBenefit).toBeCloseTo(iron.breakEven - iron.posted, 12);
 });
 
 test("the wage a worker takes home is taxed on what is posted, not on break even", () => {
-  // Both placements above settle this: taxing the unrounded break-even misses
-  // the game by a thousandth, and misses it in a different direction each time.
-  const grain = wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)!;
-  const steel = wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625, iron: 0.081 }, NOW)!;
+  // Taxing the unrounded break-even misses the game by a thousandth, and misses
+  // it in a different direction each time.
+  const steel = wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, PRICES, NOW)!;
 
-  expect(grain.afterTax).toBeCloseTo(grain.posted * 0.99, 9);
-  expect(steel.afterTax).toBeCloseTo(steel.posted * 0.92, 9);
+  expect(steel.afterTax).toBeCloseTo(steel.posted * 0.92, 12);
 });
 
 test("the posted wage never rises above break even", () => {
   expect(floorToStep(0.1216)).toBeCloseTo(0.121, 9);
-  expect(floorToStep(0.13101125)).toBeCloseTo(0.131, 9);
+  expect(floorToStep(0.12958424)).toBeCloseTo(0.129, 9);
   // 0.12 / 0.001 is 119.99999999999999, which a bare Math.floor turns into 0.119.
   expect(floorToStep(0.12)).toBeCloseTo(0.12, 9);
   expect(floorToStep(0.131)).toBeCloseTo(0.131, 9);
 });
 
-test("splits the bonus into where each part of it came from", () => {
-  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, NOW)).toEqual({
+test("the ruling party's ethic follows the item, not the specialization", () => {
+  // An industrialist country lifts every industrial company it holds, whether
+  // or not that is the item it specializes in — and lifts none of its bakeries.
+  expect(bonusFor(STEEL, RESISTENCIA, ARGENTINA, FANATIC_INDUSTRIALIST, NOW)).toEqual({
     strategic: 0,
-    specialization: 0,
+    ethic: 30,
+    deposit: 0,
+    total: 30,
+  });
+  expect(bonusFor(IRON, RESISTENCIA, ARGENTINA, 1, NOW).ethic).toBe(10);
+  expect(bonusFor(IRON, RESISTENCIA, ARGENTINA, 0, NOW).ethic).toBe(0);
+  // Cooked fish is prepared, not grown, so neither end of the axis pays for it.
+  expect(bonusFor(COOKED_FISH, RESISTENCIA, ARGENTINA, FANATIC_AGRARIAN, NOW).total).toBe(0);
+});
+
+test("an agrarian ruling party pays for what the land grows", () => {
+  const agrarian: Country = { ...ARGENTINA, specializedItem: "fish" };
+
+  expect(bonusFor(FISH, RESISTENCIA, agrarian, -1, NOW)).toEqual({
+    strategic: 5,
+    ethic: 10,
+    deposit: 0,
+    total: 15,
+  });
+  // A fanatic agrarian government has given up the law that picks a
+  // specialization, so its strategic resources stop paying even on fish.
+  expect(bonusFor(FISH, RESISTENCIA, agrarian, FANATIC_AGRARIAN, NOW)).toEqual({
+    strategic: 0,
+    ethic: 30,
+    deposit: 0,
+    total: 30,
+  });
+  // And outside food it hands a company nothing at all.
+  expect(bonusFor(IRON, RESISTENCIA, agrarian, FANATIC_AGRARIAN, NOW).total).toBe(0);
+});
+
+test("a deposit pays the company standing on it", () => {
+  const deposit = { type: "grain", bonusPercent: 30, startsAt: "2026-08-21T01:02:51.290Z", endsAt: "2026-08-25T01:02:51.290Z" };
+  const region: Region = { ...RESISTENCIA, deposit };
+
+  expect(bonusFor(GRAIN, region, ARGENTINA, -1, NOW)).toEqual({
+    strategic: 0,
+    ethic: 10,
     deposit: 30,
-    depositEthic: 30,
-    total: 60,
+    total: 40,
   });
-
-  expect(bonusFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, NOW)).toEqual({
-    strategic: 30.75,
-    specialization: 30,
-    deposit: 0,
-    depositEthic: 0,
-    total: 60.75,
-  });
-});
-
-test("a country's strategic resources only lift the one item it specializes in", () => {
-  // The game had lead in Latvia at +55: 25 for the strategic resources and 30
-  // for specializing in lead. Iron in the same country earns neither, however
-  // many strategic resources sit under it.
-  const latvia: Country = {
-    _id: "lv",
-    name: "Latvia",
-    taxes: { income: 10, market: 1, selfWork: 1 },
-    specializedItem: "iron",
-    strategicResources: { bonuses: { productionPercent: 25 } },
-  };
-  const region: Region = { id: "lv-1", name: "Vidzeme", countryId: "lv", climate: "moderate" };
-
-  expect(bonusFor(IRON, region, latvia, 2, NOW).total).toBe(55);
-  expect(bonusFor(GRAIN, region, latvia, 2, NOW)).toEqual({
-    strategic: 0,
-    specialization: 0,
-    deposit: 0,
-    depositEthic: 0,
-    total: 0,
-  });
-});
-
-test("a climate a resource suits pays nothing on its own", () => {
-  // The bug this replaced handed every raw resource +30 wherever its climate
-  // allowed it, which put lead in the calculator at +85 where the game says +55.
-  const thai = bonusFor(IRON, CENTRAL_THAILAND, THAILAND, 2, NOW);
-
-  expect(canProduceIn(IRON, CENTRAL_THAILAND)).toBe(true);
-  expect(thai.total).toBe(0);
+  // A fanatic industrialist country lets its deposits go, so this one is dead.
+  expect(bonusFor(GRAIN, region, ARGENTINA, FANATIC_INDUSTRIALIST, NOW).deposit).toBe(0);
+  // And a deposit of something else is somebody else's business.
+  expect(bonusFor(IRON, region, ARGENTINA, 0, NOW).deposit).toBe(0);
 });
 
 test("a deposit only counts while it is running", () => {
-  const deposit = WESTERN_COSTA_RICA.deposit!;
+  const deposit = { type: "grain", bonusPercent: 30, startsAt: "2026-08-21T01:02:51.290Z", endsAt: "2026-08-25T01:02:51.290Z" };
 
   expect(depositActive(deposit, NOW)).toBe(true);
   expect(depositActive(deposit, Date.parse("2026-08-20T00:00:00.000Z"))).toBe(false);
   expect(depositActive(deposit, Date.parse("2026-08-26T00:00:00.000Z"))).toBe(false);
-  // And with the deposit gone there is nothing left for the ethic to double.
-  expect(bonusFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, Date.parse("2026-08-26T00:00:00.000Z")).total).toBe(0);
 });
 
-test("a raw resource only grows where its climate suits it", () => {
-  const polar: Region = { id: "p", name: "Polar", countryId: "cr", climate: "polar" };
+test("climate says where a deposit may appear, not where a company may stand", () => {
+  // The bug this replaced hid fish from every region that wasn't polar, which
+  // dropped whole countries out of the ranking for it.
+  const arid: Region = { id: "a", name: "Arid", countryId: "ar", climate: "arid" };
 
-  expect(canProduceIn(GRAIN, polar)).toBe(false);
-  expect(wageFor(GRAIN, polar, COSTA_RICA, AGRARIAN, { grain: 0.076 }, NOW)).toBeNull();
-  // Nothing refined cares about the weather.
-  expect(canProduceIn(STEEL, polar)).toBe(true);
+  expect(wageFor(FISH, arid, ARGENTINA, 0, PRICES, NOW)).not.toBeNull();
+  expect(wageFor(GRAIN, { ...arid, climate: "polar" }, ARGENTINA, 0, PRICES, NOW)).not.toBeNull();
 });
 
 test("nothing a company can't be set to produce is costed", () => {
-  expect(canProduceIn(KNIFE, WESTERN_COSTA_RICA)).toBe(false);
-  expect(wageFor(KNIFE, WESTERN_COSTA_RICA, COSTA_RICA, 0, { knife: 12 }, NOW)).toBeNull();
+  expect(isProducible(KNIFE)).toBe(false);
+  expect(wageFor(KNIFE, RESISTENCIA, ARGENTINA, 0, { knife: 12 }, NOW)).toBeNull();
 });
 
 test("an unquoted item or input has no wage rather than a wage of zero", () => {
-  expect(wageFor(GRAIN, WESTERN_COSTA_RICA, COSTA_RICA, AGRARIAN, {}, NOW)).toBeNull();
-  expect(wageFor(STEEL, CENTRAL_THAILAND, THAILAND, 2, { steel: 1.625 }, NOW)).toBeNull();
+  expect(wageFor(GRAIN, RESISTENCIA, ARGENTINA, 0, {}, NOW)).toBeNull();
+  expect(wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, { steel: 1.625 }, NOW)).toBeNull();
 });
 
 test("ranks by the wage that reaches the worker, not the one the company posts", () => {
-  const taxed: Country = { ...THAILAND, _id: "taxed", name: "Taxed", specializedItem: undefined, taxes: { income: 50, market: 1, selfWork: 1 } };
+  const taxed: Country = { ...THAILAND, _id: "taxed", name: "Taxed", taxes: { income: 50, market: 1, selfWork: 1 } };
   const regions: Region[] = [
-    { ...CENTRAL_THAILAND, id: "a", countryId: "th" },
-    { ...CENTRAL_THAILAND, id: "b", name: "Taxland", countryId: "taxed" },
+    { ...MARATHA, id: "a" },
+    { ...MARATHA, id: "b", name: "Taxland", countryId: "taxed" },
   ];
 
-  const ranked = rankPlacements([IRON], regions, [THAILAND, taxed], {}, { iron: 0.081 }, 10, NOW);
+  const ranked = rankPlacements([STEEL], regions, [THAILAND, taxed], { th: 2, taxed: 2 }, PRICES, 10, NOW);
 
   expect(ranked.map(placement => placement.country.name)).toEqual(["Thailand", "Taxed"]);
   expect(ranked[0]!.wage.incomeTax).toBe(8);
 });
 
 test("one country can't fill the table with its own provinces", () => {
-  // Every Thai region shares Thailand's bonuses, so only its best one stands.
-  const regions: Region[] = ["a", "b", "c"].map(id => ({ ...CENTRAL_THAILAND, id, name: `Thai ${id}` }));
+  // Every Indonesian region shares Indonesia's bonuses, so only its best stands.
+  const regions: Region[] = ["a", "b", "c"].map(id => ({ ...TIMOR_LESTE, id, name: `Region ${id}` }));
   regions[1]!.deposit = { type: "iron", bonusPercent: 30 };
 
-  const ranked = rankPlacements([IRON], regions, [THAILAND], {}, { iron: 0.081 }, 10, NOW);
+  const ranked = rankPlacements([IRON], regions, [INDONESIA], {}, PRICES, 10, NOW);
 
   expect(ranked).toHaveLength(1);
-  expect(ranked[0]!.region.name).toBe("Thai b");
+  expect(ranked[0]!.region.name).toBe("Region b");
   expect(ranked[0]!.wage.bonus.deposit).toBe(30);
 });
 
@@ -230,12 +274,8 @@ test("reads regions and prices out of the shapes upstream sends", () => {
     { id: "r2", name: "r2", countryId: "cr", climate: "", deposit: undefined },
   ]);
 
-  // The book is not sorted, and a side with nothing on it is not a price of zero.
-  expect(
-    bestBids(["grain", "iron", "steel"], [
-      { result: { data: { buyOrders: [{ price: 0.074 }, { price: 0.076 }, { price: 0.075 }] } } },
-      { result: { data: { buyOrders: [] } } },
-      { error: { message: "nope" } },
-    ]),
-  ).toEqual({ grain: 0.076 });
+  // An item nobody is trading has no price, which is not a price of zero.
+  expect(toPrices({ grain: 0.076, iron: 0, steel: null })).toEqual({ grain: 0.076 });
+  expect(toPrices(null)).toEqual({});
+  expect(toPrices([1, 2])).toEqual({});
 });

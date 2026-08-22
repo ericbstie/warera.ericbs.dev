@@ -1,20 +1,27 @@
 // What a company can pay a worker before it stops making money.
 //
-// A work turns one production point into `1 / productionPoints` of the item,
-// lifted by whatever bonuses the place carries, and consumes the item's needs
-// in the same proportion. Whatever is left of the sale once the inputs are paid
-// for is the wage the company can post at break even, and the country's income
-// tax decides how much of it the worker keeps.
+// A wage is quoted per production point. A worker's session turns energy into
+// production points, the place's bonus adds more on top of them, and the
+// company pays for the ones the worker brought — so a point is worth
+// `1 + bonus` points of production to the company, and one point of production
+// is `1 / productionPoints` of the item plus the same share of what the recipe
+// eats. Whatever is left of the sale once the inputs are paid for is the wage
+// the company can post at break even, and the country's income tax decides how
+// much of it the worker keeps.
 
 import { useEffect, useState } from "react";
 import { isFiniteNumber, type MarketItem } from "./hooks";
-import { DEPOSIT_ETHIC_BONUS, SPECIALIZATION_BONUS, type Country } from "./settlement";
+import {
+  AGRARIAN_ITEMS,
+  ethicBonusFor,
+  FANATIC_AGRARIAN,
+  FANATIC_INDUSTRIALIST,
+  strategicBonusFor,
+  type Country,
+} from "./settlement";
 
 /** The game posts wages to the thousandth, so that is as close to break even as one can sit. */
 export const WAGE_STEP = 0.001;
-
-/** The industrialism a ruling party has to reach for its country's deposits to go quiet. */
-const INDUSTRIALIST = 2;
 
 export type Deposit = { type: string; bonusPercent: number; startsAt?: string; endsAt?: string };
 
@@ -22,15 +29,16 @@ export type Region = {
   id: string;
   name: string;
   countryId: string;
+  /** Which deposits can appear here — the weather says nothing about what a company may produce. */
   climate: string;
   deposit?: Deposit;
 };
 
 export type Bonus = {
   strategic: number;
-  specialization: number;
+  /** What the ruling party's place on the industrialism axis is worth on this item. */
+  ethic: number;
   deposit: number;
-  depositEthic: number;
   total: number;
 };
 
@@ -38,7 +46,7 @@ export type Input = { code: string; quantity: number; price: number; cost: numbe
 
 export type Wage = {
   bonus: Bonus;
-  /** Units of the item one work produces, bonuses included. */
+  /** Units of the item one production point buys, bonus included. */
   output: number;
   salePrice: number;
   revenue: number;
@@ -46,9 +54,13 @@ export type Wage = {
   inputCost: number;
   /** The wage at which the company makes exactly nothing, to the last decimal. */
   breakEven: number;
-  /** The most of that the game lets one actually post, and what is left over at it. */
+  /** The most of that the game lets one actually post. */
   posted: number;
-  profit: number;
+  /**
+   * What the company keeps at the posted wage, over the run of production
+   * points one item is priced in — the same figure the game shows.
+   */
+  netBenefit: number;
   incomeTax: number;
   /** What the worker keeps of the posted wage — the game taxes what is paid, not the break-even. */
   afterTax: number;
@@ -61,17 +73,6 @@ export function isProducible(item: MarketItem): boolean {
   return isFiniteNumber(item.productionPoints) && item.productionPoints > 0;
 }
 
-/** A raw resource only grows where its climate allows. The weather permits, it does not pay. */
-export function suitsClimate(item: MarketItem, region: Region): boolean {
-  return Boolean(item.isDeposit) && (item.climates ?? []).includes(region.climate);
-}
-
-/** Anything refined travels; a raw resource is stuck with the weather. */
-export function canProduceIn(item: MarketItem, region: Region): boolean {
-  if (!isProducible(item)) return false;
-  return !item.isDeposit || suitsClimate(item, region);
-}
-
 /** Deposits run out, and an expired one stays in the region record for a while. */
 export function depositActive(deposit: Deposit | undefined, now = Date.now()): boolean {
   if (!deposit || !isFiniteNumber(deposit.bonusPercent)) return false;
@@ -82,6 +83,8 @@ export function depositActive(deposit: Deposit | undefined, now = Date.now()): b
   return true;
 }
 
+const NO_BONUS: Bonus = { strategic: 0, ethic: 0, deposit: 0, total: 0 };
+
 export function bonusFor(
   item: MarketItem,
   region: Region,
@@ -89,31 +92,26 @@ export function bonusFor(
   industrialism: number,
   now = Date.now(),
 ): Bonus {
-  // A country's strategic resources only lift the one item it specializes in.
-  const specializes = country.specializedItem === item.code;
-  const percent = country.strategicResources?.bonuses?.productionPercent;
-  const strategic = specializes && isFiniteNumber(percent) ? percent : 0;
-  const specialization = specializes ? (SPECIALIZATION_BONUS[industrialism] ?? 0) : 0;
+  // A fanatic agrarian country has turned its back on everything but the
+  // fields: outside food and coca it hands a company nothing at all.
+  if (industrialism === FANATIC_AGRARIAN && !AGRARIAN_ITEMS.has(item.code)) return NO_BONUS;
 
-  // The deposit is the only thing that pays a raw resource, and it pays where it
-  // is, not everywhere its climate is. A fully industrialist country is the one
-  // place it pays nothing: deposits can't spawn under that ethic, and the game
-  // hands out no bonus for one left over from before it.
+  const strategic = strategicBonusFor(country, item.code, industrialism);
+  const ethic = ethicBonusFor(item.code, industrialism);
+
+  // A deposit pays the company sitting on it, and only that one. A fanatic
+  // industrialist country is where it pays nothing: deposits can't spawn under
+  // that ethic, and the game hands out no bonus for one left over from before it.
   const onDeposit =
-    industrialism !== INDUSTRIALIST && region.deposit?.type === item.code && depositActive(region.deposit, now);
+    industrialism !== FANATIC_INDUSTRIALIST &&
+    region.deposit?.type === item.code &&
+    depositActive(region.deposit, now);
   const deposit = onDeposit ? region.deposit!.bonusPercent : 0;
-  const depositEthic = onDeposit ? (DEPOSIT_ETHIC_BONUS[industrialism] ?? 0) : 0;
 
-  return {
-    strategic,
-    specialization,
-    deposit,
-    depositEthic,
-    total: strategic + specialization + deposit + depositEthic,
-  };
+  return { strategic, ethic, deposit, total: strategic + ethic + deposit };
 }
 
-/** A price of 0 is a book with nothing on it, which is no price at all. */
+/** A price of 0 is an item nobody is trading, which is no price at all. */
 function priced(prices: Record<string, number>, code: string): number | null {
   const price = prices[code];
   return isFiniteNumber(price) && price > 0 ? price : null;
@@ -132,9 +130,8 @@ export function floorToStep(value: number, step = WAGE_STEP): number {
 }
 
 /**
- * null where the sum can't be made honestly: an item no company produces, a
- * place it can't be produced in, or a market that has yet to quote it or one of
- * the things it is made from.
+ * null where the sum can't be made honestly: an item no company produces, or a
+ * market that has yet to quote it or one of the things it is made from.
  */
 export function wageFor(
   item: MarketItem,
@@ -144,14 +141,14 @@ export function wageFor(
   prices: Record<string, number>,
   now = Date.now(),
 ): Wage | null {
-  if (!canProduceIn(item, region)) return null;
+  if (!isProducible(item)) return null;
 
   const salePrice = priced(prices, item.code);
   if (salePrice === null) return null;
 
   const bonus = bonusFor(item, region, country, industrialism, now);
-  // One work's worth of production, which is also the share of the recipe it
-  // consumes — a bonus lifts the output and the inputs together.
+  // One production point's worth of production, which is also the share of the
+  // recipe it consumes — a bonus lifts the output and the inputs together.
   const output = (1 + bonus.total / 100) / item.productionPoints!;
 
   const inputs: Input[] = [];
@@ -177,7 +174,10 @@ export function wageFor(
     inputCost,
     breakEven,
     posted,
-    profit: breakEven - posted,
+    // The wage only moves in thousandths, so it lands a shade under break even.
+    // The game counts what that is worth over a whole item's production points
+    // rather than over the single point the wage is quoted in.
+    netBenefit: (breakEven - posted) * item.productionPoints!,
     incomeTax,
     afterTax: posted * (1 - incomeTax / 100),
   };
@@ -244,68 +244,46 @@ export async function fetchRegions(): Promise<Region[]> {
   return regions;
 }
 
-/** Upstream takes one procedure name per call in a batch and indexes the inputs to match. */
-export function topOrdersBatchPath(itemCodes: string[]): string {
-  const procedures = itemCodes.map(() => "tradingOrder.getTopOrders").join(",");
-  const input = JSON.stringify(Object.fromEntries(itemCodes.map((itemCode, index) => [index, { itemCode }])));
-  return `/api/trpc/${procedures}?batch=1&input=${encodeURIComponent(input)}`;
-}
-
 /**
- * The best bid, because that is what a company selling its output into the book
- * gets. The inputs are priced off the bid too, which assumes a company patient
- * enough to post its own buy order at the top of the book rather than lift the
- * ask — worth a step or two of wage on a refined item, and what the placements
- * this was checked against agree with.
+ * The market price the game itself values a company's output and its inputs at.
+ * Reading the top of the order book instead put every refined item a step or
+ * two of wage out, because a book's best bid and the price the game settles on
+ * are not the same number.
  */
-export function bestBids(itemCodes: string[], entries: unknown): Record<string, number> {
+export function toPrices(values: unknown): Record<string, number> {
   const prices: Record<string, number> = {};
-  if (!Array.isArray(entries)) return prices;
+  if (typeof values !== "object" || values === null || Array.isArray(values)) return prices;
 
-  itemCodes.forEach((code, index) => {
-    const orders = (entries[index] as { result?: { data?: { buyOrders?: Array<{ price?: number }> } } })?.result?.data
-      ?.buyOrders;
-    if (!Array.isArray(orders)) return;
-    const best = orders.reduce(
-      (highest, order) => (isFiniteNumber(order?.price) && order.price > highest ? order.price : highest),
-      0,
-    );
-    if (best > 0) prices[code] = best;
-  });
-
+  for (const [code, price] of Object.entries(values as Record<string, unknown>)) {
+    if (isFiniteNumber(price) && price > 0) prices[code] = price;
+  }
   return prices;
 }
 
-export async function fetchPrices(itemCodes: string[]): Promise<Record<string, number>> {
-  if (!itemCodes.length) return {};
-  const res = await fetch(topOrdersBatchPath(itemCodes));
-  const entries = await res.json();
-  if (!Array.isArray(entries)) throw new Error("Order books came back in an unexpected shape");
-  return bestBids(itemCodes, entries);
+export async function fetchPrices(): Promise<Record<string, number>> {
+  const res = await fetch("/api/trpc/itemTrading.getPrices", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  const prices = toPrices(json?.result?.data);
+  if (!Object.keys(prices).length) throw new Error("Market prices came back in an unexpected shape");
+  return prices;
 }
 
 /** The regions and the prices the calculator ranks over, fetched once for the page. */
-export function useWageData(itemCodes: string[]) {
+export function useWageData() {
   const [regions, setRegions] = useState<Region[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const key = itemCodes.join(",");
 
   useEffect(() => {
     let cancelled = false;
-    setError(null);
 
-    // Nothing to price is an answer, so it settles rather than spinning forever.
-    if (!key) {
-      setRegions([]);
-      setPrices({});
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    Promise.all([fetchRegions(), fetchPrices(key.split(","))])
+    Promise.all([fetchRegions(), fetchPrices()])
       .then(([list, book]) => {
         if (cancelled) return;
         setRegions(list);
@@ -321,7 +299,7 @@ export function useWageData(itemCodes: string[]) {
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, []);
 
   return { regions, prices, loading, error };
 }
