@@ -128,11 +128,15 @@ function useContainerSize() {
   return { ref, ...size };
 }
 
-/** An axis has room for the time or the day, not both — whichever the bar is. */
-function formatDate(date: string) {
+/**
+ * An axis has room for the time or the day, not both — whichever the bar is.
+ * A view holding more than one day labels its intraday bars by day even so:
+ * five ticks all reading "14:00" say nothing about which day they are in.
+ */
+function formatDate(date: string, withDay = false) {
   const parsed = parseBarDate(date);
   if (Number.isNaN(parsed.getTime())) return ""; // an unparseable date reads better as a blank tick than as "Invalid Date"
-  if (isTimestamp(date)) return formatTime(date);
+  if (isTimestamp(date) && !withDay) return formatTime(date);
   return parsed.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -303,6 +307,11 @@ export function PriceChart({
   const legendVolume = legendBar?.totalQuantity ?? 0;
   const legendVwap = legendVolume === 0 ? null : (legendBar?.totalValue ?? 0) / legendVolume;
   const dates = prices.map(p => p.date);
+  // Which UTC days the window holds, so the axis knows whether a clock reading
+  // on its own is enough to place a bar.
+  const firstVisible = barDateAt(dates, Math.max(Math.round(offset), 0));
+  const lastVisible = barDateAt(dates, Math.round(offset + span));
+  const multiDay = firstVisible.slice(0, 10) !== lastVisible.slice(0, 10);
 
   const locate = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -501,7 +510,13 @@ export function PriceChart({
 
   /** A stretch can take the read price off the pane; its tag stays on the axis. */
   const tagY = point ? clamp(y(point.price), priceTop, priceBottom) : 0;
-  const dateTag = point ? formatDate(barDateAt(dates, legendIndex)) : "";
+  const legendDate = point ? barDateAt(dates, legendIndex) : "";
+  // The crosshair has a tag of its own to fill, so it keeps the time the axis
+  // gave up when the window runs across days.
+  const dateTag =
+    multiDay && isTimestamp(legendDate)
+      ? `${formatDate(legendDate, true)} ${formatTime(legendDate)}`
+      : formatDate(legendDate, multiDay);
   const dateTagWidth = dateTag.length * LABEL_CHAR_WIDTH + 14;
   const dateTagX = point
     ? Math.min(Math.max(x(legendIndex) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
@@ -767,7 +782,7 @@ export function PriceChart({
                         fontSize="11"
                         fill={AXIS_TEXT}
                       >
-                        {formatDate(barDateAt(dates, index))}
+                        {formatDate(barDateAt(dates, index), multiDay)}
                       </text>
                     </g>
                   );

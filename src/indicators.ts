@@ -33,17 +33,19 @@ export function vwapSeries(transactions: Transaction[]): (number | null)[] {
   return out;
 }
 
-export type Range = "7D" | "30D" | "ALL";
+export type Range = "1D" | "7D" | "30D" | "ALL";
 
 /**
  * The server's own record reaches back as far as it has been running, so these
  * are no longer capped at the 30 days upstream publishes.
  */
-export const RANGES: Range[] = ["7D", "30D", "ALL"];
+export const RANGES: Range[] = ["1D", "7D", "30D", "ALL"];
 
 /** null asks for everything on file. */
 export function rangeDays(range: Range): number | null {
   switch (range) {
+    case "1D":
+      return 1;
     case "7D":
       return 7;
     case "30D":
@@ -54,13 +56,14 @@ export function rangeDays(range: Range): number | null {
 }
 
 /**
- * Resolution follows the range, the way a trading terminal does it: a few days
- * are drawn from the 15-minute poll, anything longer from the daily records —
- * a year of quarter-hours would be 35,000 candles in a chart 800px wide.
+ * Resolution follows the range, the way a trading terminal does it: a week or
+ * less is drawn from the 15-minute poll — 672 candles at the outside — and
+ * anything longer from the daily records, since a year of quarter-hours would
+ * be 35,000 candles in a chart 800px wide.
  */
 export function isIntraday(range: Range): boolean {
   const days = rangeDays(range);
-  return days !== null && days <= 3;
+  return days !== null && days <= 7;
 }
 
 export type VolumeBucket = {

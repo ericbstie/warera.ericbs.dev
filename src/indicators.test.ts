@@ -56,12 +56,12 @@ test("vwapSeries stays null until something trades, then anchors to the cumulati
 });
 
 test("RANGES lists every range shortest first and rangeDays maps them", () => {
-  expect(RANGES).toEqual(["7D", "30D", "ALL"]);
-  expect(RANGES.map(rangeDays)).toEqual([7, 30, null]);
+  expect(RANGES).toEqual(["1D", "7D", "30D", "ALL"]);
+  expect(RANGES.map(rangeDays)).toEqual([1, 7, 30, null]);
 });
 
 test("only the short ranges are drawn at the polled resolution", () => {
-  expect(RANGES.filter(isIntraday)).toEqual([]);
+  expect(RANGES.filter(isIntraday)).toEqual(["1D", "7D"]);
   // A year of quarter-hours would be tens of thousands of candles.
   expect(isIntraday("ALL")).toBe(false);
 });

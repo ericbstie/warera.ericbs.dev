@@ -23,7 +23,9 @@ const day: Transaction = {
 
 test("a long range asks for daily bars and a short one for the polled ones", () => {
   expect(historyPath("iron", "30D")).toBe("/api/history?itemCode=iron&days=30");
-  expect(historyPath("iron", "7D")).toBe("/api/history?itemCode=iron&days=7");
+  // A week or less is drawn from the 15-minute poll.
+  expect(historyPath("iron", "1D")).toBe("/api/history?itemCode=iron&days=1&intraday=1");
+  expect(historyPath("iron", "7D")).toBe("/api/history?itemCode=iron&days=7&intraday=1");
   // ALL names no window, so the server hands back everything it holds.
   expect(historyPath("iron", "ALL")).toBe("/api/history?itemCode=iron");
 });
