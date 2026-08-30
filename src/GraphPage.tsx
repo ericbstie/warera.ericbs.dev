@@ -18,7 +18,6 @@ export function GraphPage() {
   const [selected, setSelected] = useState("");
 
   const [range, setRange] = useState<Range>("30D");
-  const [view, setView] = useState<"line" | "candle">("candle");
   const [overlays, setOverlays] = useState<Overlay[]>(DEFAULT_OVERLAYS);
   const [tool, setTool] = useState<ToolId>("crosshair");
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -102,8 +101,6 @@ export function GraphPage() {
           <Toolbar
             range={range}
             onRange={setRange}
-            view={view}
-            onView={setView}
             overlays={overlays}
             onToggleOverlay={toggleOverlay}
           />
@@ -122,7 +119,6 @@ export function GraphPage() {
                   transactions={transactions}
                   loading={loading}
                   error={historyError}
-                  view={view}
                   overlays={overlays}
                   tool={tool}
                   drawings={drawings}

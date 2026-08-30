@@ -22,8 +22,6 @@ import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } fro
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
-export type ChartView = "line" | "candle";
-
 const PADDING = { top: 28, right: 58, bottom: 22, left: 10 };
 const ROWS = 4;
 const GRID = "var(--grid)";
@@ -159,7 +157,6 @@ export function PriceChart({
   transactions,
   loading,
   error,
-  view,
   overlays,
   tool,
   drawings,
@@ -170,7 +167,6 @@ export function PriceChart({
   transactions: Transaction[];
   loading: boolean;
   error: Error | null;
-  view: ChartView;
   overlays: Overlay[];
   tool: ToolId;
   drawings: Drawing[];
@@ -833,53 +829,35 @@ export function PriceChart({
                     />
                   )}
 
-                  {view === "line" ? (
-                    <path
-                      d={prices.map((p, i) => `${i ? "L" : "M"}${x(i)},${y(p.price)}`).join(" ")}
-                      fill="none"
-                      stroke={SERIES}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ) : (
-                    prices.map((p, i) => {
-                      const candleWidth = Math.max(2, barWidth * 0.8);
-                      if (i === 0) {
-                        return (
-                          <rect
-                            key={p.date}
-                            {...band(x(i), candleWidth)}
-                            y={y(p.price) - 1}
-                            height="2"
-                            fill={AXIS_TEXT}
-                          />
-                        );
-                      }
-                      const prev = prices[i - 1]!.price;
-                      const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
-                      const top = y(Math.max(prev, p.price));
-                      const bottom = y(Math.min(prev, p.price));
+                  {prices.map((p, i) => {
+                    const candleWidth = Math.max(2, barWidth * 0.8);
+                    if (i === 0) {
                       return (
-                        <g key={p.date}>
-                          <line
-                            x1={x(i)}
-                            x2={x(i)}
-                            y1={top}
-                            y2={bottom}
-                            stroke={color}
-                            strokeWidth="1"
-                          />
-                          <rect
-                            {...band(x(i), candleWidth)}
-                            y={top}
-                            height={Math.max(bottom - top, 2)}
-                            fill={color}
-                          />
-                        </g>
+                        <rect
+                          key={p.date}
+                          {...band(x(i), candleWidth)}
+                          y={y(p.price) - 1}
+                          height="2"
+                          fill={AXIS_TEXT}
+                        />
                       );
-                    })
-                  )}
+                    }
+                    const prev = prices[i - 1]!.price;
+                    const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
+                    const top = y(Math.max(prev, p.price));
+                    const bottom = y(Math.min(prev, p.price));
+                    return (
+                      <g key={p.date}>
+                        <line x1={x(i)} x2={x(i)} y1={top} y2={bottom} stroke={color} strokeWidth="1" />
+                        <rect
+                          {...band(x(i), candleWidth)}
+                          y={top}
+                          height={Math.max(bottom - top, 2)}
+                          fill={color}
+                        />
+                      </g>
+                    );
+                  })}
                 </g>
 
                 {drawings.map((drawing, i) => renderDrawing(drawing, `drawing-${i}`))}

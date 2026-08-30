@@ -10,11 +10,6 @@ export const OVERLAYS: { id: Overlay; label: string }[] = [
   { id: "vwap", label: "VWAP" },
 ];
 
-const VIEWS: { id: "line" | "candle"; label: string }[] = [
-  { id: "line", label: "Line" },
-  { id: "candle", label: "Candles" },
-];
-
 /** Selected controls read as filled *and* heavier, so the state survives a colour-blind eye. */
 function Segment({
   label,
@@ -56,15 +51,11 @@ function Divider() {
 export function Toolbar({
   range,
   onRange,
-  view,
-  onView,
   overlays,
   onToggleOverlay,
 }: {
   range: Range;
   onRange: (range: Range) => void;
-  view: "line" | "candle";
-  onView: (view: "line" | "candle") => void;
   overlays: Overlay[];
   onToggleOverlay: (overlay: Overlay) => void;
 }) {
@@ -108,19 +99,6 @@ export function Toolbar({
             <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
           </svg>
         </button>
-
-        <Divider />
-
-        <Group label="Chart type">
-          {VIEWS.map(entry => (
-            <Segment
-              key={entry.id}
-              label={entry.label}
-              active={view === entry.id}
-              onClick={() => onView(entry.id)}
-            />
-          ))}
-        </Group>
 
         <Divider />
 
