@@ -3,22 +3,20 @@ import { CommandPalette } from "./CommandPalette";
 import { DepthOfMarket } from "./DepthOfMarket";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
-import { type Range } from "./indicators";
+import { type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
 import { quoteFor } from "./stats";
-import { Toolbar, type Overlay } from "./Toolbar";
+import { Toolbar } from "./Toolbar";
 import { ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
-
-const DEFAULT_OVERLAYS: Overlay[] = ["sma10", "vwap"];
 
 export function GraphPage() {
   const { items, error, retry } = useItems();
   const [selected, setSelected] = useState("");
 
   const [range, setRange] = useState<Range>("30D");
-  const [overlays, setOverlays] = useState<Overlay[]>(DEFAULT_OVERLAYS);
+  const [interval, setInterval] = useState<Interval>("1d");
   const [tool, setTool] = useState<ToolId>("crosshair");
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [searching, setSearching] = useState(false);
@@ -37,27 +35,19 @@ export function GraphPage() {
   // once here rather than once per panel. The range is part of the request now
   // rather than a slice of it — a short range is drawn from the 15-minute poll
   // and a long one from the daily records, so they aren't the same series.
-  const { transactions, loading, error: historyError } = useTransactionHistory(selected, range);
+  const { transactions, loading, error: historyError } = useTransactionHistory(selected, range, interval);
   const quote = useMemo(() => quoteFor(transactions), [transactions]);
 
   // Anything drawn was measured against the bars on screen, so it stops meaning
   // what it meant once those bars change.
-  useEffect(() => setDrawings([]), [selected, range]);
-
-  const toggleOverlay = useCallback(
-    (overlay: Overlay) =>
-      setOverlays(current =>
-        current.includes(overlay) ? current.filter(id => id !== overlay) : [...current, overlay],
-      ),
-    [],
-  );
+  useEffect(() => setDrawings([]), [selected, range, interval]);
 
   const reset = useCallback(() => {
     setResetAt(count => count + 1);
     setDrawings([]);
     setTool("crosshair");
-    setOverlays(DEFAULT_OVERLAYS);
     setRange("30D");
+    setInterval("1d");
   }, []);
 
   useEffect(() => {
@@ -68,8 +58,7 @@ export function GraphPage() {
       if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.isContentEditable)) return;
 
       const key = event.key.toLowerCase();
-      if (key === "i") setOverlays(current => (current.length ? [] : DEFAULT_OVERLAYS));
-      else if (key === "r") reset();
+      if (key === "r") reset();
       else return;
       event.preventDefault();
     };
@@ -98,12 +87,7 @@ export function GraphPage() {
           it on a wide screen and below it on a narrow one. */}
       <main className="flex min-h-0 flex-1 flex-col gap-1 p-1 lg:flex-row">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded border border-edge bg-canvas">
-          <Toolbar
-            range={range}
-            onRange={setRange}
-            overlays={overlays}
-            onToggleOverlay={toggleOverlay}
-          />
+          <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
 
           <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
             <ToolRail
@@ -119,7 +103,6 @@ export function GraphPage() {
                   transactions={transactions}
                   loading={loading}
                   error={historyError}
-                  overlays={overlays}
                   tool={tool}
                   drawings={drawings}
                   onDraw={drawing => setDrawings(current => [...current, drawing])}

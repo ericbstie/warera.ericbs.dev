@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import type { Transaction } from "./hooks";
 import {
+  bucketBars,
+  INTERVALS,
+  intervalMs,
+  isIntradayInterval,
   pointOfControl,
   RANGES,
   rangeDays,
@@ -130,4 +134,68 @@ test("pointOfControl returns the heaviest bucket, the first one on a tie", () =>
 
 test("pointOfControl returns null for an empty profile", () => {
   expect(pointOfControl([])).toBeNull();
+});
+
+test("INTERVALS lists the candle widths narrowest first", () => {
+  expect(INTERVALS).toEqual(["15m", "30m", "2h", "8h", "1d"]);
+  expect(INTERVALS.map(intervalMs)).toEqual([
+    15 * 60_000,
+    30 * 60_000,
+    120 * 60_000,
+    480 * 60_000,
+    1440 * 60_000,
+  ]);
+});
+
+test("only a day-wide candle can be drawn from the daily records", () => {
+  expect(INTERVALS.filter(isIntradayInterval)).toEqual(["15m", "30m", "2h", "8h"]);
+});
+
+test("bucketBars groups the polled bars into the chosen width and weights price by volume", () => {
+  const bars = bucketBars(
+    [
+      tx({ valueAt: "2026-08-17T00:00:00.000Z", avgValue: 0.1, totalValue: 10, totalQuantity: 100 }),
+      tx({ valueAt: "2026-08-17T00:15:00.000Z", avgValue: 0.3, totalValue: 90, totalQuantity: 300 }),
+      tx({ valueAt: "2026-08-17T00:30:00.000Z", avgValue: 0.2, totalValue: 4, totalQuantity: 20 }),
+    ],
+    "30m",
+  );
+
+  expect(bars).toHaveLength(2);
+  expect(bars[0]!.valueAt).toBe("2026-08-17T00:00:00.000Z");
+  expect(bars[0]!.avgValue).toBeCloseTo(0.25, 10);
+  expect(bars[0]!.totalQuantity).toBe(400);
+  expect(bars[1]!.valueAt).toBe("2026-08-17T00:30:00.000Z");
+  expect(bars[1]!.avgValue).toBeCloseTo(0.2, 10);
+});
+
+test("bucketBars averages the mids when a bucket traded nothing", () => {
+  const bars = bucketBars(
+    [
+      tx({ valueAt: "2026-08-17T00:00:00.000Z", avgValue: 0.1, totalValue: 0, totalQuantity: 0 }),
+      tx({ valueAt: "2026-08-17T00:15:00.000Z", avgValue: 0.3, totalValue: 0, totalQuantity: 0 }),
+    ],
+    "2h",
+  );
+
+  expect(bars).toHaveLength(1);
+  expect(bars[0]!.avgValue).toBeCloseTo(0.2, 10);
+});
+
+test("a day-wide candle is dated like a daily record so the axis labels it by day", () => {
+  const bars = bucketBars(
+    [
+      tx({ valueAt: "2026-08-17T09:00:00.000Z" }),
+      tx({ valueAt: "2026-08-18T09:00:00.000Z" }),
+    ],
+    "1d",
+  );
+
+  expect(bars.map(bar => bar.valueAt)).toEqual(["2026-08-17", "2026-08-18"]);
+});
+
+test("bucketBars leaves a daily series alone — a day can't be cut finer than it was recorded", () => {
+  const daily = [tx({ valueAt: "2026-08-17" }), tx({ valueAt: "2026-08-18" })];
+  expect(bucketBars(daily, "15m")).toBe(daily);
+  expect(bucketBars([], "15m")).toEqual([]);
 });

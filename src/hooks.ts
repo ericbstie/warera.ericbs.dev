@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isIntraday, rangeDays, type Range } from "./indicators";
+import { bucketBars, isIntraday, isIntradayInterval, rangeDays, type Interval, type Range } from "./indicators";
 
 export type Transaction = {
   valueAt: string;
@@ -50,22 +50,28 @@ export function usableTransactions(values: unknown): Transaction[] {
  * daily averages and nothing finer, while this reaches back as far as the
  * poller has been running and down to the quarter-hour.
  */
-export function historyPath(itemCode: string, range: Range): string {
+export function historyPath(itemCode: string, range: Range, interval: Interval = "1d"): string {
   const days = rangeDays(range);
   const params = new URLSearchParams({ itemCode });
   if (days !== null) params.set("days", String(days));
-  if (isIntraday(range)) params.set("intraday", "1");
+  // A candle narrower than a day has to be built out of the polled snapshots,
+  // whatever the range asks for.
+  if (isIntraday(range) || isIntradayInterval(interval)) params.set("intraday", "1");
   return `/api/history?${params}`;
 }
 
-export async function fetchTransactionHistory(itemCode: string, range: Range): Promise<Transaction[]> {
-  const res = await fetch(historyPath(itemCode, range));
+export async function fetchTransactionHistory(
+  itemCode: string,
+  range: Range,
+  interval: Interval = "1d",
+): Promise<Transaction[]> {
+  const res = await fetch(historyPath(itemCode, range, interval));
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   // Reject an unrecognised shape rather than reading it as "never traded" —
   // an empty chart and a broken API should not look the same.
   if (!Array.isArray(json?.bars)) throw new Error("Price history came back in an unexpected shape");
-  return usableTransactions(json.bars);
+  return bucketBars(usableTransactions(json.bars), interval);
 }
 
 export type Mover = { code: string; changePct: number };
@@ -132,7 +138,7 @@ export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
   return transactions.map(t => ({ date: t.valueAt, price: t.avgValue }));
 }
 
-export function useTransactionHistory(itemCode: string, range: Range) {
+export function useTransactionHistory(itemCode: string, range: Range, interval: Interval = "1d") {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -151,7 +157,7 @@ export function useTransactionHistory(itemCode: string, range: Range) {
 
     let cancelled = false;
     setLoading(true);
-    fetchTransactionHistory(itemCode, range)
+    fetchTransactionHistory(itemCode, range, interval)
       .then(values => {
         if (!cancelled) setTransactions(values);
       })
@@ -169,13 +175,13 @@ export function useTransactionHistory(itemCode: string, range: Range) {
     return () => {
       cancelled = true;
     };
-  }, [itemCode, range]);
+  }, [itemCode, range, interval]);
 
   return { transactions, loading, error };
 }
 
-export function usePriceHistory(itemCode: string, range: Range) {
-  const { transactions, loading, error } = useTransactionHistory(itemCode, range);
+export function usePriceHistory(itemCode: string, range: Range, interval: Interval = "1d") {
+  const { transactions, loading, error } = useTransactionHistory(itemCode, range, interval);
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   return { prices, loading, error };
 }

@@ -123,3 +123,84 @@ export function pointOfControl(profile: VolumeBucket[]): VolumeBucket | null {
   }
   return best;
 }
+
+/**
+ * How wide a candle is, independent of how far back the chart looks. The poll
+ * writes a snapshot every 15 minutes, so that is the finest bar there is; the
+ * rest are those bars grouped up.
+ */
+export type Interval = "15m" | "30m" | "2h" | "8h" | "1d";
+
+export const INTERVALS: Interval[] = ["15m", "30m", "2h", "8h", "1d"];
+
+const MINUTE_MS = 60 * 1000;
+
+export function intervalMs(interval: Interval): number {
+  switch (interval) {
+    case "15m":
+      return 15 * MINUTE_MS;
+    case "30m":
+      return 30 * MINUTE_MS;
+    case "2h":
+      return 120 * MINUTE_MS;
+    case "8h":
+      return 480 * MINUTE_MS;
+    case "1d":
+      return 1440 * MINUTE_MS;
+  }
+}
+
+/** Anything under a day has to come from the polled series rather than the daily records. */
+export function isIntradayInterval(interval: Interval): boolean {
+  return interval !== "1d";
+}
+
+/**
+ * Groups the polled bars into candles of the chosen width. A daily series is
+ * left alone: a day can't be cut any finer than it was recorded, and its bars
+ * are dated rather than timestamped, which is what labels them by day.
+ */
+export function bucketBars(transactions: Transaction[], interval: Interval): Transaction[] {
+  if (transactions.length === 0) return transactions;
+  if (transactions.some(t => !t.valueAt.includes("T"))) return transactions;
+
+  const step = intervalMs(interval);
+  const bars: Transaction[] = [];
+  let startedAt = -Infinity;
+  // The prices behind the bucket's average, for when nothing traded in it and
+  // there is no volume to weight by.
+  let prices: number[] = [];
+
+  for (const t of transactions) {
+    const at = Date.parse(t.valueAt);
+    if (!Number.isFinite(at)) continue;
+
+    const bucketAt = Math.floor(at / step) * step;
+    if (bucketAt !== startedAt) {
+      startedAt = bucketAt;
+      prices = [];
+      const stamp = new Date(bucketAt).toISOString();
+      bars.push({
+        // A day-wide candle is dated like a daily record so the axis labels it
+        // with the day rather than with a midnight it shares with every other.
+        valueAt: step >= 1440 * MINUTE_MS ? stamp.slice(0, 10) : stamp,
+        avgValue: 0,
+        totalValue: 0,
+        totalQuantity: 0,
+        transactionsCount: 0,
+      });
+    }
+
+    const bar = bars[bars.length - 1]!;
+    bar.totalValue += t.totalValue;
+    bar.totalQuantity += t.totalQuantity;
+    bar.transactionsCount += t.transactionsCount;
+    prices.push(t.avgValue);
+    bar.avgValue =
+      bar.totalQuantity > 0
+        ? bar.totalValue / bar.totalQuantity
+        : prices.reduce((sum, price) => sum + price, 0) / prices.length;
+  }
+
+  return bars;
+}

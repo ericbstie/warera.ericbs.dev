@@ -157,7 +157,7 @@ export function PriceChart({
   transactions,
   loading,
   error,
-  overlays,
+  overlays = [],
   tool,
   drawings,
   onDraw,
@@ -167,7 +167,8 @@ export function PriceChart({
   transactions: Transaction[];
   loading: boolean;
   error: Error | null;
-  overlays: Overlay[];
+  /** Empty for now: the indicator picker is off the toolbar. */
+  overlays?: Overlay[];
   tool: ToolId;
   drawings: Drawing[];
   onDraw: (drawing: Drawing) => void;
