@@ -22,8 +22,8 @@ function percent(value: number, sign = "") {
 }
 
 /** The four numbers that answer the page, in one card rather than five. */
-function WageSummary({ wage }: { wage: Wage }) {
-  const rows: { label: string; value: string; note?: string; tone?: string }[] = [
+function summaryRows(wage: Wage) {
+  return [
     { label: "Sale price", value: formatPrice(wage.salePrice) },
     { label: "Production bonus", value: percent(wage.bonus.total, "+") },
     { label: "Wage", value: formatPrice(wage.posted) },
@@ -34,18 +34,18 @@ function WageSummary({ wage }: { wage: Wage }) {
       tone: "var(--up)",
     },
   ];
+}
 
+function WageSummary({ wage }: { wage: Wage }) {
   return (
-    <div className="rounded border border-edge bg-panel px-6 py-6">
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4 lg:grid-cols-1">
-        {rows.map(row => (
-          <div key={row.label}>
-            <dt className="text-xs tracking-wide text-muted">{row.label}</dt>
-            <dd className="flex flex-wrap items-baseline gap-1.5 pt-1.5">
-              <span className="text-base font-semibold tabular-nums" style={{ color: row.tone }}>
-                {row.value}
-              </span>
-              {row.note && <span className="text-xs tabular-nums text-muted">{row.note}</span>}
+    <div className="rounded border border-edge bg-panel px-4 py-1.5 lg:w-60">
+      <dl className="divide-y divide-edge/60">
+        {summaryRows(wage).map(row => (
+          <div key={row.label} className="flex items-baseline justify-between gap-4 py-2.5">
+            <dt className="text-xs text-muted">{row.label}</dt>
+            <dd className="whitespace-nowrap text-sm font-semibold tabular-nums" style={{ color: row.tone }}>
+              {row.value}
+              {row.note && <span className="pl-1 text-xs font-normal text-muted">{row.note}</span>}
             </dd>
           </div>
         ))}
@@ -296,44 +296,42 @@ export function WageCalculatorPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 pb-24 pt-10 sm:px-6 lg:px-8">
-        <p className="max-w-2xl text-sm text-muted">
-          The most a company can pay per production point and still break even, and what the worker keeps of it.
-        </p>
+      <main className="mx-auto grid max-w-7xl gap-x-10 gap-y-8 px-4 pb-24 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:px-8">
+        <div className="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
+          <p className="max-w-2xl text-sm text-muted">
+            The most a company can pay per production point and still break even, and what the worker keeps of it.
+          </p>
 
-        {error && <ItemListError onRetry={retry} />}
-        {failed && <p className="text-sm text-down">Couldn't load the market and the map, so there is nothing to rank.</p>}
+          {error && <ItemListError onRetry={retry} />}
+          {failed && <p className="text-sm text-down">Couldn't load the market and the map, so there is nothing to rank.</p>}
 
-        {/* The card starts level with the pickers on a wide screen; on a narrow
-            one it follows them, so the answer still sits above the workings. */}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-10">
-          <div className="flex flex-wrap items-start gap-4 lg:col-start-1 lg:row-start-1">
+          <div className="flex flex-wrap items-start gap-4">
             <ItemPicker items={producible} selected={itemCode} onSelect={setItemCode} />
             <LocationPicker options={options} selected={regionId} onSelect={setRegionId} />
           </div>
 
-          <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
-            <Panel label="wage summary">
-              {loading && !wage ? (
-                <p className="text-sm text-muted">Loading the market and the map…</p>
-              ) : !wage ? (
-                <p className="text-sm text-muted">Nothing to price for this item yet.</p>
-              ) : (
-                <WageSummary wage={wage} />
-              )}
-            </Panel>
-          </div>
-
           {wage && (
-            <div className="lg:col-start-1 lg:row-start-2">
-              <Panel label="wage workings">
-                <BonusBreakdown wage={wage} />
-              </Panel>
-            </div>
+            <Panel label="wage workings">
+              <BonusBreakdown wage={wage} />
+            </Panel>
           )}
         </div>
 
-        <div>
+        {/* Level with the top of the page on a wide screen; on a narrow one it
+            follows the pickers, so the answer still sits above the workings. */}
+        <div className="lg:col-start-2 lg:row-start-1">
+          <Panel label="wage summary">
+            {loading && !wage ? (
+              <p className="text-sm text-muted">Loading the market and the map…</p>
+            ) : !wage ? (
+              <p className="text-sm text-muted">Nothing to price for this item yet.</p>
+            ) : (
+              <WageSummary wage={wage} />
+            )}
+          </Panel>
+        </div>
+
+        <div className="pt-4 lg:col-span-2 lg:col-start-1 lg:row-start-2">
           <h2 className="text-base font-semibold">Top ten placements</h2>
           <p className="pt-2 text-sm text-muted">
             The best paying region of every country, by what a worker keeps at break even.
