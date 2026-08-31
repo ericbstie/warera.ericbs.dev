@@ -21,14 +21,35 @@ function percent(value: number, sign = "") {
   return `${sign}${Number(value.toFixed(2))}%`;
 }
 
-function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: string }) {
+/** The four numbers that answer the page, in one card rather than five. */
+function WageSummary({ wage }: { wage: Wage }) {
+  const rows: { label: string; value: string; note?: string; tone?: string }[] = [
+    { label: "Sale price", value: formatPrice(wage.salePrice) },
+    { label: "Production bonus", value: percent(wage.bonus.total, "+") },
+    { label: "Wage", value: formatPrice(wage.posted) },
+    {
+      label: "Wage after taxes",
+      value: formatPrice(wage.afterTax),
+      note: `(${percent(wage.incomeTax)} tax)`,
+      tone: "var(--up)",
+    },
+  ];
+
   return (
-    <div className="rounded border border-edge bg-panel p-3">
-      <p className="text-[10px] uppercase tracking-[0.18em] text-muted">{label}</p>
-      <p className="pt-1 text-xl font-semibold tabular-nums" style={{ color: tone }}>
-        {value}
-      </p>
-      {hint && <p className="pt-0.5 text-xs text-muted">{hint}</p>}
+    <div className="rounded border border-edge bg-panel p-4">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-1">
+        {rows.map(row => (
+          <div key={row.label}>
+            <dt className="text-[10px] uppercase tracking-[0.18em] text-muted">{row.label}</dt>
+            <dd className="flex flex-wrap items-baseline gap-1.5 pt-1">
+              <span className="text-xl font-semibold tabular-nums" style={{ color: row.tone }}>
+                {row.value}
+              </span>
+              {row.note && <span className="text-xs tabular-nums text-muted">{row.note}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -287,13 +308,13 @@ export function WageCalculatorPage() {
     <>
       <header className="sticky top-0 z-20 border-b border-edge bg-panel">
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-4">
-          <TitleBar />
+          <TitleBar compact />
         </div>
       </header>
 
       <main className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-16 pt-6">
         <div>
-          <h1 className="text-lg font-semibold">Wage Calculator</h1>
+          <h1 className="text-3xl font-semibold sm:text-4xl">Wage Calculator</h1>
           <p className="pt-1 text-sm text-muted">
             The most a company can pay per production point and still break even, and what the worker keeps of it.
           </p>
@@ -313,41 +334,16 @@ export function WageCalculatorPage() {
           ) : !wage ? (
             <p className="text-sm text-muted">Nothing to price for this item yet.</p>
           ) : (
-            <section className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                <Stat label="Sale price" value={formatPrice(wage.salePrice)} hint="market price" />
-                <Stat
-                  label="Production bonus"
-                  value={percent(wage.bonus.total, "+")}
-                  hint={`${wage.output.toFixed(4)} per point`}
-                />
-                <Stat
-                  label="Wage"
-                  value={formatPrice(wage.posted)}
-                  hint={
-                    wage.inputs.length
-                      ? `${formatPrice(wage.revenue)} sold, ${formatPrice(wage.inputCost)} bought`
-                      : "the whole sale"
-                  }
-                />
-                <Stat
-                  label="Wage after taxes"
-                  value={formatPrice(wage.afterTax)}
-                  hint={`${percent(wage.incomeTax)} income tax`}
-                  tone="var(--up)"
-                />
-                {/* The wage can only be posted to the thousandth, so it lands a
-                    shade under break even and the company keeps the difference,
-                    counted over a whole item's worth of production points. */}
-                <Stat
-                  label="Net benefit"
-                  value={formatPrice(wage.netBenefit)}
-                  hint={`per item, break even at ${formatPrice(wage.breakEven, 4)}`}
-                />
+            // The numbers sit beside the workings on a wide screen and lead
+            // them on a narrow one.
+            <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
+              <div className="lg:order-last lg:w-64 lg:shrink-0">
+                <WageSummary wage={wage} />
               </div>
-
-              <BonusBreakdown wage={wage} />
-              <InputCosts wage={wage} />
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <BonusBreakdown wage={wage} />
+                <InputCosts wage={wage} />
+              </div>
             </section>
           )}
         </Panel>
