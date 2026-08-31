@@ -70,7 +70,7 @@ function Drawer({ onClose }: { onClose: () => void }) {
         className="drawer-in flex h-full w-72 max-w-[80vw] flex-col border-l border-edge bg-panel shadow-2xl outline-none"
       >
         <div className="flex items-center justify-between border-b border-edge px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-muted">Menu</p>
+          <p className="text-xs tracking-wide text-muted">Menu</p>
           <button
             type="button"
             onClick={onClose}

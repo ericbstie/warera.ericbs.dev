@@ -154,7 +154,7 @@ export function CommandPalette({
                     {itemLabel(item.code)}
                   </span>
                   <span
-                    className={`shrink-0 text-[10px] uppercase tracking-[0.18em] ${
+                    className={`shrink-0 text-xs tracking-wide ${
                       current ? "text-on-accent" : "text-muted"
                     }`}
                   >

@@ -36,13 +36,13 @@ function WageSummary({ wage }: { wage: Wage }) {
   ];
 
   return (
-    <div className="rounded border border-edge bg-panel p-4">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-1">
+    <div className="rounded border border-edge bg-panel px-6 py-6">
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4 lg:grid-cols-1">
         {rows.map(row => (
           <div key={row.label}>
-            <dt className="text-[10px] uppercase tracking-[0.18em] text-muted">{row.label}</dt>
-            <dd className="flex flex-wrap items-baseline gap-1.5 pt-1">
-              <span className="text-xl font-semibold tabular-nums" style={{ color: row.tone }}>
+            <dt className="text-xs tracking-wide text-muted">{row.label}</dt>
+            <dd className="flex flex-wrap items-baseline gap-1.5 pt-1.5">
+              <span className="text-base font-semibold tabular-nums" style={{ color: row.tone }}>
                 {row.value}
               </span>
               {row.note && <span className="text-xs tabular-nums text-muted">{row.note}</span>}
@@ -65,26 +65,10 @@ function BonusBreakdown({ wage }: { wage: Wage }) {
   if (!parts.length) return <p className="text-xs text-muted">No bonus applies here.</p>;
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {parts.map(part => (
-        <span key={part.label} className="rounded border border-edge px-2 py-0.5 text-xs text-muted">
+        <span key={part.label} className="rounded border border-edge px-2.5 py-1 text-xs text-muted">
           {part.label} <span className="font-medium tabular-nums text-ink">{percent(part.value, "+")}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function InputCosts({ wage }: { wage: Wage }) {
-  if (!wage.inputs.length) return null;
-
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {wage.inputs.map(input => (
-        <span key={input.code} className="flex items-center gap-1.5 rounded border border-edge px-2 py-0.5 text-xs text-muted">
-          <img src={itemIcon(input.code)} alt="" width={14} height={14} className="shrink-0" />
-          <span className="tabular-nums text-ink">{input.quantity.toFixed(3)}</span>
-          {itemLabel(input.code)} @ {formatPrice(input.price)}
         </span>
       ))}
     </div>
@@ -143,11 +127,11 @@ function LocationPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Company location"
-        className="flex w-full items-center gap-2.5 rounded border border-edge bg-surface px-3 py-1.5 text-left"
+        className="flex w-full items-center gap-2.5 rounded border border-edge bg-surface px-3.5 py-2.5 text-left"
       >
         <div className="min-w-0 leading-tight">
           <p className="truncate text-sm font-semibold">{current ? current.region.name : "Select a location"}</p>
-          <p className="truncate text-[10px] uppercase tracking-[0.18em] text-muted">
+          <p className="truncate text-xs tracking-wide text-muted">
             {current ? current.country.name : `${options.length} places`}
           </p>
         </div>
@@ -202,40 +186,40 @@ function PlacementTable({ placements }: { placements: Placement[] }) {
       <table className="w-full table-fixed text-sm">
         <thead className="text-muted">
           <tr className="border-b border-edge">
-            <th className="w-6 pb-2 text-left font-normal">#</th>
-            <th className="w-24 pb-2 text-left font-normal sm:w-36">Item</th>
-            <th className="pb-2 text-left font-normal">Where</th>
+            <th className="w-6 pb-3 text-left font-normal">#</th>
+            <th className="w-24 pb-3 text-left font-normal sm:w-36">Item</th>
+            <th className="pb-3 text-left font-normal">Where</th>
             {/* A phone has no room for the workings, only for the answer. */}
-            <th className="hidden w-20 pb-2 text-right font-normal sm:table-cell">Bonus</th>
-            <th className="hidden w-16 pb-2 text-right font-normal sm:table-cell">Tax</th>
-            <th className="w-14 pb-2 text-right font-normal sm:w-20">Wage</th>
-            <th className="w-16 pb-2 text-right font-normal sm:w-24">After tax</th>
+            <th className="hidden w-20 pb-3 text-right font-normal sm:table-cell">Bonus</th>
+            <th className="hidden w-16 pb-3 text-right font-normal sm:table-cell">Tax</th>
+            <th className="w-14 pb-3 text-right font-normal sm:w-20">Wage</th>
+            <th className="w-16 pb-3 text-right font-normal sm:w-24">After tax</th>
           </tr>
         </thead>
         <tbody>
           {placements.map((placement, index) => (
             <tr key={`${placement.item.code}-${placement.region.id}`} className="border-b border-edge/60">
-              <td className="py-1.5 tabular-nums text-muted">{index + 1}</td>
-              <td className="py-1.5 pr-2">
+              <td className="py-2.5 tabular-nums text-muted">{index + 1}</td>
+              <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
                   <img src={itemIcon(placement.item.code)} alt="" width={18} height={18} className="shrink-0" />
                   <span className="truncate">{itemLabel(placement.item.code)}</span>
                 </span>
               </td>
-              <td className="py-1.5 pr-2">
+              <td className="py-2.5 pr-2">
                 <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
                   <span className="truncate">{placement.region.name}</span>
                   <span className="truncate text-xs text-muted">{placement.country.name}</span>
                 </span>
               </td>
-              <td className="hidden py-1.5 pl-1 text-right tabular-nums sm:table-cell">
+              <td className="hidden py-2.5 pl-1 text-right tabular-nums sm:table-cell">
                 {percent(placement.wage.bonus.total, "+")}
               </td>
-              <td className="hidden py-1.5 pl-1 text-right tabular-nums text-muted sm:table-cell">
+              <td className="hidden py-2.5 pl-1 text-right tabular-nums text-muted sm:table-cell">
                 {percent(placement.wage.incomeTax)}
               </td>
-              <td className="py-1.5 pl-1 text-right tabular-nums">{formatPrice(placement.wage.posted)}</td>
-              <td className="py-1.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+              <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.wage.posted)}</td>
+              <td className="py-2.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
                 {formatPrice(placement.wage.afterTax)}
               </td>
             </tr>
@@ -307,59 +291,62 @@ export function WageCalculatorPage() {
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4">
-          <TitleBar compact />
+        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 lg:px-8">
+          <TitleBar title="Wage Calculator" />
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-16 pt-6">
-        <div>
-          <h1 className="text-3xl font-semibold sm:text-4xl">Wage Calculator</h1>
-          <p className="pt-1 text-sm text-muted">
-            The most a company can pay per production point and still break even, and what the worker keeps of it.
-          </p>
-        </div>
+      <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+        <p className="max-w-2xl text-sm text-muted">
+          The most a company can pay per production point and still break even, and what the worker keeps of it.
+        </p>
 
         {error && <ItemListError onRetry={retry} />}
         {failed && <p className="text-sm text-down">Couldn't load the market and the map, so there is nothing to rank.</p>}
 
-        <div className="flex flex-wrap items-start gap-3">
-          <ItemPicker items={producible} selected={itemCode} onSelect={setItemCode} />
-          <LocationPicker options={options} selected={regionId} onSelect={setRegionId} />
+        {/* The card starts level with the pickers on a wide screen; on a narrow
+            one it follows them, so the answer still sits above the workings. */}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-10">
+          <div className="flex flex-wrap items-start gap-4 lg:col-start-1 lg:row-start-1">
+            <ItemPicker items={producible} selected={itemCode} onSelect={setItemCode} />
+            <LocationPicker options={options} selected={regionId} onSelect={setRegionId} />
+          </div>
+
+          <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <Panel label="wage summary">
+              {loading && !wage ? (
+                <p className="text-sm text-muted">Loading the market and the map…</p>
+              ) : !wage ? (
+                <p className="text-sm text-muted">Nothing to price for this item yet.</p>
+              ) : (
+                <WageSummary wage={wage} />
+              )}
+            </Panel>
+          </div>
+
+          {wage && (
+            <div className="lg:col-start-1 lg:row-start-2">
+              <Panel label="wage workings">
+                <BonusBreakdown wage={wage} />
+              </Panel>
+            </div>
+          )}
         </div>
 
-        <Panel label="wage calculator">
-          {loading && !wage ? (
-            <p className="text-sm text-muted">Loading the market and the map…</p>
-          ) : !wage ? (
-            <p className="text-sm text-muted">Nothing to price for this item yet.</p>
-          ) : (
-            // The numbers sit beside the workings on a wide screen and lead
-            // them on a narrow one.
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
-              <div className="lg:order-last lg:w-64 lg:shrink-0">
-                <WageSummary wage={wage} />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <BonusBreakdown wage={wage} />
-                <InputCosts wage={wage} />
-              </div>
-            </section>
-          )}
-        </Panel>
-
-        <div className="pt-2">
-          <h2 className="pb-2 text-base font-semibold">Top ten placements</h2>
-          <p className="pb-3 text-sm text-muted">
+        <div>
+          <h2 className="text-base font-semibold">Top ten placements</h2>
+          <p className="pt-2 text-sm text-muted">
             The best paying region of every country, by what a worker keeps at break even.
           </p>
-          <Panel label="top placements">
-            {loading && !top.length ? (
-              <p className="text-sm text-muted">Ranking every item against every region…</p>
-            ) : (
-              <PlacementTable placements={top} />
-            )}
-          </Panel>
+          <div className="pt-5">
+            <Panel label="top placements">
+              {loading && !top.length ? (
+                <p className="text-sm text-muted">Ranking every item against every region…</p>
+              ) : (
+                <PlacementTable placements={top} />
+              )}
+            </Panel>
+          </div>
         </div>
       </main>
     </>

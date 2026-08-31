@@ -30,14 +30,13 @@ function ThemeToggle() {
 }
 
 /**
- * The one row every page shares: whose site this is, and how to leave the page.
- * `compact` steps the title down where the page has a heading of its own to
- * lead with, so the two don't compete.
+ * The one row every page shares: where it is, and how to leave it. The page
+ * names itself here rather than repeating a heading underneath.
  */
-export function TitleBar({ compact = false }: { compact?: boolean } = {}) {
+export function TitleBar({ title = "War Era Market" }: { title?: string } = {}) {
   return (
     <div className="relative flex items-center justify-center gap-2.5 sm:justify-start">
-      <p className={`font-semibold ${compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"}`}>War Era Market</p>
+      <h1 className="text-3xl font-semibold sm:text-4xl">{title}</h1>
       <ThemeToggle />
       <Nav />
     </div>
