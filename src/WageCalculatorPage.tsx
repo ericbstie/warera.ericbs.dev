@@ -235,7 +235,10 @@ export function WageCalculatorPage() {
   const { countries, industrialism, loading: settling, error: settlementError } = useSettlementData();
 
   const producible = useMemo(() => items.filter(isProducible), [items]);
-  const { regions, prices, loading: pricing, error: marketError } = useWageData();
+  // Every item, not only the producible ones: a recipe is priced off the raw
+  // materials it eats as much as off what it makes.
+  const codes = useMemo(() => items.map(item => item.code), [items]);
+  const { regions, market, loading: pricing, error: marketError } = useWageData(codes);
 
   const [itemCode, setItemCode] = useState("");
   const [regionId, setRegionId] = useState("");
@@ -260,12 +263,12 @@ export function WageCalculatorPage() {
     for (const region of regions) {
       const country = byId.get(region.countryId);
       if (!country) continue;
-      const wage = wageFor(item, region, country, industrialism.levels[country._id] ?? 0, prices);
+      const wage = wageFor(item, region, country, industrialism.levels[country._id] ?? 0, market);
       if (wage) found.push({ region, country, wage });
     }
 
     return found.sort((a, b) => b.wage.afterTax - a.wage.afterTax);
-  }, [item, regions, countries, industrialism, prices]);
+  }, [item, regions, countries, industrialism, market]);
 
   // Another item is another question, so the answer starts at the best place
   // for it rather than wherever the last one was being asked about.
@@ -281,8 +284,8 @@ export function WageCalculatorPage() {
   const wage = chosen?.wage;
 
   const top = useMemo(
-    () => rankPlacements(producible, regions, countries, industrialism.levels, prices, TOP_PLACEMENTS),
-    [producible, regions, countries, industrialism, prices],
+    () => rankPlacements(producible, regions, countries, industrialism.levels, market, TOP_PLACEMENTS),
+    [producible, regions, countries, industrialism, market],
   );
 
   const loading = settling || pricing;

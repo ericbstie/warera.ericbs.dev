@@ -77,3 +77,70 @@ export function useTransactions(itemCode: string) {
 
   return { buyOrders, sellOrders, loading, error };
 }
+
+// --- best prices across many items ----------------------------------------
+// The wage calculator prices a whole item list at once. One request per item
+// would be 100+ calls; upstream takes them in batches, so send them in chunks
+// that keep the URL a sane length.
+
+export const ORDER_BOOK_BATCH_SIZE = 20;
+
+/** The top of each side of the book: what a seller is bid, what a buyer is asked. */
+export type BestPrices = { bids: Record<string, number>; asks: Record<string, number> };
+
+/**
+ * Upstream takes one procedure per comma-separated name and indexes the inputs
+ * to match, so a batch of n books is the name repeated n times.
+ */
+export function topOrdersBatchPath(itemCodes: string[]): string {
+  const procedures = Array(itemCodes.length).fill("tradingOrder.getTopOrders").join(",");
+  const input = JSON.stringify(Object.fromEntries(itemCodes.map((itemCode, index) => [index, { itemCode }])));
+  return `/api/trpc/${procedures}?batch=1&input=${encodeURIComponent(input)}`;
+}
+
+function best(orders: unknown, pick: (a: number, b: number) => number): number | null {
+  if (!Array.isArray(orders)) return null;
+  const prices = orders.map(order => order?.price).filter(price => isFiniteNumber(price) && price > 0);
+  // reduce hands its callback the index and the array too, and Math.max would
+  // take those as further numbers and answer NaN.
+  return prices.length ? prices.reduce((chosen, price) => pick(chosen, price)) : null;
+}
+
+/**
+ * Maps a batched book response back onto the items that asked for it. A book
+ * that failed or arrived in an unexpected shape leaves that item unpriced,
+ * which reads the same as an item nobody is trading.
+ */
+export function bestPricesFromBatch(itemCodes: string[], entries: unknown): BestPrices {
+  const prices: BestPrices = { bids: {}, asks: {} };
+  if (!Array.isArray(entries) || entries.length !== itemCodes.length) {
+    throw new Error("Batched order books came back in an unexpected shape");
+  }
+
+  itemCodes.forEach((code, index) => {
+    const book = (entries[index] as { result?: { data?: OrderBook } } | undefined)?.result?.data;
+    if (!book) return;
+    const bid = best(book.buyOrders, Math.max);
+    const ask = best(book.sellOrders, Math.min);
+    if (bid !== null) prices.bids[code] = bid;
+    if (ask !== null) prices.asks[code] = ask;
+  });
+  return prices;
+}
+
+/** The top of the book for every item named, in as few requests as upstream allows. */
+export async function fetchBestPrices(itemCodes: string[]): Promise<BestPrices> {
+  const prices: BestPrices = { bids: {}, asks: {} };
+
+  for (let i = 0; i < itemCodes.length; i += ORDER_BOOK_BATCH_SIZE) {
+    const group = itemCodes.slice(i, i + ORDER_BOOK_BATCH_SIZE);
+    const res = await fetch(topOrdersBatchPath(group));
+    const json = await res.json();
+    if (json?.error) throw new Error(json.error.message);
+    const batch = bestPricesFromBatch(group, json);
+    Object.assign(prices.bids, batch.bids);
+    Object.assign(prices.asks, batch.asks);
+  }
+
+  return prices;
+}

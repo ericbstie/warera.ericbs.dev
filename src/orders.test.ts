@@ -1,5 +1,12 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { fetchOrders, groupOrdersByPrice, type Order } from "./orders";
+import {
+  bestPricesFromBatch,
+  fetchBestPrices,
+  fetchOrders,
+  groupOrdersByPrice,
+  ORDER_BOOK_BATCH_SIZE,
+  type Order,
+} from "./orders";
 
 const realFetch = globalThis.fetch;
 
@@ -72,4 +79,46 @@ test("groupOrdersByPrice sorts levels from highest price to lowest", () => {
 
 test("groupOrdersByPrice returns an empty list for no orders", () => {
   expect(groupOrdersByPrice([])).toEqual([]);
+});
+
+test("bestPricesFromBatch takes the highest bid and the lowest ask per item", () => {
+  const prices = bestPricesFromBatch(["iron", "steel", "grain"], [
+    {
+      result: {
+        data: {
+          buyOrders: [order({ price: 0.08 }), order({ price: 0.081 }), order({ price: 0 })],
+          sellOrders: [order({ price: 0.085, type: "sell" }), order({ price: 0.083, type: "sell" })],
+        },
+      },
+    },
+    // A one-sided book prices only the side it has.
+    { result: { data: { buyOrders: [], sellOrders: [order({ price: 1.7, type: "sell" })] } } },
+    // A failed entry leaves the item unpriced rather than priced at zero.
+    { error: { message: "nope" } },
+  ]);
+
+  expect(prices).toEqual({ bids: { iron: 0.081 }, asks: { iron: 0.083, steel: 1.7 } });
+});
+
+test("bestPricesFromBatch refuses a batch that doesn't line up with what was asked", () => {
+  expect(() => bestPricesFromBatch(["iron", "steel"], [{ result: { data: {} } }])).toThrow();
+  expect(() => bestPricesFromBatch(["iron"], { result: {} })).toThrow();
+});
+
+test("fetchBestPrices asks for every item, in batches", async () => {
+  const codes = Array.from({ length: ORDER_BOOK_BATCH_SIZE + 1 }, (_, i) => `item${i}`);
+  const fetchMock = mock(async (...args: Parameters<typeof fetch>) => {
+    const url = String(args[0]);
+    // One procedure name per item asked for, so the answer is one entry each.
+    const count = (url.slice(0, url.indexOf("?")).match(/getTopOrders/g) ?? []).length;
+    return Response.json(
+      Array.from({ length: count }, () => ({ result: { data: { buyOrders: [order({ price: 2 })], sellOrders: [] } } })),
+    );
+  });
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+  const prices = await fetchBestPrices(codes);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(Object.keys(prices.bids)).toHaveLength(codes.length);
+  expect(prices.bids.item20).toBe(2);
 });

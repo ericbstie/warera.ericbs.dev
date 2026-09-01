@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { isFiniteNumber, type MarketItem } from "./hooks";
+import { fetchBestPrices, type BestPrices } from "./orders";
 import {
   AGRARIAN_ITEMS,
   ethicBonusFor,
@@ -43,6 +44,13 @@ export type Bonus = {
 };
 
 export type Input = { code: string; quantity: number; price: number; cost: number };
+
+/**
+ * The top of the order book, which is where a company actually trades: it sells
+ * its output into the highest buy order and buys its inputs off the lowest sell
+ * order. The average price the market endpoint quotes is neither of those.
+ */
+export type Market = BestPrices;
 
 export type Wage = {
   bonus: Bonus;
@@ -83,6 +91,8 @@ export function depositActive(deposit: Deposit | undefined, now = Date.now()): b
   return true;
 }
 
+const EMPTY_MARKET: Market = { bids: {}, asks: {} };
+
 const NO_BONUS: Bonus = { strategic: 0, ethic: 0, deposit: 0, total: 0 };
 
 export function bonusFor(
@@ -111,7 +121,7 @@ export function bonusFor(
   return { strategic, ethic, deposit, total: strategic + ethic + deposit };
 }
 
-/** A price of 0 is an item nobody is trading, which is no price at all. */
+/** A price of 0, or no order at all on that side, is no price. */
 function priced(prices: Record<string, number>, code: string): number | null {
   const price = prices[code];
   return isFiniteNumber(price) && price > 0 ? price : null;
@@ -138,12 +148,13 @@ export function wageFor(
   region: Region,
   country: Country,
   industrialism: number,
-  prices: Record<string, number>,
+  market: Market,
   now = Date.now(),
 ): Wage | null {
   if (!isProducible(item)) return null;
 
-  const salePrice = priced(prices, item.code);
+  // Selling means hitting the best bid; the ask is what somebody hopes for.
+  const salePrice = priced(market.bids, item.code);
   if (salePrice === null) return null;
 
   const bonus = bonusFor(item, region, country, industrialism, now);
@@ -153,7 +164,8 @@ export function wageFor(
 
   const inputs: Input[] = [];
   for (const [code, needed] of Object.entries(item.productionNeeds ?? {})) {
-    const price = priced(prices, code);
+    // Buying an input means lifting the best offer.
+    const price = priced(market.asks, code);
     if (price === null) return null;
     const quantity = needed * output;
     inputs.push({ code, quantity, price, cost: quantity * price });
@@ -193,7 +205,7 @@ export function rankPlacements(
   regions: Region[],
   countries: Country[],
   industrialism: Record<string, number>,
-  prices: Record<string, number>,
+  market: Market,
   limit = 10,
   now = Date.now(),
 ): Placement[] {
@@ -206,7 +218,7 @@ export function rankPlacements(
       const country = byId.get(region.countryId);
       if (!country) continue;
 
-      const wage = wageFor(item, region, country, industrialism[country._id] ?? 0, prices, now);
+      const wage = wageFor(item, region, country, industrialism[country._id] ?? 0, market, now);
       if (!wage) continue;
 
       const key = `${item.code} ${country._id}`;
@@ -245,49 +257,29 @@ export async function fetchRegions(): Promise<Region[]> {
 }
 
 /**
- * The market price the game itself values a company's output and its inputs at.
- * Reading the top of the order book instead put every refined item a step or
- * two of wage out, because a book's best bid and the price the game settles on
- * are not the same number.
+ * The regions and the order books the calculator ranks over, fetched once for
+ * the page. The books are keyed by item, so the list of items to read them for
+ * has to come from the caller.
  */
-export function toPrices(values: unknown): Record<string, number> {
-  const prices: Record<string, number> = {};
-  if (typeof values !== "object" || values === null || Array.isArray(values)) return prices;
-
-  for (const [code, price] of Object.entries(values as Record<string, unknown>)) {
-    if (isFiniteNumber(price) && price > 0) prices[code] = price;
-  }
-  return prices;
-}
-
-export async function fetchPrices(): Promise<Record<string, number>> {
-  const res = await fetch("/api/trpc/itemTrading.getPrices", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message);
-  const prices = toPrices(json?.result?.data);
-  if (!Object.keys(prices).length) throw new Error("Market prices came back in an unexpected shape");
-  return prices;
-}
-
-/** The regions and the prices the calculator ranks over, fetched once for the page. */
-export function useWageData() {
+export function useWageData(itemCodes: string[]) {
   const [regions, setRegions] = useState<Region[]>([]);
-  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [market, setMarket] = useState<Market>(EMPTY_MARKET);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  // A fresh array every render would re-fetch every book on every render.
+  const key = itemCodes.join(",");
 
-    Promise.all([fetchRegions(), fetchPrices()])
-      .then(([list, book]) => {
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    setLoading(true);
+
+    Promise.all([fetchRegions(), fetchBestPrices(key.split(","))])
+      .then(([list, books]) => {
         if (cancelled) return;
         setRegions(list);
-        setPrices(book);
+        setMarket(books);
       })
       .catch(err => {
         if (!cancelled) setError(err as Error);
@@ -299,7 +291,7 @@ export function useWageData() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [key]);
 
-  return { regions, prices, loading, error };
+  return { regions, market, loading, error };
 }

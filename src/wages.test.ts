@@ -7,7 +7,6 @@ import {
   floorToStep,
   isProducible,
   rankPlacements,
-  toPrices,
   toRegions,
   wageFor,
   type Region,
@@ -31,7 +30,7 @@ const KNIFE: MarketItem = { code: "knife", type: "weapon" };
 // The four placements below were read off the game on 2026-08-22, with the
 // market prices it was quoting at the time. Every ruling party involved was a
 // fanatic industrialist.
-const PRICES = {
+const BOOK = {
   cookedFish: 7.634753243944623,
   fish: 3.3201606714628267,
   steel: 1.6230574941841207,
@@ -40,6 +39,10 @@ const PRICES = {
   limestone: 0.0796050289880947,
   grain: 0.0758635864057438,
 };
+
+// The figures below were read off a market whose best bid and best ask were the
+// same number, so one book stands for both sides of it.
+const PRICES = { bids: BOOK, asks: BOOK };
 const FANATIC_INDUSTRIALIST = 2;
 const FANATIC_AGRARIAN = -2;
 
@@ -103,7 +106,7 @@ test("steel in Thailand, Maratha", () => {
 
   expect(wage.bonus).toEqual({ strategic: 30.5, ethic: 30, deposit: 0, total: 60.5 });
   expect(wage.inputs).toEqual([
-    { code: "iron", quantity: 1.605, price: PRICES.iron, cost: 1.605 * PRICES.iron },
+    { code: "iron", quantity: 1.605, price: BOOK.iron, cost: 1.605 * BOOK.iron },
   ]);
   expect(wage.posted).toBeCloseTo(0.129, 9);
   expect(to3(wage.afterTax)).toBe(0.119);
@@ -229,12 +232,12 @@ test("climate says where a deposit may appear, not where a company may stand", (
 
 test("nothing a company can't be set to produce is costed", () => {
   expect(isProducible(KNIFE)).toBe(false);
-  expect(wageFor(KNIFE, RESISTENCIA, ARGENTINA, 0, { knife: 12 }, NOW)).toBeNull();
+  expect(wageFor(KNIFE, RESISTENCIA, ARGENTINA, 0, { bids: { knife: 12 }, asks: {} }, NOW)).toBeNull();
 });
 
 test("an unquoted item or input has no wage rather than a wage of zero", () => {
-  expect(wageFor(GRAIN, RESISTENCIA, ARGENTINA, 0, {}, NOW)).toBeNull();
-  expect(wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, { steel: 1.625 }, NOW)).toBeNull();
+  expect(wageFor(GRAIN, RESISTENCIA, ARGENTINA, 0, { bids: {}, asks: {} }, NOW)).toBeNull();
+  expect(wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, { bids: { steel: 1.625 }, asks: {} }, NOW)).toBeNull();
 });
 
 test("ranks by the wage that reaches the worker, not the one the company posts", () => {
@@ -262,7 +265,7 @@ test("one country can't fill the table with its own provinces", () => {
   expect(ranked[0]!.wage.bonus.deposit).toBe(30);
 });
 
-test("reads regions and prices out of the shapes upstream sends", () => {
+test("reads regions out of the shape upstream sends", () => {
   expect(
     toRegions([
       { _id: "r1", name: "Somewhere", country: "cr", climate: "tropical" },
@@ -273,9 +276,15 @@ test("reads regions and prices out of the shapes upstream sends", () => {
     { id: "r1", name: "Somewhere", countryId: "cr", climate: "tropical", deposit: undefined },
     { id: "r2", name: "r2", countryId: "cr", climate: "", deposit: undefined },
   ]);
+});
 
-  // An item nobody is trading has no price, which is not a price of zero.
-  expect(toPrices({ grain: 0.076, iron: 0, steel: null })).toEqual({ grain: 0.076 });
-  expect(toPrices(null)).toEqual({});
-  expect(toPrices([1, 2])).toEqual({});
+test("sells into the best bid and buys inputs off the best ask", () => {
+  const spread = { bids: { steel: 2, iron: 0.05 }, asks: { steel: 3, iron: 0.1 } };
+  const wage = wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, spread, NOW)!;
+
+  // One production point of steel with Thailand's bonus, sold at the bid and
+  // made of iron bought at the ask.
+  expect(wage.salePrice).toBe(2);
+  expect(wage.inputs[0]!.price).toBe(0.1);
+  expect(to3(wage.breakEven)).toBe(to3(wage.output * 2 - wage.output * 10 * 0.1));
 });
