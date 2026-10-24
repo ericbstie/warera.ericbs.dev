@@ -414,17 +414,18 @@ async function serveJobs(req: Request): Promise<Response> {
 // poller writes the live order book and those daily totals into SQLite on a
 // timer. This serves back what has accumulated there.
 
-/** How far back a request reaches when it doesn't say — well past upstream's 30. */
-const HISTORY_DEFAULT_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How much of the record the ticker compares across. */
 const MOVERS_WINDOW_DAYS = 14;
 
-/** `Number("")` is 0 and `Number("abc")` is NaN; neither is a window. */
-function historyDays(raw: string | null): number {
+/**
+ * A request that doesn't say how far back gets the whole record — that is what
+ * ALL asks for. `Number("")` is 0 and `Number("abc")` is NaN; neither is a window.
+ */
+function historySince(raw: string | null): number {
   const days = Number(raw);
-  return Number.isFinite(days) && days > 0 ? days : HISTORY_DEFAULT_DAYS;
+  return Number.isFinite(days) && days > 0 ? Date.now() - days * DAY_MS : 0;
 }
 
 function day(at: number): string {
@@ -454,7 +455,7 @@ function serveHistory(req: Request, db: Database): Response {
     });
   }
 
-  const since = Date.now() - historyDays(params.get("days")) * DAY_MS;
+  const since = historySince(params.get("days"));
   const bars = params.get("intraday")
     ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since)
     : readDailyTrading(db, itemCode, day(since));
