@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
+import { ItemPicker } from "./ItemPicker";
 import { type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
-import { quoteFor } from "./stats";
-import { Toolbar } from "./Toolbar";
+import { Divider, Toolbar } from "./Toolbar";
 import { ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 
@@ -30,12 +30,9 @@ export function GraphPage() {
     );
   }, [items]);
 
-  // The header quote and the chart read the same bars, so they are fetched
-  // once here rather than once per panel. The range is part of the request now
-  // rather than a slice of it — a short range is drawn from the 15-minute poll
+  // The range is part of the request rather than a slice of it — a short range is drawn from the 15-minute poll
   // and a long one from the daily records, so they aren't the same series.
   const { transactions, loading, error: historyError } = useTransactionHistory(selected, range, interval);
-  const quote = useMemo(() => quoteFor(transactions), [transactions]);
 
   // Anything drawn was measured against the bars on screen, so it stops meaning
   // what it meant once those bars change.
@@ -68,13 +65,7 @@ export function GraphPage() {
 
   return (
     <div className="flex flex-col lg:h-dvh lg:overflow-hidden">
-      <Header
-        items={items}
-        selected={selected}
-        onSelect={setSelected}
-        quote={quote}
-        loading={loading}
-      />
+      <Header items={items} onSelect={setSelected} />
 
       {error && (
         <div className="px-1 pt-1">
@@ -82,34 +73,42 @@ export function GraphPage() {
         </div>
       )}
 
-      <main className="flex min-h-0 flex-1 flex-col p-1">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded border border-edge bg-canvas">
-          <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
-
-          <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+      <main className="flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4">
+        {/* One row over the chart, no card around any of it: what is charted,
+            then how it is cut, then what to draw on it. */}
+        <div className="flex flex-wrap items-center gap-x-3 py-1">
+          <div className="basis-full sm:basis-auto">
+            <ItemPicker items={items} selected={selected} onSelect={setSelected} />
+          </div>
+          <Divider className="hidden sm:block" />
+          {/* Only the controls scroll on a narrow screen; the picker's list
+              would be clipped inside a scrolling box. */}
+          <div className="flex min-w-0 flex-1 items-center gap-x-2 overflow-x-auto sm:gap-x-3">
+            <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
+            <Divider />
             <ToolRail
               tool={tool}
               onTool={setTool}
               onClear={() => setDrawings([])}
               hasDrawings={drawings.length > 0}
             />
-            <div className="min-h-0 min-w-0 flex-1">
-              <Panel label="price chart">
-                <PriceChart
-                  itemCode={selected}
-                  transactions={transactions}
-                  loading={loading}
-                  error={historyError}
-                  tool={tool}
-                  drawings={drawings}
-                  onDraw={drawing => setDrawings(current => [...current, drawing])}
-                  resetAt={resetAt}
-                />
-              </Panel>
-            </div>
           </div>
-        </section>
+        </div>
 
+        <div className="min-h-0 min-w-0 flex-1">
+          <Panel label="price chart">
+            <PriceChart
+              itemCode={selected}
+              transactions={transactions}
+              loading={loading}
+              error={historyError}
+              tool={tool}
+              drawings={drawings}
+              onDraw={drawing => setDrawings(current => [...current, drawing])}
+              resetAt={resetAt}
+            />
+          </Panel>
+        </div>
       </main>
 
       <CommandPalette
