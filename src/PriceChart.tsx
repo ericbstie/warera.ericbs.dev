@@ -683,24 +683,10 @@ export function PriceChart({
                 <line
                   x1={PADDING.left}
                   x2={width - PADDING.right}
-                  y1={volumeTop}
-                  y2={volumeTop}
-                  stroke={EDGE}
-                  strokeWidth="1"
-                />
-                <line
-                  x1={PADDING.left}
-                  x2={width - PADDING.right}
                   y1={volumeTop + volumeHeight / 2}
                   y2={volumeTop + volumeHeight / 2}
                   stroke={GRID}
                 />
-                <text x={axisX} y={volumeTop + 8} textAnchor="end" fontSize="10" fill={AXIS_TEXT}>
-                  {formatCompact(maxVolume)}
-                </text>
-                <text x={axisX} y={volumeBottom} textAnchor="end" fontSize="10" fill={AXIS_TEXT}>
-                  {formatCompact(0)}
-                </text>
 
                 {/* A day-wide candle is a day already; only finer ones get split. */}
                 <g clipPath={`url(#${clipId})`}>
