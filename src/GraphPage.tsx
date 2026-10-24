@@ -110,8 +110,8 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* On a laptop or desktop the chart sits in the middle at a 16:9 it can be
-          read at, at most 1280px and never closer than a fifth of the screen
+      {/* On a laptop or desktop the chart sits in the middle at 2:1, wide enough to
+          read, at most 1280px and never closer than a fifth of the screen
           to either edge. */}
       <main
         ref={stageRef}
@@ -143,7 +143,7 @@ export function GraphPage() {
           <FullscreenButton full={full} onToggle={toggleFull} />
         </div>
 
-        <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-video lg:flex-none"}`}>
+        <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
           <Panel label="price chart">
             <PriceChart
               itemCode={selected}
