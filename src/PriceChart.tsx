@@ -22,7 +22,7 @@ import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } fro
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
-const PADDING = { top: 28, right: 58, bottom: 22, left: 10 };
+const PADDING = { top: 12, right: 58, bottom: 22, left: 10 };
 const ROWS = 4;
 const GRID = "var(--grid)";
 const AXIS_TEXT = "var(--muted)";
@@ -39,8 +39,6 @@ const PRICE_PANE_RATIO = 0.72;
 const VOLUME_PANE_RATIO = 0.28;
 const PANE_GAP = 28;
 const VOLUME_OPACITY = 0.5;
-/** Room for the two wrapped rows the legend needs once it stops overlaying the plot. */
-const COMPACT_LEGEND_HEIGHT = 40;
 const DRAWING_OPACITY = 0.6;
 const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
@@ -155,16 +153,6 @@ function dayStarts(dates: string[]): number[] {
   });
 }
 
-/**
- * Every bar is an average — a day's trades, or a moment's mid — so a bar opens
- * where the one before it closed and its high/low are the ends of that move.
- */
-function ohlcAt(prices: PricePoint[], index: number) {
-  const close = prices[index]?.price ?? 0;
-  const open = index > 0 ? (prices[index - 1]?.price ?? close) : close;
-  return { open, close, high: Math.max(open, close), low: Math.min(open, close) };
-}
-
 export function PriceChart({
   itemCode,
   transactions,
@@ -233,14 +221,9 @@ export function PriceChart({
       vwap: vwapSeries(transactions),
     } satisfies Record<Overlay, (number | null)[]>;
   }, [prices, transactions]);
-  // A phone has no room for a legend floating over the plot: it lands on the
-  // price axis. There it sits above the chart instead, and drops the values a
-  // small screen can do without.
-  const compact = width > 0 && width < 480;
   // A stacked layout leaves the box to size itself, and then the chart keeps
   // the height it always had.
-  const boxHeight = boxed > MIN_BOX_HEIGHT ? boxed : compact ? 260 : 380;
-  const height = compact ? boxHeight - COMPACT_LEGEND_HEIGHT : boxHeight;
+  const height = boxed > MIN_BOX_HEIGHT ? boxed : width > 0 && width < 480 ? 260 : 380;
   // A range change refetches, and the bars already drawn are worth keeping on
   // screen while it does — only an empty chart has nothing better to show.
   const message = prices.length
@@ -311,11 +294,6 @@ export function PriceChart({
   // on into the empty room while the figures stay on the last one there was.
   const dataIndex = Math.min(legendIndex, prices.length - 1);
   const point = prices[dataIndex];
-  const legend = point;
-  const legendBar = transactions[dataIndex];
-  const legendOhlc = ohlcAt(prices, dataIndex);
-  const legendVolume = legendBar?.totalQuantity ?? 0;
-  const legendVwap = legendVolume === 0 ? null : (legendBar?.totalValue ?? 0) / legendVolume;
   const dates = prices.map(p => p.date);
   // Which UTC days the window holds, so the axis knows whether a clock reading
   // on its own is enough to place a bar.
@@ -621,63 +599,12 @@ export function PriceChart({
 
   return (
     <div ref={ref} className="h-full w-full">
-      <div style={{ height: boxHeight }} className="relative w-full select-none">
+      <div style={{ height }} className="relative w-full select-none">
         {message ? (
           <p className="flex h-full items-center justify-center text-sm text-muted">{message}</p>
         ) : (
           width > 0 && (
             <>
-              {legend && (
-                <div
-                  className={`flex flex-nowrap items-center gap-x-3 overflow-x-auto whitespace-nowrap px-2 text-[11px] ${
-                    compact ? "pt-1" : "absolute left-2 right-2 top-1"
-                  }`}
-                >
-                  {!compact && (
-                    <>
-                      <span className="shrink-0 text-muted">
-                        O <span className="text-ink tabular-nums">{formatPrice(legendOhlc.open, decimals)}</span>
-                      </span>
-                      <span className="shrink-0 text-muted">
-                        H <span className="text-ink tabular-nums">{formatPrice(legendOhlc.high, decimals)}</span>
-                      </span>
-                      <span className="shrink-0 text-muted">
-                        L <span className="text-ink tabular-nums">{formatPrice(legendOhlc.low, decimals)}</span>
-                      </span>
-                    </>
-                  )}
-                  <span className="shrink-0 text-muted">
-                    C <span className="text-ink tabular-nums">{formatPrice(legendOhlc.close, decimals)}</span>
-                  </span>
-                  <span className="shrink-0 text-muted">
-                    Vol <span className="text-ink tabular-nums">{formatCompact(legendVolume)}</span>
-                  </span>
-                  <span className="shrink-0 text-muted">
-                    VWAP{" "}
-                    <span className="text-ink tabular-nums">
-                      {legendVwap === null ? "—" : formatPrice(legendVwap, decimals)}
-                    </span>
-                  </span>
-
-                  {OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
-                    const style = OVERLAY_STYLE[entry.id];
-                    const value = overlayValues[entry.id][dataIndex] ?? null;
-                    return (
-                      <span key={entry.id} className="flex shrink-0 items-center gap-1 text-muted">
-                        <span
-                          aria-hidden
-                          className="inline-block h-0.5 w-3 rounded-full"
-                          style={{ background: style.stroke, opacity: style.opacity }}
-                        />
-                        {entry.label}{" "}
-                        <span className="text-ink tabular-nums">
-                          {value === null ? "—" : formatPrice(value, decimals)}
-                        </span>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
               {(offset >= 0.5 ||
                 span < futureSpan(prices.length) ||
                 stretch > 1 ||
@@ -685,9 +612,8 @@ export function PriceChart({
                 <button
                   type="button"
                   onClick={() => setScale(FIT)}
-                  // Inside the plot rather than over the price axis, and below
-                  // the legend on a phone, where the legend has the top of the box.
-                  style={{ top: compact ? COMPACT_LEGEND_HEIGHT + 2 : 2, right: PADDING.right + 4 }}
+                  // Inside the plot rather than over the price axis.
+                  style={{ top: 2, right: PADDING.right + 4 }}
                   className="absolute z-10 rounded border border-edge bg-panel px-1.5 py-0.5 text-[11px] text-muted"
                 >
                   Now ›
