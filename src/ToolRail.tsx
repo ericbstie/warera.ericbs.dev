@@ -91,3 +91,26 @@ export function ToolRail({
     </div>
   );
 }
+
+/** Takes the chart and its controls to the whole screen, and back. */
+export function FullscreenButton({ full, onToggle }: { full: boolean; onToggle: () => void }) {
+  const label = full ? "Exit full screen" : "Full screen";
+  return (
+    <button
+      type="button"
+      title={`${label} (F)`}
+      aria-label={label}
+      aria-pressed={full}
+      onClick={onToggle}
+      className="grid h-9 w-8 shrink-0 place-items-center text-muted hover:text-ink"
+    >
+      <Glyph>
+        {full ? (
+          <path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
+        ) : (
+          <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
+        )}
+      </Glyph>
+    </button>
+  );
+}

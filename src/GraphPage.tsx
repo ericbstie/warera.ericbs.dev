@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
@@ -8,7 +8,7 @@ import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
 import { ScrollFade } from "./ScrollFade";
 import { Divider, Toolbar } from "./Toolbar";
-import { ToolRail } from "./ToolRail";
+import { FullscreenButton, ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 
 export function GraphPage() {
@@ -22,6 +22,8 @@ export function GraphPage() {
   const [searching, setSearching] = useState(false);
   // A reset returns the chart to its fit, which is the chart's own state to hold.
   const [resetAt, setResetAt] = useState(0);
+  const [full, setFull] = useState(false);
+  const stageRef = useRef<HTMLElement>(null);
 
   // A list that arrives, changes or empties must never leave the chart pointed
   // at an item that is no longer in it.
@@ -47,6 +49,30 @@ export function GraphPage() {
     setInterval("1d");
   }, []);
 
+  // The browser's own full screen hides its chrome too, but a phone that won't
+  // give it (an iPhone) still gets the chart filling the window.
+  const toggleFull = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    if (full) {
+      setFull(false);
+      return;
+    }
+    setFull(true);
+    if (document.fullscreenEnabled) stageRef.current?.requestFullscreen().catch(() => {});
+  }, [full]);
+
+  // Escape and the browser's own controls leave full screen without asking us.
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A shortcut that fires while someone is typing a search steals the letter.
@@ -56,13 +82,15 @@ export function GraphPage() {
 
       const key = event.key.toLowerCase();
       if (key === "r") reset();
+      else if (key === "f") toggleFull();
+      else if (key === "escape" && full && !searching) setFull(false);
       else return;
       event.preventDefault();
     };
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reset]);
+  }, [reset, toggleFull, full, searching]);
 
   return (
     <div className="flex flex-col">
@@ -77,7 +105,14 @@ export function GraphPage() {
       {/* On a laptop or desktop the chart sits in the middle at a 16:9 it can be
           read at, at most 1280px and never closer than a fifth of the screen
           to either edge. */}
-      <main className="flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-4">
+      <main
+        ref={stageRef}
+        className={
+          full
+            ? "fixed inset-0 z-40 flex flex-col bg-surface px-3 pb-2 sm:px-4"
+            : "flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-4"
+        }
+      >
         {/* One row over the chart, no card around any of it: what is charted,
             then how it is cut, then what to draw on it. */}
         <div className="flex flex-wrap items-center gap-x-3 py-1">
@@ -97,9 +132,10 @@ export function GraphPage() {
               hasDrawings={drawings.length > 0}
             />
           </ScrollFade>
+          <FullscreenButton full={full} onToggle={toggleFull} />
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 lg:aspect-video lg:flex-none">
+        <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-video lg:flex-none"}`}>
           <Panel label="price chart">
             <PriceChart
               itemCode={selected}
@@ -113,14 +149,15 @@ export function GraphPage() {
             />
           </Panel>
         </div>
-      </main>
 
-      <CommandPalette
-        items={items}
-        open={searching}
-        onOpenChange={setSearching}
-        onSelect={setSelected}
-      />
+        {/* Inside the chart's box, so search still opens over it in full screen. */}
+        <CommandPalette
+          items={items}
+          open={searching}
+          onOpenChange={setSearching}
+          onSelect={setSelected}
+        />
+      </main>
     </div>
   );
 }
