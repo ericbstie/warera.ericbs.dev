@@ -172,7 +172,7 @@ export function WageCalculatorPage() {
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 sm:pt-2 lg:px-8">
           <TitleBar />
         </div>
       </header>
