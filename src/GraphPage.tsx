@@ -6,6 +6,7 @@ import { ItemPicker } from "./ItemPicker";
 import { type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
+import { ScrollFade } from "./ScrollFade";
 import { Divider, Toolbar } from "./Toolbar";
 import { ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
@@ -86,7 +87,7 @@ export function GraphPage() {
           <Divider className="hidden sm:block" />
           {/* Only the controls scroll on a narrow screen; the picker's list
               would be clipped inside a scrolling box. */}
-          <div className="flex min-w-0 flex-1 items-center gap-x-2 overflow-x-auto sm:gap-x-3">
+          <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
             <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
             <Divider />
             <ToolRail
@@ -95,7 +96,7 @@ export function GraphPage() {
               onClear={() => setDrawings([])}
               hasDrawings={drawings.length > 0}
             />
-          </div>
+          </ScrollFade>
         </div>
 
         <div className="min-h-0 min-w-0 flex-1 lg:aspect-video lg:flex-none">
