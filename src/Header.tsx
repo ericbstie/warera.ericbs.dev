@@ -7,7 +7,7 @@ import { TitleBar } from "./TitleBar";
  */
 export function Header({ children }: { children?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-panel">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-surface">
       <div className="flex flex-col gap-y-3 px-4 pb-3 pt-4 sm:px-6 sm:pt-2">
         <TitleBar />
         {children}
