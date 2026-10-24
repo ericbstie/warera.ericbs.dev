@@ -63,7 +63,7 @@ function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: num
         </p>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-2xl font-semibold leading-tight tabular-nums sm:text-3xl" style={{ color: "var(--up)" }}>
+        <p className="text-xl font-semibold leading-tight tabular-nums sm:text-2xl" style={{ color: "var(--up)" }}>
           {formatPrice(row.afterTax)}
         </p>
         <p className="text-sm tabular-nums text-muted">
