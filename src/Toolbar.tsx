@@ -16,10 +16,12 @@ export const OVERLAYS: { id: Overlay; label: string }[] = [
 function Segment({
   label,
   active,
+  disabled = false,
   onClick,
 }: {
   label: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -27,8 +29,9 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-9 border-b-2 px-2 text-sm sm:px-2.5 ${
-        active ? "border-ink font-semibold text-ink" : "border-transparent text-muted hover:text-ink"
+      disabled={disabled}
+      className={`h-9 border-b-2 px-2 text-sm disabled:opacity-35 sm:px-2.5 ${
+        active ? "border-ink font-semibold text-ink" : "border-transparent text-muted enabled:hover:text-ink"
       }`}
     >
       {label}
@@ -70,11 +73,14 @@ function IntervalSelect({
 
 export function Toolbar({
   range,
+  ranges,
   onRange,
   interval,
   onInterval,
 }: {
   range: Range;
+  /** The ranges the chosen interval can fill; the rest show but can't be picked. */
+  ranges: Range[];
   onRange: (range: Range) => void;
   interval: Interval;
   onInterval: (interval: Interval) => void;
@@ -87,6 +93,7 @@ export function Toolbar({
             key={entry}
             label={entry}
             active={range === entry}
+            disabled={!ranges.includes(entry)}
             onClick={() => onRange(entry)}
           />
         ))}

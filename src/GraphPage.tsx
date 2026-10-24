@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
 import { ItemPicker } from "./ItemPicker";
-import { type Interval, type Range } from "./indicators";
+import { availableRanges, largestRange, type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
 import { ScrollFade } from "./ScrollFade";
@@ -35,7 +35,15 @@ export function GraphPage() {
 
   // The range is part of the request rather than a slice of it — a short range is drawn from the 15-minute poll
   // and a long one from the daily records, so they aren't the same series.
-  const { transactions, loading, error: historyError } = useTransactionHistory(selected, range, interval);
+  const { transactions, firstIntradayAt, loading, error: historyError } = useTransactionHistory(selected, range, interval);
+
+  // Candles under a day only reach back to the first poll, so a range further
+  // back than that is turned off — and if it was the one picked, the chart
+  // moves to the longest one that still fits.
+  const ranges = useMemo(() => availableRanges(interval, firstIntradayAt), [interval, firstIntradayAt]);
+  useEffect(() => {
+    if (!ranges.includes(range)) setRange(largestRange(ranges));
+  }, [ranges, range]);
 
   // Anything drawn was measured against the bars on screen, so it stops meaning
   // what it meant once those bars change.
@@ -123,7 +131,7 @@ export function GraphPage() {
           {/* Only the controls scroll on a narrow screen; the picker's list
               would be clipped inside a scrolling box. */}
           <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
-            <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
+            <Toolbar range={range} ranges={ranges} onRange={setRange} interval={interval} onInterval={setInterval} />
             <Divider />
             <ToolRail
               tool={tool}
