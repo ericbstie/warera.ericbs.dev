@@ -1,4 +1,4 @@
-import { Nav } from "./NavDrawer";
+import { PageToggle } from "./PageToggle";
 import { useTheme } from "./theme";
 
 function ThemeToggle() {
@@ -11,9 +11,7 @@ function ThemeToggle() {
       onClick={toggle}
       aria-pressed={dark}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      // Centring the title on a phone means nothing else may take up room in
-      // the row; from `sm` up it joins the flow and the menu follows it.
-      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded border border-edge bg-panel p-1.5 text-ink sm:static sm:ml-auto sm:h-8 sm:w-8 sm:translate-y-0 sm:p-0"
+      className="grid h-8 w-8 place-items-center justify-self-end rounded border border-edge bg-panel text-ink"
     >
       <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden className="fill-current">
         {dark ? (
@@ -30,15 +28,15 @@ function ThemeToggle() {
 }
 
 /**
- * The one row every page shares: where it is, and how to leave it. The page
- * names itself here rather than repeating a heading underneath.
+ * The one row every page shares: which page you are on and how to switch. The
+ * outer columns stay equal so the toggle sits on the page's centre line.
  */
-export function TitleBar({ title = "War Era Market" }: { title?: string } = {}) {
+export function TitleBar() {
   return (
-    <div className="relative flex items-center justify-center gap-2.5 sm:justify-start">
-      <h1 className="text-3xl font-semibold sm:text-4xl">{title}</h1>
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <span aria-hidden />
+      <PageToggle />
       <ThemeToggle />
-      <Nav />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { NAV_LINKS } from "./NavDrawer";
+import { NAV_LINKS } from "./PageToggle";
 import { pageFor } from "./router";
 
-test("the drawer lists every page", () => {
+test("the toggle lists every page", () => {
   expect(NAV_LINKS.map(link => link.label)).toEqual(["Graph Analysis", "Wage Calculator"]);
 });
 
