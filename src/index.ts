@@ -386,7 +386,20 @@ async function buildJobs(): Promise<TrpcEntry> {
   const companyById = new Map(companyIds.map((id, index) => [id, companies[index] as { name?: string; itemCode?: string }]));
   const userById = new Map(userIds.map((id, index) => [id, users[index] as { username?: string }]));
 
-  const jobs = offers.map(offer => toJobRow(offer, companyById.get(offer.company), userById.get(offer.user)));
+  // The offer says where the work happens, and that country's income tax is what comes off the wage.
+  const [countryData, regionData] = await Promise.all([trpcData(COUNTRIES_PATH), trpcData("region.getAll?input=%7B%7D")]);
+  const countryOf = new Map(toRegions(regionData).map(region => [region.id, region.countryId]));
+  const taxOf = new Map(
+    (typeof countryData === "object" && countryData !== null ? (Object.values(countryData) as Country[]) : []).map(country => [
+      country._id,
+      country.taxes?.income,
+    ]),
+  );
+  const incomeTax = (regionId?: string) => taxOf.get(countryOf.get(regionId ?? "") ?? "") ?? null;
+
+  const jobs = offers.map(offer =>
+    toJobRow(offer, companyById.get(offer.company), userById.get(offer.user), incomeTax(offer.region)),
+  );
   const body = JSON.stringify({ jobs });
   return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + JOBS_TTL_MS, etag: etagFor(body) };
 }

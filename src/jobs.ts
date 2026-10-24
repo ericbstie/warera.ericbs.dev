@@ -25,6 +25,7 @@ export type RawOffer = {
   _id?: string;
   company?: string;
   user?: string;
+  region?: string;
   quantity?: number;
   wage?: number;
   wageAfterTax?: number;
@@ -38,8 +39,11 @@ export type OpenOffer = RawOffer & { _id: string; company: string; user: string;
 /** An offer as the section draws it. */
 export type JobRow = {
   offerId: string;
+  companyId: string;
   wage: number;
   afterTax: number;
+  /** The income tax of the country the company works in, as a percent — null where that country isn't known. */
+  incomeTax: number | null;
   /** How many of this position the company still has open. */
   openings: number;
   /** Only set where the offer turns away players below it. */
@@ -76,17 +80,25 @@ export function toJobRow(
   offer: OpenOffer,
   company: { name?: string; itemCode?: string } | undefined,
   player: { username?: string } | undefined,
+  incomeTax: number | null,
 ): JobRow {
   return {
     offerId: offer._id,
+    companyId: offer.company,
     wage: offer.wage,
     afterTax: offer.wageAfterTax,
+    incomeTax,
     openings: offer.quantity,
     minLevel: isFiniteNumber(offer.minLevel) && offer.minLevel > 0 ? offer.minLevel : undefined,
     companyName: company?.name ?? "Unknown company",
     itemCode: company?.itemCode ?? "",
     playerName: player?.username ?? "Unknown player",
   };
+}
+
+/** The company's own page in the game. */
+export function companyUrl(companyId: string): string {
+  return `https://app.warera.io/company/${companyId}`;
 }
 
 export function useMarketWages() {
