@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import { INTERVALS, RANGES, type Interval, type Range } from "./indicators";
 
 export type Overlay = "sma5" | "sma10" | "sma20" | "vwap";
@@ -10,7 +9,10 @@ export const OVERLAYS: { id: Overlay; label: string }[] = [
   { id: "vwap", label: "VWAP" },
 ];
 
-/** Selected controls read as filled *and* heavier, so the state survives a colour-blind eye. */
+/**
+ * Selected controls read as heavier *and* underlined, so the state survives a
+ * colour-blind eye without a box drawn around every button.
+ */
 function Segment({
   label,
   active,
@@ -25,23 +27,18 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-7 px-2.5 text-xs ${active ? "bg-accent font-semibold text-on-accent" : "bg-panel text-muted"}`}
+      className={`h-9 border-b-2 px-2 text-xs sm:px-2.5 ${
+        active ? "border-ink font-semibold text-ink" : "border-transparent text-muted hover:text-ink"
+      }`}
     >
       {label}
     </button>
   );
 }
 
-function Group({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="flex shrink-0 items-center divide-x divide-edge overflow-hidden rounded border border-edge"
-    >
-      {children}
-    </div>
-  );
+/** What stands between one cluster of controls and the next in the chart's row. */
+export function Divider({ className = "" }: { className?: string }) {
+  return <span aria-hidden className={`h-5 w-0.5 shrink-0 rounded-full bg-edge ${className}`} />;
 }
 
 /**
@@ -60,7 +57,7 @@ function IntervalSelect({
       aria-label="Candle interval"
       value={interval}
       onChange={event => onInterval(event.target.value as Interval)}
-      className="h-7 shrink-0 rounded border border-edge bg-panel px-1.5 text-xs text-ink"
+      className="h-9 shrink-0 cursor-pointer rounded bg-transparent px-1.5 text-xs text-ink hover:bg-panel [&>option]:bg-panel"
     >
       {INTERVALS.map(entry => (
         <option key={entry} value={entry}>
@@ -83,21 +80,19 @@ export function Toolbar({
   onInterval: (interval: Interval) => void;
 }) {
   return (
-    <div className="border-b border-edge bg-panel">
-      <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto px-2 py-2">
-        <Group label="Date range">
-          {RANGES.map(entry => (
-            <Segment
-              key={entry}
-              label={entry}
-              active={range === entry}
-              onClick={() => onRange(entry)}
-            />
-          ))}
-        </Group>
-
-        <IntervalSelect interval={interval} onInterval={onInterval} />
+    <div className="flex shrink-0 items-center gap-x-1">
+      <div role="group" aria-label="Date range" className="flex items-center">
+        {RANGES.map(entry => (
+          <Segment
+            key={entry}
+            label={entry}
+            active={range === entry}
+            onClick={() => onRange(entry)}
+          />
+        ))}
       </div>
+
+      <IntervalSelect interval={interval} onInterval={onInterval} />
     </div>
   );
 }
