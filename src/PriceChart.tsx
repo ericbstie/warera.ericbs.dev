@@ -620,7 +620,7 @@ export function PriceChart({
     <div ref={ref} className="h-full w-full">
       <div style={{ height }} className="relative w-full select-none">
         {message ? (
-          <p className="flex h-full items-center justify-center text-sm text-muted">{message}</p>
+          <p className="flex h-full items-center justify-center text-base text-muted">{message}</p>
         ) : (
           width > 0 && (
             <>
@@ -633,7 +633,7 @@ export function PriceChart({
                   onClick={() => setScale(FIT)}
                   // Inside the plot rather than over the price axis.
                   style={{ top: 2, right: PADDING.right + 4 }}
-                  className="absolute z-10 rounded border border-edge bg-panel px-1.5 py-0.5 text-[11px] text-muted"
+                  className="absolute z-10 rounded border border-edge bg-panel px-1.5 py-0.5 text-sm text-muted"
                 >
                   Now ›
                 </button>

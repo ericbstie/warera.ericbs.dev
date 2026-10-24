@@ -18,7 +18,7 @@ export class Panel extends Component<{ label: string; children: ReactNode }, { f
 
   override render() {
     if (this.state.failed) {
-      return <p className="py-4 text-sm text-muted">Couldn't display the {this.props.label}.</p>;
+      return <p className="py-4 text-base text-muted">Couldn't display the {this.props.label}.</p>;
     }
     return this.props.children;
   }
@@ -27,12 +27,12 @@ export class Panel extends Component<{ label: string; children: ReactNode }, { f
 /** Every page is built out of the item list, so every page can lose it. */
 export function ItemListError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded border border-down p-3 text-sm text-down">
+    <div className="flex flex-wrap items-center gap-3 rounded border border-down p-3 text-base text-down">
       <span>Couldn't load the item list, so there is nothing to show.</span>
       <button
         type="button"
         onClick={onRetry}
-        className="rounded border border-down px-2 py-1 text-xs"
+        className="rounded border border-down px-2 py-1 text-sm"
       >
         Try again
       </button>

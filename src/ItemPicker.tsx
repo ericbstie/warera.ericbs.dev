@@ -63,7 +63,7 @@ export function ItemPicker({
         className="flex h-10 max-w-[16rem] items-center gap-2 rounded px-2 text-left hover:bg-panel"
       >
         {selected && <img src={itemIcon(selected)} alt="" width={24} height={24} className="shrink-0" />}
-        <span className="truncate text-sm font-semibold">{itemLabel(selected) || "Select an item"}</span>
+        <span className="truncate text-base font-semibold">{itemLabel(selected) || "Select an item"}</span>
         <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden className="shrink-0 text-muted">
           <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
         </svg>
@@ -77,7 +77,7 @@ export function ItemPicker({
         >
           {listed.map(group => (
             <li key={group.type}>
-              <p className="px-2.5 pb-1 pt-2 text-xs font-semibold tracking-wide text-muted">
+              <p className="px-2.5 pb-1 pt-2 text-sm font-semibold tracking-wide text-muted">
                 {group.label}
               </p>
               <ul>
@@ -119,7 +119,7 @@ function ItemOption({
       role="option"
       aria-selected={selected}
       onClick={() => onSelect(code)}
-      className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-sm ${
+      className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-base ${
         selected ? "bg-accent text-on-accent" : "text-ink hover:bg-surface"
       }`}
     >

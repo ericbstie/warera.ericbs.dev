@@ -27,7 +27,7 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-9 border-b-2 px-2 text-xs sm:px-2.5 ${
+      className={`h-9 border-b-2 px-2 text-sm sm:px-2.5 ${
         active ? "border-ink font-semibold text-ink" : "border-transparent text-muted hover:text-ink"
       }`}
     >
@@ -57,7 +57,7 @@ function IntervalSelect({
       aria-label="Candle interval"
       value={interval}
       onChange={event => onInterval(event.target.value as Interval)}
-      className="h-9 shrink-0 cursor-pointer rounded bg-transparent px-1.5 text-xs text-ink hover:bg-panel [&>option]:bg-panel"
+      className="h-9 shrink-0 cursor-pointer rounded bg-transparent px-1.5 text-sm text-ink hover:bg-panel [&>option]:bg-panel"
     >
       {INTERVALS.map(entry => (
         <option key={entry} value={entry}>

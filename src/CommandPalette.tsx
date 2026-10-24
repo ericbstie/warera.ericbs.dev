@@ -126,12 +126,12 @@ export function CommandPalette({
           aria-autocomplete="list"
           aria-controls={listId}
           aria-activedescendant={results.length ? optionId(highlighted) : undefined}
-          // `text-base` keeps mobile Safari from zooming the page on focus.
-          className="w-full border-b border-edge bg-surface px-3 py-3 text-base text-ink outline-none placeholder:text-muted"
+          // Anything 16px or over keeps mobile Safari from zooming the page on focus.
+          className="w-full border-b border-edge bg-surface px-3 py-3 text-lg text-ink outline-none placeholder:text-muted"
         />
 
         {results.length === 0 ? (
-          <p className="px-3 py-3 text-sm text-muted">No items match</p>
+          <p className="px-3 py-3 text-base text-muted">No items match</p>
         ) : (
           <ul id={listId} role="listbox" aria-label="Items" className="max-h-72 overflow-y-auto">
             {results.map((item, index) => {
@@ -150,11 +150,11 @@ export function CommandPalette({
                   }`}
                 >
                   <img src={itemIcon(item.code)} alt="" width={24} height={24} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  <span className="min-w-0 flex-1 truncate text-base font-medium">
                     {itemLabel(item.code)}
                   </span>
                   <span
-                    className={`shrink-0 text-xs tracking-wide ${
+                    className={`shrink-0 text-sm tracking-wide ${
                       current ? "text-on-accent" : "text-muted"
                     }`}
                   >
