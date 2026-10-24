@@ -30,6 +30,8 @@ export type RawOffer = {
   wage?: number;
   wageAfterTax?: number;
   minLevel?: number;
+  minEnergy?: number;
+  minProduction?: number;
   citizenship?: string;
 };
 
@@ -48,6 +50,10 @@ export type JobRow = {
   openings: number;
   /** Only set where the offer turns away players below it. */
   minLevel?: number;
+  /** Only set where the offer asks for at least this much energy. */
+  minEnergy?: number;
+  /** Only set where the offer asks for at least this much production. */
+  minProduction?: number;
   companyName: string;
   itemCode: string;
   playerName: string;
@@ -76,6 +82,11 @@ export function openOffers(data: unknown, limit = MARKET_WAGES): OpenOffer[] {
     .slice(0, limit);
 }
 
+/** A requirement of zero turns nobody away, so it isn't one. */
+function positive(value: unknown): number | undefined {
+  return isFiniteNumber(value) && value > 0 ? value : undefined;
+}
+
 export function toJobRow(
   offer: OpenOffer,
   company: { name?: string; itemCode?: string } | undefined,
@@ -89,7 +100,9 @@ export function toJobRow(
     afterTax: offer.wageAfterTax,
     incomeTax,
     openings: offer.quantity,
-    minLevel: isFiniteNumber(offer.minLevel) && offer.minLevel > 0 ? offer.minLevel : undefined,
+    minLevel: positive(offer.minLevel),
+    minEnergy: positive(offer.minEnergy),
+    minProduction: positive(offer.minProduction),
     companyName: company?.name ?? "Unknown company",
     itemCode: company?.itemCode ?? "",
     playerName: player?.username ?? "Unknown player",
