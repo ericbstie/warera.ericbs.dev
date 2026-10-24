@@ -50,7 +50,7 @@ function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: num
       <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
       <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-3.5">
           <p className="truncate text-base sm:text-lg">{itemLabel(row.itemCode)}</p>
           {row.deposit > 0 && (
             <span className="shrink-0">
