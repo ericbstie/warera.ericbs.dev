@@ -37,7 +37,7 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
   if (!row.deposit) return null;
   const ends = row.depositEndsAt ? Date.parse(row.depositEndsAt) : NaN;
   return (
-    <span className="rounded border border-accent px-1.5 py-0.5 text-[11px] font-medium text-accent">
+    <span className="rounded border border-accent px-1.5 py-0.5 text-sm font-medium text-accent">
       Deposit{Number.isFinite(ends) && <span className="tabular-nums"> · {timeLeft(ends - now)}</span>}
     </span>
   );
@@ -45,22 +45,22 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
 
 function ItemCard({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
-    <li className="relative flex w-52 shrink-0 snap-start flex-col gap-3 overflow-hidden rounded border border-edge bg-panel p-4">
+    <li className="relative flex w-56 shrink-0 snap-start flex-col gap-3 overflow-hidden rounded border border-edge bg-panel p-4">
       {/* Tucked into the corner, flush with the card's own edges. */}
-      <span className="absolute right-0 top-0 rounded-bl border-b border-l border-edge bg-surface px-2.5 py-1 text-sm font-semibold tabular-nums">
+      <span className="absolute right-0 top-0 rounded-bl border-b border-l border-edge bg-surface px-2.5 py-1 text-base font-semibold tabular-nums">
         #{rank}
       </span>
       <img src={itemIcon(row.itemCode)} alt={itemLabel(row.itemCode)} title={itemLabel(row.itemCode)} width={48} height={48} />
       <div>
-        <p className="text-2xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+        <p className="text-3xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
           {formatPrice(row.afterTax)}
         </p>
-        <p className="pt-1 text-sm">
+        <p className="pt-1 text-base">
           <span className="font-semibold tabular-nums">{formatPrice(row.posted)}</span>
-          <span className="pl-1 text-xs tabular-nums text-muted">({percent(row.incomeTax)} tax)</span>
+          <span className="pl-1 text-sm tabular-nums text-muted">({percent(row.incomeTax)} tax)</span>
         </p>
       </div>
-      <div className="min-w-0 text-xs leading-tight">
+      <div className="min-w-0 text-sm leading-tight">
         <p className="truncate">{row.regionName}</p>
         <p className="truncate text-muted">{row.countryName}</p>
       </div>
@@ -78,13 +78,13 @@ function TopItems() {
   const { rows, error } = useTopItems();
   const now = useNow();
 
-  if (error) return <p className="text-sm text-down">Couldn't load the top items.</p>;
+  if (error) return <p className="text-base text-down">Couldn't load the top items.</p>;
   if (!rows.length) return null;
 
   return (
     <section className="pb-10">
-      <h2 className="text-xl font-semibold">Top items</h2>
-      <p className="pt-2 text-sm text-muted">The most profitable items to produce, each where it pays best.</p>
+      <h2 className="text-2xl font-semibold">Top items</h2>
+      <p className="pt-2 text-base text-muted">The most profitable items to produce, each where it pays best.</p>
       <ol className="-mx-6 flex snap-x scroll-px-6 gap-3 overflow-x-auto px-6 pb-2 pt-5 sm:-mx-10 sm:scroll-px-10 sm:px-10 lg:-mx-16 lg:scroll-px-16 lg:px-16">
         {rows.map((row, index) => (
           <ItemCard key={row.itemCode} row={row} rank={index + 1} now={now} />
@@ -95,13 +95,13 @@ function TopItems() {
 }
 
 function PlacementTable({ placements }: { placements: PlacementRow[] }) {
-  if (!placements.length) return <p className="text-sm text-muted">Nothing is priced well enough to rank yet.</p>;
+  if (!placements.length) return <p className="text-base text-muted">Nothing is priced well enough to rank yet.</p>;
 
   return (
     <div className="overflow-x-auto">
       {/* Fixed, so a long region name is cut rather than pushing the column the
           table is sorted by off the side of a phone. */}
-      <table className="w-full table-fixed text-sm">
+      <table className="w-full table-fixed text-base">
         <thead className="text-muted">
           <tr className="border-b border-edge">
             <th className="w-6 pb-3 text-left font-normal">#</th>
@@ -127,7 +127,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
               <td className="py-2.5 pr-2">
                 <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
                   <span className="truncate">{placement.regionName}</span>
-                  <span className="truncate text-xs text-muted">{placement.countryName}</span>
+                  <span className="truncate text-sm text-muted">{placement.countryName}</span>
                 </span>
               </td>
               <td className="hidden py-2.5 pl-1 text-right tabular-nums sm:table-cell">
@@ -184,19 +184,19 @@ export function WageCalculatorPage() {
           <MarketWages />
           <TopItems />
         </div>
-        <h2 className="text-base font-semibold">Best placements</h2>
-        <p className="pt-2 text-sm text-muted">
+        <h2 className="text-lg font-semibold">Best placements</h2>
+        <p className="pt-2 text-base text-muted">
           The best paying region of every country for every item, by what a worker keeps at break even.
         </p>
         <div className="pt-5">
           <Panel label="placements">
             {!rows.length && loading ? (
-              <p className="text-sm text-muted">Ranking every item against every region…</p>
+              <p className="text-base text-muted">Ranking every item against every region…</p>
             ) : !rows.length && error ? null : (
               <PlacementTable placements={rows} />
             )}
             {error ? (
-              <p className="pt-4 text-sm text-down">
+              <p className="pt-4 text-base text-down">
                 Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
                 <button type="button" onClick={loadMore} className="underline">
                   Try again
@@ -206,7 +206,7 @@ export function WageCalculatorPage() {
               rows.length > 0 && !done && (
                 // Mounted afresh after every page, so a list still too short to
                 // reach the bottom of the screen keeps asking for more.
-                loading ? <p className="pt-4 text-sm text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
+                loading ? <p className="pt-4 text-base text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
               )
             )}
           </Panel>
