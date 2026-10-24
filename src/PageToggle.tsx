@@ -8,7 +8,10 @@ export const NAV_LINKS: NavLink[] = [
   { page: "wages", href: ROUTES.wages, label: "Wages" },
 ];
 
-/** A segmented switch between the pages; the lit half is where you are. */
+/**
+ * The pages as plain words with room to breathe; the one you are on is lit and
+ * underlined, the others brighten and pick up a faint underline on hover.
+ */
 export function PageToggle() {
   const here = pageFor(usePath());
 
@@ -21,7 +24,7 @@ export function PageToggle() {
   };
 
   return (
-    <nav aria-label="Pages" className="flex rounded-md border border-edge bg-surface p-0.5">
+    <nav aria-label="Pages" className="flex items-center gap-1 sm:gap-3">
       {NAV_LINKS.map(link => {
         const current = here === link.page;
         return (
@@ -30,8 +33,10 @@ export function PageToggle() {
             href={link.href}
             aria-current={current ? "page" : undefined}
             onClick={event => follow(event, link.href)}
-            className={`flex min-h-8 items-center whitespace-nowrap rounded px-3 py-1 text-sm transition-colors ${
-              current ? "bg-accent font-semibold text-on-accent" : "text-muted hover:text-ink"
+            className={`relative flex min-h-11 items-center whitespace-nowrap px-5 text-base tracking-wide transition-colors after:absolute after:inset-x-5 after:bottom-1 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+              current
+                ? "font-semibold text-ink after:bg-ink"
+                : "text-muted after:bg-transparent hover:text-ink hover:after:bg-muted/60"
             }`}
           >
             {link.label}
