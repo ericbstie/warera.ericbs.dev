@@ -22,7 +22,7 @@ import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } fro
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
-const PADDING = { top: 12, right: 58, bottom: 22, left: 10 };
+const PADDING = { top: 12, right: 68, bottom: 26, left: 10 };
 const ROWS = 4;
 const GRID = "var(--grid)";
 const AXIS_TEXT = "var(--muted)";
@@ -43,7 +43,7 @@ const DRAWING_OPACITY = 0.6;
 const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
 /** Rough advance of the 11px label face — enough to keep a tag inside the plot. */
-const LABEL_CHAR_WIDTH = 6;
+const LABEL_CHAR_WIDTH = 7.2;
 /** Below this, a measured box is a layout still settling rather than a chart. */
 const MIN_BOX_HEIGHT = 200;
 /** How hard a wheel bites. A trackpad pinch reports far smaller deltas than a mouse notch, so it needs a longer lever. */
@@ -595,9 +595,9 @@ export function PriceChart({
         {/* Candles run right under the label, so it carries its own backing. */}
         <rect
           x={labelX - half - 4}
-          y={labelY - 9}
+          y={labelY - 10}
           width={half * 2 + 8}
-          height="15"
+          height="18"
           rx="2"
           fill={PANEL}
           stroke={EDGE}
@@ -607,7 +607,7 @@ export function PriceChart({
           y={labelY}
           textAnchor="middle"
           dominantBaseline="middle"
-          fontSize="11"
+          fontSize="13"
           fill={rising ? UP : DOWN}
         >
           {label}
@@ -690,7 +690,7 @@ export function PriceChart({
                         y={y(price)}
                         textAnchor="end"
                         dominantBaseline="middle"
-                        fontSize="11"
+                        fontSize="13"
                         fill={AXIS_TEXT}
                       >
                         {price.toFixed(decimals)}
@@ -731,9 +731,9 @@ export function PriceChart({
                     <g key={column}>
                       <text
                         x={columnX}
-                        y={volumeBottom + 15}
+                        y={volumeBottom + 18}
                         textAnchor={column === 0 ? "start" : column === columns - 1 ? "end" : "middle"}
-                        fontSize="11"
+                        fontSize="13"
                         fill={AXIS_TEXT}
                       >
                         {formatDate(barDateAt(dates, index), multiDay)}
@@ -825,9 +825,9 @@ export function PriceChart({
                   <g>
                     <rect
                       x={volumeTagX - volumeTagWidth / 2}
-                      y={volumeTagY - 9}
+                      y={volumeTagY - 10}
                       width={volumeTagWidth}
-                      height="17"
+                      height="20"
                       rx="3"
                       fill={PANEL}
                       stroke={EDGE}
@@ -837,7 +837,7 @@ export function PriceChart({
                       y={volumeTagY}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize="11"
+                      fontSize="13"
                       fill={LABEL_TEXT}
                     >
                       {volumeTag}
@@ -861,9 +861,9 @@ export function PriceChart({
                         </g>
                         <rect
                           x={width - PADDING.right + 4}
-                          y={tagY - 9}
+                          y={tagY - 10}
                           width={PADDING.right - 8}
-                          height="18"
+                          height="20"
                           rx="3"
                           fill={PANEL}
                           stroke={EDGE}
@@ -873,7 +873,7 @@ export function PriceChart({
                           y={tagY}
                           textAnchor="end"
                           dominantBaseline="middle"
-                          fontSize="11"
+                          fontSize="13"
                           fill={LABEL_TEXT}
                         >
                           {point.price.toFixed(decimals)}
@@ -882,19 +882,19 @@ export function PriceChart({
                     )}
                     <rect
                       x={dateTagX}
-                      y={volumeBottom + 3}
+                      y={volumeBottom + 4}
                       width={dateTagWidth}
-                      height="17"
+                      height="20"
                       rx="3"
                       fill={PANEL}
                       stroke={EDGE}
                     />
                     <text
                       x={dateTagX + dateTagWidth / 2}
-                      y={volumeBottom + 12}
+                      y={volumeBottom + 14}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize="11"
+                      fontSize="13"
                       fill={LABEL_TEXT}
                     >
                       {dateTag}
