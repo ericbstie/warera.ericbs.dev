@@ -1,57 +1,47 @@
 import { itemIcon, itemLabel } from "./hooks";
-import { MAX_ENERGY, MAX_PRODUCTION, useMarketWages, type JobRow } from "./jobs";
-import { Panel } from "./Panel";
+import { companyUrl, MAX_ENERGY, MAX_PRODUCTION, useMarketWages, type JobRow } from "./jobs";
 import { formatPrice } from "./stats";
 
-function JobTable({ jobs }: { jobs: JobRow[] }) {
+/** Built like the top item cards, so the two rows read as one design; this one opens the company in the game. */
+function JobCard({ job, rank }: { job: JobRow; rank: number }) {
   return (
-    <div className="overflow-x-auto">
-      {/* Fixed, so a long company name is cut rather than pushing the wages off a phone. */}
-      <table className="w-full table-fixed text-sm">
-        <thead className="text-muted">
-          <tr className="border-b border-edge">
-            <th className="w-6 pb-3 text-left font-normal">#</th>
-            <th className="pb-3 text-left font-normal">Company</th>
-            <th className="w-12 pb-3 text-right font-normal sm:w-20">Open</th>
-            <th className="w-14 pb-3 text-right font-normal sm:w-20">Wage</th>
-            <th className="w-16 pb-3 text-right font-normal sm:w-24">After tax</th>
-          </tr>
-        </thead>
-        <tbody>
-          {jobs.map((job, index) => (
-            <tr key={job.offerId} className="border-b border-edge/60">
-              <td className="py-2.5 tabular-nums text-muted">{index + 1}</td>
-              <td className="py-2.5 pr-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  {job.itemCode && (
-                    <img
-                      src={itemIcon(job.itemCode)}
-                      alt={itemLabel(job.itemCode)}
-                      title={itemLabel(job.itemCode)}
-                      width={24}
-                      height={24}
-                      className="shrink-0"
-                    />
-                  )}
-                  <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate">{job.companyName}</span>
-                    <span className="truncate text-xs text-muted">
-                      {job.playerName}
-                      {job.minLevel && <span> · level {job.minLevel}+</span>}
-                    </span>
-                  </span>
-                </span>
-              </td>
-              <td className="py-2.5 pl-1 text-right tabular-nums text-muted">{job.openings}</td>
-              <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(job.wage)}</td>
-              <td className="py-2.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
-                {formatPrice(job.afterTax)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <li className="w-52 shrink-0 snap-start">
+      <a
+        href={companyUrl(job.companyId)}
+        target="_blank"
+        rel="noreferrer"
+        className="relative flex h-full flex-col gap-3 overflow-hidden rounded border border-edge bg-panel p-4 transition-colors hover:border-muted"
+      >
+        {/* Tucked into the corner, flush with the card's own edges. */}
+        <span className="absolute right-0 top-0 rounded-bl border-b border-l border-edge bg-surface px-2.5 py-1 text-sm font-semibold tabular-nums">
+          #{rank}
+        </span>
+        {job.itemCode ? (
+          <img src={itemIcon(job.itemCode)} alt={itemLabel(job.itemCode)} title={itemLabel(job.itemCode)} width={48} height={48} />
+        ) : (
+          <span aria-hidden className="h-12 w-12" />
+        )}
+        <div>
+          <p className="text-2xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+            {formatPrice(job.afterTax)}
+          </p>
+          <p className="pt-1 text-sm">
+            <span className="font-semibold tabular-nums">{formatPrice(job.wage)}</span>
+            {job.incomeTax !== null && (
+              <span className="pl-1 text-xs tabular-nums text-muted">({Number(job.incomeTax.toFixed(2))}% tax)</span>
+            )}
+          </p>
+        </div>
+        <div className="min-w-0 text-xs leading-tight">
+          <p className="truncate">{job.companyName}</p>
+          <p className="truncate text-muted">{job.playerName}</p>
+        </div>
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-muted">
+          <span>{job.openings} open</span>
+          {job.minLevel && <span>· level {job.minLevel}+</span>}
+        </div>
+      </a>
+    </li>
   );
 }
 
@@ -64,15 +54,15 @@ export function MarketWages() {
 
   return (
     <section className="pb-10">
-      <h2 className="text-base font-semibold">Market wage</h2>
+      <h2 className="text-xl font-semibold">Market wage</h2>
       <p className="pt-2 text-sm text-muted">
         The best paying job offers for a worker with {MAX_ENERGY} energy and {MAX_PRODUCTION} production.
       </p>
-      <div className="pt-5">
-        <Panel label="market wages">
-          <JobTable jobs={rows} />
-        </Panel>
-      </div>
+      <ol className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 pt-5 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
+        {rows.map((job, index) => (
+          <JobCard key={job.offerId} job={job} rank={index + 1} />
+        ))}
+      </ol>
     </section>
   );
 }
