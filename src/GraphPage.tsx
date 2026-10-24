@@ -110,9 +110,9 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* On a laptop or desktop the chart sits in the middle at 2:1, wide enough to
-          read, at most 1280px and never closer than a fifth of the screen
-          to either edge. */}
+      {/* On a laptop or desktop the chart sits in the middle at 2:1, at most
+          1280px wide and never closer than a fifth of the screen to either
+          edge. */}
       <main
         ref={stageRef}
         className={
@@ -121,41 +121,45 @@ export function GraphPage() {
             : "flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-4"
         }
       >
-        {/* One row over the chart, no card around any of it: what is charted,
-            then how it is cut, then what to draw on it. */}
-        <div className="flex flex-wrap items-center gap-x-3 py-1">
-          <div className="basis-full sm:basis-auto">
-            <ItemPicker items={items} selected={selected} onSelect={setSelected} />
+        {/* One faint outline holds the chart and the row that drives it, so
+            they read as one thing without a filled card. */}
+        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-edge/70 px-2 pb-2 sm:px-3">
+          {/* One row over the chart: what is charted, then how it is cut, then
+              what to draw on it. */}
+          <div className="flex flex-wrap items-center gap-x-3 py-1">
+            <div className="basis-full sm:basis-auto">
+              <ItemPicker items={items} selected={selected} onSelect={setSelected} />
+            </div>
+            <Divider className="hidden sm:block" />
+            {/* Only the controls scroll on a narrow screen; the picker's list
+                would be clipped inside a scrolling box. */}
+            <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
+              <Toolbar range={range} ranges={ranges} onRange={setRange} interval={interval} onInterval={setInterval} />
+              <Divider />
+              <ToolRail
+                tool={tool}
+                onTool={setTool}
+                onClear={() => setDrawings([])}
+                hasDrawings={drawings.length > 0}
+              />
+            </ScrollFade>
+            <FullscreenButton full={full} onToggle={toggleFull} />
           </div>
-          <Divider className="hidden sm:block" />
-          {/* Only the controls scroll on a narrow screen; the picker's list
-              would be clipped inside a scrolling box. */}
-          <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
-            <Toolbar range={range} ranges={ranges} onRange={setRange} interval={interval} onInterval={setInterval} />
-            <Divider />
-            <ToolRail
-              tool={tool}
-              onTool={setTool}
-              onClear={() => setDrawings([])}
-              hasDrawings={drawings.length > 0}
-            />
-          </ScrollFade>
-          <FullscreenButton full={full} onToggle={toggleFull} />
-        </div>
 
-        <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
-          <Panel label="price chart">
-            <PriceChart
-              itemCode={selected}
-              transactions={transactions}
-              loading={loading}
-              error={historyError}
-              tool={tool}
-              drawings={drawings}
-              onDraw={drawing => setDrawings(current => [...current, drawing])}
-              resetAt={resetAt}
-            />
-          </Panel>
+          <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
+            <Panel label="price chart">
+              <PriceChart
+                itemCode={selected}
+                transactions={transactions}
+                loading={loading}
+                error={historyError}
+                tool={tool}
+                drawings={drawings}
+                onDraw={drawing => setDrawings(current => [...current, drawing])}
+                resetAt={resetAt}
+              />
+            </Panel>
+          </div>
         </div>
 
         {/* Inside the chart's box, so search still opens over it in full screen. */}
