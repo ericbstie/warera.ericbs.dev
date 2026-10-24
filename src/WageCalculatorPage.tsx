@@ -46,7 +46,7 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
 /** One place on the leaderboard, laid out like a market wage's row. */
 function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
-    <li className="flex items-center gap-3 border-b border-edge/60 py-3 sm:gap-4">
+    <li className="flex items-center gap-3 border-b border-edge/60 py-3 pr-2 sm:gap-4">
       <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
       <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
       <div className="min-w-0 flex-1">
@@ -85,7 +85,8 @@ function TopItems() {
   return (
     <section className="min-w-0 pb-10">
       <h2 className="text-2xl font-semibold">Item market</h2>
-      <ol className="pt-4">
+      {/* As tall as the wage market beside it, about four rows with the next peeking in, and scrolled on its own. */}
+      <ol className="mt-4 h-90 overflow-y-auto overscroll-contain border-t border-edge/60">
         {rows.map((row, index) => (
           <ItemRow key={row.itemCode} row={row} rank={index + 1} now={now} />
         ))}

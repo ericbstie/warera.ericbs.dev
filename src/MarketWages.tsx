@@ -56,7 +56,7 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
         href={companyUrl(job.companyId)}
         target="_blank"
         rel="noreferrer"
-        className="-mx-2 flex items-center gap-3 rounded px-2 py-3 transition-colors hover:bg-panel sm:gap-4"
+        className="flex items-center gap-3 rounded py-3 pr-2 transition-colors hover:bg-panel sm:gap-4"
       >
         <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
         {job.itemCode ? (
@@ -97,7 +97,8 @@ export function MarketWages() {
   return (
     <section className="min-w-0 pb-10">
       <h2 className="text-2xl font-semibold">Wage market</h2>
-      <ol className="pt-4">
+      {/* As tall as the item market beside it, about four rows with the next peeking in, and scrolled on its own. */}
+      <ol className="mt-4 h-90 overflow-y-auto overscroll-contain border-t border-edge/60">
         {rows.map((job, index) => (
           <OfferRow key={job.offerId} job={job} rank={index + 1} />
         ))}
