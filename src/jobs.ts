@@ -115,6 +115,9 @@ export function toJobRow(
   };
 }
 
+/** The job market itself in the game. */
+export const WORK_MARKET_URL = "https://app.warera.io/market/work";
+
 /** The company's own page in the game. */
 export function companyUrl(companyId: string): string {
   return `https://app.warera.io/company/${companyId}`;

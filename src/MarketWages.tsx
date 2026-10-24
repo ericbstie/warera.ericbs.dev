@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { itemIcon, itemLabel } from "./hooks";
-import { companyUrl, useMarketWages, type JobRow } from "./jobs";
+import { companyUrl, useMarketWages, WORK_MARKET_URL, type JobRow } from "./jobs";
 import { formatPrice } from "./stats";
 
 const REQUIREMENT_STYLES = {
@@ -96,7 +96,22 @@ export function MarketWages() {
 
   return (
     <section className="min-w-0 pb-10">
-      <h2 className="text-2xl font-semibold">Wage market</h2>
+      <h2 className="flex items-center gap-2 text-2xl font-semibold">
+        Wage market
+        <a
+          href={WORK_MARKET_URL}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open the job market in the game"
+          title="Open the job market in the game"
+          className="text-muted/60 transition-colors hover:text-ink"
+        >
+          <svg aria-hidden viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+            <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+          </svg>
+        </a>
+      </h2>
       {/* As tall as the item market beside it, about four rows with the next peeking in, and scrolled on its own. */}
       <ol className="mt-4 h-90 overflow-y-auto overscroll-contain border-t border-edge/60">
         {rows.map((job, index) => (
