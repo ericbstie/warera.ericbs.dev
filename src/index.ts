@@ -29,7 +29,7 @@ import {
   UPSTREAM_TIMEOUT_MS,
   type CacheStatus,
 } from "./trpc";
-import { PLACEMENTS_PAGE_SIZE, rankPlacements, toPlacementRow, toRegions, type PlacementPage, type PlacementRow } from "./wages";
+import { bestPerItem, PLACEMENTS_PAGE_SIZE, rankPlacements, toPlacementRow, toRegions, type PlacementPage, type PlacementRow } from "./wages";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -332,7 +332,7 @@ async function buildPlacements(): Promise<TrpcEntry> {
 }
 
 /** Parsed once per build rather than once per page asked for. */
-let placementRows: { etag: string; rows: PlacementRow[] } | null = null;
+let placementRows: { etag: string; rows: PlacementRow[]; items: PlacementRow[] } | null = null;
 
 function pageParam(raw: string | null, fallback: number, max: number): number {
   const value = Math.floor(Number(raw));
@@ -342,12 +342,17 @@ function pageParam(raw: string | null, fallback: number, max: number): number {
 async function servePlacements(req: Request): Promise<Response> {
   try {
     const { entry } = await cached(PLACEMENTS_KEY, buildPlacements, { staleWhileRevalidate: true });
-    if (placementRows?.etag !== entry.etag) placementRows = { etag: entry.etag, rows: JSON.parse(entry.body) };
+    if (placementRows?.etag !== entry.etag) {
+      const rows: PlacementRow[] = JSON.parse(entry.body);
+      placementRows = { etag: entry.etag, rows, items: bestPerItem(rows) };
+    }
 
     const params = new URL(req.url).searchParams;
     const offset = pageParam(params.get("offset"), 0, Number.MAX_SAFE_INTEGER);
     const limit = pageParam(params.get("limit"), PLACEMENTS_PAGE_SIZE, 100);
-    const page: PlacementPage = { placements: placementRows.rows.slice(offset, offset + limit), total: placementRows.rows.length };
+    // `per=item` keeps only each item's best placement, for the cards above the list.
+    const list = params.get("per") === "item" ? placementRows.items : placementRows.rows;
+    const page: PlacementPage = { placements: list.slice(offset, offset + limit), total: list.length };
     return jsonResponse(req, JSON.stringify(page), PLACEMENTS_TTL_MS / 1000);
   } catch (err) {
     return upstreamFailure(err, "wage placements");

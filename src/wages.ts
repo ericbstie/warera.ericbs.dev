@@ -241,6 +241,9 @@ export type PlacementRow = {
   incomeTax: number;
   posted: number;
   afterTax: number;
+  /** The deposit's share of the bonus, and when it runs out — only where one pays. */
+  deposit: number;
+  depositEndsAt?: string;
 };
 
 export function toPlacementRow({ item, region, country, wage }: Placement): PlacementRow {
@@ -253,7 +256,15 @@ export function toPlacementRow({ item, region, country, wage }: Placement): Plac
     incomeTax: wage.incomeTax,
     posted: wage.posted,
     afterTax: wage.afterTax,
+    deposit: wage.bonus.deposit,
+    depositEndsAt: wage.bonus.deposit > 0 ? region.deposit?.endsAt : undefined,
   };
+}
+
+/** The first row of each item in a ranked list, which is where that item pays best. */
+export function bestPerItem(rows: PlacementRow[]): PlacementRow[] {
+  const seen = new Set<string>();
+  return rows.filter(row => !seen.has(row.itemCode) && seen.add(row.itemCode));
 }
 
 export type PlacementPage = { placements: PlacementRow[]; total: number };
