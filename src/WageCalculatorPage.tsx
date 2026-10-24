@@ -82,8 +82,7 @@ function TopItems() {
 
   return (
     <section className="min-w-0 pb-10">
-      <h2 className="text-2xl font-semibold">Top items</h2>
-      <p className="pt-2 text-base text-muted">The most profitable items to produce, each where it pays best.</p>
+      <h2 className="text-2xl font-semibold">Item market</h2>
       <ol className="pt-4">
         {rows.map((row, index) => (
           <ItemRow key={row.itemCode} row={row} rank={index + 1} now={now} />

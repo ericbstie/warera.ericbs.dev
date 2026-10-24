@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { itemIcon, itemLabel } from "./hooks";
-import { companyUrl, MAX_ENERGY, MAX_PRODUCTION, useMarketWages, type JobRow } from "./jobs";
+import { companyUrl, useMarketWages, type JobRow } from "./jobs";
 import { formatPrice } from "./stats";
 
 const REQUIREMENT_STYLES = {
@@ -96,10 +96,7 @@ export function MarketWages() {
 
   return (
     <section className="min-w-0 pb-10">
-      <h2 className="text-2xl font-semibold">Market wage</h2>
-      <p className="pt-2 text-base text-muted">
-        The best paying job offers for a worker with {MAX_ENERGY} energy and {MAX_PRODUCTION} production.
-      </p>
+      <h2 className="text-2xl font-semibold">Wage market</h2>
       <ol className="pt-4">
         {rows.map((job, index) => (
           <OfferRow key={job.offerId} job={job} rank={index + 1} />
