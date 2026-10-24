@@ -184,7 +184,7 @@ export function WageCalculatorPage() {
           <MarketWages />
           <TopItems />
         </div>
-        <h2 className="text-lg font-semibold">Best placements</h2>
+        <h2 className="text-2xl font-semibold">Best placements</h2>
         <p className="pt-2 text-base text-muted">
           The best paying region of every country for every item, by what a worker keeps at break even.
         </p>
