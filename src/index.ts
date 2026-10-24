@@ -361,10 +361,9 @@ async function servePlacements(req: Request): Promise<Response> {
 }
 
 // --- market wages --------------------------------------------------------
-// The best offers on the job market, each with the company that posted it and
-// the player who owns that company. Offers only carry ids, so that is one
-// batched lookup for the companies and one for their owners on top of the
-// offers themselves, built once per TTL however many people are looking.
+// The best offers on the job market, each with the company that posted it.
+// Offers only carry ids, so that is one batched lookup for the companies on top
+// of the offers themselves, built once per TTL however many people are looking.
 
 const JOBS_TTL_MS = 60 * 1000;
 
@@ -378,13 +377,10 @@ async function buildJobs(): Promise<TrpcEntry> {
   const offers = openOffers(await trpcData(JOB_OFFERS_PATH));
 
   const companyIds = [...new Set(offers.map(offer => offer.company))];
-  const userIds = [...new Set(offers.map(offer => offer.user))];
-  const [companies, users] = await Promise.all([
-    companyIds.length ? trpcData(batchPath("company.getById", companyIds.map(companyId => ({ companyId })))).then(batchData) : [],
-    userIds.length ? trpcData(batchPath("user.getUserLite", userIds.map(userId => ({ userId })))).then(batchData) : [],
-  ]);
+  const companies = companyIds.length
+    ? await trpcData(batchPath("company.getById", companyIds.map(companyId => ({ companyId })))).then(batchData)
+    : [];
   const companyById = new Map(companyIds.map((id, index) => [id, companies[index] as { name?: string; itemCode?: string }]));
-  const userById = new Map(userIds.map((id, index) => [id, users[index] as { username?: string }]));
 
   // The offer says where the work happens, and that country's income tax is what comes off the wage.
   const [countryData, regionData] = await Promise.all([trpcData(COUNTRIES_PATH), trpcData("region.getAll?input=%7B%7D")]);
@@ -398,7 +394,7 @@ async function buildJobs(): Promise<TrpcEntry> {
   const incomeTax = (regionId?: string) => taxOf.get(countryOf.get(regionId ?? "") ?? "") ?? null;
 
   const jobs = offers.map(offer =>
-    toJobRow(offer, companyById.get(offer.company), userById.get(offer.user), incomeTax(offer.region)),
+    toJobRow(offer, companyById.get(offer.company), incomeTax(offer.region)),
   );
   const body = JSON.stringify({ jobs });
   return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + JOBS_TTL_MS, etag: etagFor(body) };

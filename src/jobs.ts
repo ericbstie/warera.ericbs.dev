@@ -1,7 +1,6 @@
 // What the job market pays right now, for a worker who has maxed out both the
-// skills an offer can ask for. An offer only names its company and the player
-// who posted it by id, so the server looks both up and hands the browser rows
-// it can draw as they are.
+// skills an offer can ask for. An offer only names its company by id, so the
+// server looks it up and hands the browser rows it can draw as they are.
 
 import { useEffect, useState } from "react";
 import { isFiniteNumber } from "./hooks";
@@ -56,7 +55,6 @@ export type JobRow = {
   minProduction?: number;
   companyName: string;
   itemCode: string;
-  playerName: string;
 };
 
 /**
@@ -90,7 +88,6 @@ function positive(value: unknown): number | undefined {
 export function toJobRow(
   offer: OpenOffer,
   company: { name?: string; itemCode?: string } | undefined,
-  player: { username?: string } | undefined,
   incomeTax: number | null,
 ): JobRow {
   return {
@@ -105,7 +102,6 @@ export function toJobRow(
     minProduction: positive(offer.minProduction),
     companyName: company?.name ?? "Unknown company",
     itemCode: company?.itemCode ?? "",
-    playerName: player?.username ?? "Unknown player",
   };
 }
 
