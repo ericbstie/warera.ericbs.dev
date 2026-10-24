@@ -58,14 +58,14 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
         rel="noreferrer"
         className="-mx-2 flex items-center gap-3 rounded px-2 py-3 transition-colors hover:bg-panel sm:gap-4"
       >
-        <span className="w-6 shrink-0 text-right text-lg font-semibold tabular-nums text-muted">{rank}</span>
+        <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
         {job.itemCode ? (
-          <img src={itemIcon(job.itemCode)} alt={itemLabel(job.itemCode)} title={itemLabel(job.itemCode)} width={40} height={40} className="shrink-0" />
+          <img src={itemIcon(job.itemCode)} alt={itemLabel(job.itemCode)} title={itemLabel(job.itemCode)} width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
         ) : (
-          <span aria-hidden className="h-10 w-10 shrink-0" />
+          <span aria-hidden className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 gap-1.5 text-lg">
+          <p className="flex min-w-0 gap-1.5 text-base sm:text-lg">
             <span className="truncate">{job.companyName}</span>
             <span title={`${job.openings} open`} className="shrink-0 tabular-nums text-muted">
               ({job.openings})
