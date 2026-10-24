@@ -1,13 +1,19 @@
-// What the job market pays right now, for a worker who has maxed out both the
-// skills an offer can ask for. An offer only names its company by id, so the
+// What the job market pays right now, for a worker at the most an offer here
+// may ask for. An offer only names its company by id, so the
 // server looks it up and hands the browser rows it can draw as they are.
 
 import { useEffect, useState } from "react";
 import { isFiniteNumber } from "./hooks";
 
-/** The top of both skills — every offer on the market is open to a worker this good at them. */
-export const MAX_ENERGY = 120;
+/** The most an offer may ask for and still be listed; anything past these is closed to most players. */
+export const MAX_LEVEL = 50;
+export const MAX_ENERGY = 130;
 export const MAX_PRODUCTION = 40;
+
+/** A requirement the offer leaves unset asks for nothing. */
+function withinReach(required: number | undefined, most: number): boolean {
+  return !isFiniteNumber(required) || required <= most;
+}
 
 /** How many offers the market wage section shows. */
 export const MARKET_WAGES = 10;
@@ -59,7 +65,8 @@ export type JobRow = {
 
 /**
  * Offers anyone can take, best paid first. An offer limited to one citizenship
- * isn't a market wage, and one with nothing left open can't be taken at all.
+ * isn't a market wage, one asking for more than most players have isn't
+ * either, and one with nothing left open can't be taken at all.
  */
 export function openOffers(data: unknown, limit = MARKET_WAGES): OpenOffer[] {
   const items = (data as { items?: unknown } | null)?.items;
@@ -74,7 +81,10 @@ export function openOffers(data: unknown, limit = MARKET_WAGES): OpenOffer[] {
         isFiniteNumber(offer.wageAfterTax) &&
         isFiniteNumber(offer.quantity) &&
         offer.quantity > 0 &&
-        !offer.citizenship,
+        !offer.citizenship &&
+        withinReach(offer.minLevel, MAX_LEVEL) &&
+        withinReach(offer.minEnergy, MAX_ENERGY) &&
+        withinReach(offer.minProduction, MAX_PRODUCTION),
     )
     .sort((a, b) => b.wageAfterTax - a.wageAfterTax || b.wage - a.wage)
     .slice(0, limit);
