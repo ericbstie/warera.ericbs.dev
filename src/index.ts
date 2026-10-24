@@ -2,7 +2,7 @@ import { serve } from "bun";
 import type { Database } from "bun:sqlite";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
-import { openDatabase, readDailyByItem, readDailyTrading, readSnapshotBefore, readSnapshots } from "./db";
+import { openDatabase, readDailyByItem, readDailyTrading, readFirstSnapshotAt, readSnapshotBefore, readSnapshots } from "./db";
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
@@ -460,7 +460,10 @@ function serveHistory(req: Request, db: Database): Response {
     ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since)
     : readDailyTrading(db, itemCode, day(since));
 
-  return jsonResponse(req, JSON.stringify({ bars }), POLL_INTERVAL_MS / 1000);
+  // Sent with every answer so the chart can tell which ranges an intraday
+  // interval can actually fill before it asks for one.
+  const firstIntradayAt = readFirstSnapshotAt(db, itemCode);
+  return jsonResponse(req, JSON.stringify({ bars, firstIntradayAt }), POLL_INTERVAL_MS / 1000);
 }
 
 /** The whole strip in one query, where it used to be a batch call per browser. */

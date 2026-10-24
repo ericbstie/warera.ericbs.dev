@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { openDatabase, readDailyTrading, readSnapshots, recordDailyTrading, recordSnapshots } from "./db";
+import { openDatabase, readDailyTrading, readFirstSnapshotAt, readSnapshots, recordDailyTrading, recordSnapshots } from "./db";
 
 const snapshot = (capturedAt: number, bestBid: number | null = 1) => ({
   itemCode: "lightAmmo",
@@ -74,5 +74,14 @@ test("history outlives the 30 days upstream keeps", () => {
   recordDailyTrading(db, [day("2026-01-01", 1), day("2026-08-19", 2)]);
   // Upstream would have dropped January long ago; the stored copy still has it.
   expect(readDailyTrading(db, "lightAmmo")).toHaveLength(2);
+  db.close();
+});
+
+test("knows when an item was first polled, and that an unpolled one never was", () => {
+  const db = openDatabase(":memory:");
+  recordSnapshots(db, [snapshot(200), snapshot(100)]);
+
+  expect(readFirstSnapshotAt(db, "lightAmmo")).toBe(100);
+  expect(readFirstSnapshotAt(db, "ironOre")).toBeNull();
   db.close();
 });

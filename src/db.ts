@@ -133,6 +133,17 @@ export function readSnapshotBefore(db: Database, itemCode: string, at: number): 
     .get({ itemCode, at }) ?? null) as StoredSnapshot | null;
 }
 
+/**
+ * When the poller first saw an item. Nothing finer than a day exists before
+ * it, so it is as far back as an intraday chart can reach.
+ */
+export function readFirstSnapshotAt(db: Database, itemCode: string): number | null {
+  const row = db
+    .query(`SELECT MIN(captured_at) AS firstAt FROM book_snapshot WHERE item_code = $itemCode`)
+    .get({ itemCode }) as { firstAt: number | null } | null;
+  return row?.firstAt ?? null;
+}
+
 /** Days are stored as the `YYYY-MM-DD` upstream sends, which sorts as text. */
 export function readDailyTrading(db: Database, itemCode: string, since = ""): StoredDaily[] {
   return db
