@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
@@ -22,8 +22,9 @@ export function GraphPage() {
   const [searching, setSearching] = useState(false);
   // A reset returns the chart to its fit, which is the chart's own state to hold.
   const [resetAt, setResetAt] = useState(0);
+  // Full screen fills the page under the header rather than taking the whole
+  // display, so the page switch and the ticker stay in reach.
   const [full, setFull] = useState(false);
-  const stageRef = useRef<HTMLElement>(null);
 
   // A list that arrives, changes or empties must never leave the chart pointed
   // at an item that is no longer in it.
@@ -57,29 +58,7 @@ export function GraphPage() {
     setInterval("1d");
   }, []);
 
-  // The browser's own full screen hides its chrome too, but a phone that won't
-  // give it (an iPhone) still gets the chart filling the window.
-  const toggleFull = useCallback(() => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-    if (full) {
-      setFull(false);
-      return;
-    }
-    setFull(true);
-    if (document.fullscreenEnabled) stageRef.current?.requestFullscreen().catch(() => {});
-  }, [full]);
-
-  // Escape and the browser's own controls leave full screen without asking us.
-  useEffect(() => {
-    const onChange = () => {
-      if (!document.fullscreenElement) setFull(false);
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
+  const toggleFull = useCallback(() => setFull(current => !current), []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -101,7 +80,7 @@ export function GraphPage() {
   }, [reset, toggleFull, full, searching]);
 
   return (
-    <div className="flex flex-col">
+    <div className={full ? "flex h-dvh flex-col overflow-hidden" : "flex flex-col"}>
       <Header items={items} onSelect={setSelected} />
 
       {error && (
@@ -114,10 +93,9 @@ export function GraphPage() {
           1280px wide and never closer than a fifth of the screen to either
           edge. */}
       <main
-        ref={stageRef}
         className={
           full
-            ? "fixed inset-0 z-40 flex flex-col bg-surface px-3 pb-2 sm:px-4"
+            ? "flex min-h-0 flex-1 flex-col p-3 sm:p-4"
             : "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-4 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-14"
         }
       >
@@ -162,7 +140,6 @@ export function GraphPage() {
           </div>
         </div>
 
-        {/* Inside the chart's box, so search still opens over it in full screen. */}
         <CommandPalette
           items={items}
           open={searching}

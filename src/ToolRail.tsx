@@ -92,7 +92,7 @@ export function ToolRail({
   );
 }
 
-/** Takes the chart and its controls to the whole screen, and back. */
+/** Lets the chart and its controls fill the page under the header, and back. */
 export function FullscreenButton({ full, onToggle }: { full: boolean; onToggle: () => void }) {
   const label = full ? "Exit full screen" : "Full screen";
   return (
