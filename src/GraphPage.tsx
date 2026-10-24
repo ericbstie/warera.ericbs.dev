@@ -64,7 +64,7 @@ export function GraphPage() {
   }, [reset]);
 
   return (
-    <div className="flex flex-col lg:h-dvh lg:overflow-hidden">
+    <div className="flex flex-col">
       <Header items={items} onSelect={setSelected} />
 
       {error && (
@@ -73,7 +73,10 @@ export function GraphPage() {
         </div>
       )}
 
-      <main className="flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4">
+      {/* On a laptop or desktop the chart sits in the middle at a 16:9 it can be
+          read at, at most 1280px and never closer than a fifth of the screen
+          to either edge. */}
+      <main className="flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-4">
         {/* One row over the chart, no card around any of it: what is charted,
             then how it is cut, then what to draw on it. */}
         <div className="flex flex-wrap items-center gap-x-3 py-1">
@@ -95,7 +98,7 @@ export function GraphPage() {
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1 lg:aspect-video lg:flex-none">
           <Panel label="price chart">
             <PriceChart
               itemCode={selected}
