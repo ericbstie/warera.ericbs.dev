@@ -62,18 +62,28 @@ export function historyPath(itemCode: string, range: Range, interval: Interval =
   return `/api/history?${params}`;
 }
 
-export async function fetchTransactionHistory(
-  itemCode: string,
-  range: Range,
-  interval: Interval = "1d",
-): Promise<Transaction[]> {
+/** The bars, plus when the poller first saw the item — null if it never has. */
+export type History = { transactions: Transaction[]; firstIntradayAt: number | null };
+
+export async function fetchHistory(itemCode: string, range: Range, interval: Interval = "1d"): Promise<History> {
   const res = await fetch(historyPath(itemCode, range, interval));
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   // Reject an unrecognised shape rather than reading it as "never traded" —
   // an empty chart and a broken API should not look the same.
   if (!Array.isArray(json?.bars)) throw new Error("Price history came back in an unexpected shape");
-  return bucketBars(usableTransactions(json.bars), interval);
+  return {
+    transactions: bucketBars(usableTransactions(json.bars), interval),
+    firstIntradayAt: isFiniteNumber(json.firstIntradayAt) ? json.firstIntradayAt : null,
+  };
+}
+
+export async function fetchTransactionHistory(
+  itemCode: string,
+  range: Range,
+  interval: Interval = "1d",
+): Promise<Transaction[]> {
+  return (await fetchHistory(itemCode, range, interval)).transactions;
 }
 
 export type Mover = { code: string; changePct: number };
@@ -142,13 +152,17 @@ export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
 
 export function useTransactionHistory(itemCode: string, range: Range, interval: Interval = "1d") {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [firstIntradayAt, setFirstIntradayAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   // Switching item makes the bars on screen wrong outright. Switching range
   // only asks the same story at another resolution, so those stay up until the
   // new ones land rather than blinking through an empty chart.
-  useEffect(() => setTransactions([]), [itemCode]);
+  useEffect(() => {
+    setTransactions([]);
+    setFirstIntradayAt(null);
+  }, [itemCode]);
 
   useEffect(() => {
     setError(null);
@@ -159,9 +173,11 @@ export function useTransactionHistory(itemCode: string, range: Range, interval: 
 
     let cancelled = false;
     setLoading(true);
-    fetchTransactionHistory(itemCode, range, interval)
-      .then(values => {
-        if (!cancelled) setTransactions(values);
+    fetchHistory(itemCode, range, interval)
+      .then(history => {
+        if (cancelled) return;
+        setTransactions(history.transactions);
+        setFirstIntradayAt(history.firstIntradayAt);
       })
       .catch(err => {
         if (cancelled) return;
@@ -179,7 +195,7 @@ export function useTransactionHistory(itemCode: string, range: Range, interval: 
     };
   }, [itemCode, range, interval]);
 
-  return { transactions, loading, error };
+  return { transactions, firstIntradayAt, loading, error };
 }
 
 export function usePriceHistory(itemCode: string, range: Range, interval: Interval = "1d") {
