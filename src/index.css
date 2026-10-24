@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
- * Every colour is a token so the theme toggle can repaint the page by swapping
- * one attribute. The SVG charts read the same custom properties directly.
+ * Every colour is a token; the SVG charts read the same custom properties
+ * directly.
  */
 @theme {
   --color-surface: var(--surface);
@@ -35,22 +35,6 @@
     --down: #f87171;
     color-scheme: dark;
     @apply bg-surface text-ink font-sans;
-  }
-
-  :root[data-theme="light"] {
-    --surface: #f6f5f3;
-    --panel: #ffffff;
-    --canvas: #fbfbfa;
-    --edge: #dcd9d5;
-    --grid: #e9e6e3;
-    --ink: #121010;
-    --muted: #6d635c;
-    --accent: #121010;
-    --on-accent: #f6ecdd;
-    --mid: #6f8f1c;
-    --up: #157a4a;
-    --down: #b32d2e;
-    color-scheme: light;
   }
 
   /* A sideways two-finger swipe on a trackpad is how the chart is panned, so the
