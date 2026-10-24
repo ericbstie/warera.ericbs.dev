@@ -17,6 +17,9 @@
   --color-mid: var(--mid);
   --color-up: var(--up);
   --color-down: var(--down);
+  --color-level: var(--level);
+  --color-energy: var(--energy);
+  --color-production: var(--production);
 }
 
 @layer base {
@@ -33,6 +36,10 @@
     --mid: #bef264;
     --up: #4ade80;
     --down: #f87171;
+    /* A job's requirements, coloured as the game colours them. */
+    --level: #34d399;
+    --energy: #60a5fa;
+    --production: #f5a524;
     color-scheme: dark;
     @apply bg-surface text-ink font-sans;
   }
