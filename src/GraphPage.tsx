@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
-import { DepthOfMarket } from "./DepthOfMarket";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
 import { type Interval, type Range } from "./indicators";
@@ -83,9 +82,7 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* The chart takes whatever the book leaves, and the book stands beside
-          it on a wide screen and below it on a narrow one. */}
-      <main className="flex min-h-0 flex-1 flex-col gap-1 p-1 lg:flex-row">
+      <main className="flex min-h-0 flex-1 flex-col p-1">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded border border-edge bg-canvas">
           <Toolbar range={range} onRange={setRange} interval={interval} onInterval={setInterval} />
 
@@ -113,14 +110,6 @@ export function GraphPage() {
           </div>
         </section>
 
-        {/* The order book draws its own card, so it needs no wrapper of its own.
-            Under the chart it lays price out across the panel, so it wants a
-            short wide box rather than the tall one it stands in beside it. */}
-        <aside className="h-64 shrink-0 lg:h-auto lg:w-80 xl:w-96">
-          <Panel label="order book">
-            <DepthOfMarket itemCode={selected} />
-          </Panel>
-        </aside>
       </main>
 
       <CommandPalette
