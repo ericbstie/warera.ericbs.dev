@@ -39,6 +39,7 @@ const PRICE_PANE_RATIO = 0.72;
 const VOLUME_PANE_RATIO = 0.28;
 const PANE_GAP = 28;
 const VOLUME_OPACITY = 0.5;
+const FLOOR_OPACITY = 0.6;
 const DRAWING_OPACITY = 0.6;
 const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
@@ -683,7 +684,9 @@ export function PriceChart({
                         x2={width - PADDING.right}
                         y1={y(price)}
                         y2={y(price)}
-                        stroke={GRID}
+                        // The floor of the price pane is what sets it off from the volume below.
+                        stroke={row === 0 ? AXIS_TEXT : GRID}
+                        strokeOpacity={row === 0 ? FLOOR_OPACITY : undefined}
                       />
                       <text
                         x={axisX}
