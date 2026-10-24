@@ -753,7 +753,7 @@ export function PriceChart({
                         {...band(x(i), barWidth)}
                         y={volumeBottom - barHeight}
                         height={barHeight}
-                        fill={p.price >= previous ? UP : DOWN}
+                        fill={transactions[i]?.estimated ? AXIS_TEXT : p.price >= previous ? UP : DOWN}
                         fillOpacity={VOLUME_OPACITY}
                       />
                     );
@@ -801,7 +801,9 @@ export function PriceChart({
                       );
                     }
                     const prev = prices[i - 1]!.price;
-                    const color = p.price > prev ? UP : p.price < prev ? DOWN : AXIS_TEXT;
+                    // A stretch the server missed is drawn grey: its prices are a guess.
+                    const color =
+                      transactions[i]?.estimated || p.price === prev ? AXIS_TEXT : p.price > prev ? UP : DOWN;
                     const top = y(Math.max(prev, p.price));
                     const bottom = y(Math.min(prev, p.price));
                     return (
