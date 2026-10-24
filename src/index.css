@@ -57,6 +57,36 @@
     @apply min-h-screen m-0;
   }
 
+  /* Thin, quiet scrollbars on a clear track, everywhere something scrolls.
+     Chrome and Firefox read the standard properties; Safari only knows the
+     -webkit- ones. Rows that hide their scrollbar on purpose still do, since
+     utilities win over this layer. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--edge) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--edge);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted);
+  }
+
   /* Tailwind v4's preflight leaves buttons on the default arrow; anything that
      can be clicked should say so, wherever it sits. */
   button:not(:disabled),
