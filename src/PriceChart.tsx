@@ -143,6 +143,19 @@ function formatDate(date: string, withDay = false) {
 }
 
 /**
+ * The bars that open a UTC day, so a line can mark where one day ends and the
+ * next begins. Daily bars are dated rather than timestamped and have none.
+ */
+function dayStarts(dates: string[]): number[] {
+  return dates.flatMap((date, i) => {
+    if (!isTimestamp(date)) return [];
+    const previous = dates[i - 1];
+    const opens = previous === undefined ? date.slice(11, 16) === "00:00" : previous.slice(0, 10) !== date.slice(0, 10);
+    return opens ? [i] : [];
+  });
+}
+
+/**
  * Every bar is an average — a day's trades, or a moment's mid — so a bar opens
  * where the one before it closed and its high/low are the ends of that move.
  */
@@ -763,6 +776,20 @@ export function PriceChart({
                   {formatCompact(0)}
                 </text>
 
+                {/* A day-wide candle is a day already; only finer ones get split. */}
+                <g clipPath={`url(#${clipId})`}>
+                  {dayStarts(dates).map(i => (
+                    <line
+                      key={dates[i]}
+                      x1={x(i - 0.5)}
+                      x2={x(i - 0.5)}
+                      y1={priceTop}
+                      y2={priceBottom}
+                      stroke={GRID}
+                    />
+                  ))}
+                </g>
+
                 {/* Columns stand still while the bars scroll under them, so the
                     edge labels stay inside the plot at any offset. */}
                 {Array.from({ length: columns }, (_, column) => {
@@ -771,7 +798,6 @@ export function PriceChart({
                   const index = Math.round(offset + ratio * span);
                   return (
                     <g key={column}>
-                      <line x1={columnX} x2={columnX} y1={priceTop} y2={priceBottom} stroke={GRID} />
                       <text
                         x={columnX}
                         y={volumeBottom + 15}
