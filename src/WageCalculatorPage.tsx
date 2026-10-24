@@ -1,23 +1,15 @@
-import { useMemo } from "react";
-import { itemIcon, itemLabel, useItems } from "./hooks";
-import { ItemListError, Panel } from "./Panel";
-import { useSettlementData } from "./settlement";
+import { useEffect, useRef } from "react";
+import { itemIcon, itemLabel } from "./hooks";
+import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
 import { TitleBar } from "./TitleBar";
-import {
-  isProducible,
-  rankPlacements,
-  useWageData,
-  type Placement,
-} from "./wages";
-
-const TOP_PLACEMENTS = 10;
+import { usePlacements, type PlacementRow } from "./wages";
 
 function percent(value: number, sign = "") {
   return `${sign}${Number(value.toFixed(2))}%`;
 }
 
-function PlacementTable({ placements }: { placements: Placement[] }) {
+function PlacementTable({ placements }: { placements: PlacementRow[] }) {
   if (!placements.length) return <p className="text-sm text-muted">Nothing is priced well enough to rank yet.</p>;
 
   return (
@@ -39,29 +31,29 @@ function PlacementTable({ placements }: { placements: Placement[] }) {
         </thead>
         <tbody>
           {placements.map((placement, index) => (
-            <tr key={`${placement.item.code}-${placement.region.id}`} className="border-b border-edge/60">
+            <tr key={`${placement.itemCode}-${placement.regionId}`} className="border-b border-edge/60">
               <td className="py-2.5 tabular-nums text-muted">{index + 1}</td>
               <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
-                  <img src={itemIcon(placement.item.code)} alt="" width={18} height={18} className="shrink-0" />
-                  <span className="truncate">{itemLabel(placement.item.code)}</span>
+                  <img src={itemIcon(placement.itemCode)} alt="" width={18} height={18} className="shrink-0" />
+                  <span className="truncate">{itemLabel(placement.itemCode)}</span>
                 </span>
               </td>
               <td className="py-2.5 pr-2">
                 <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
-                  <span className="truncate">{placement.region.name}</span>
-                  <span className="truncate text-xs text-muted">{placement.country.name}</span>
+                  <span className="truncate">{placement.regionName}</span>
+                  <span className="truncate text-xs text-muted">{placement.countryName}</span>
                 </span>
               </td>
               <td className="hidden py-2.5 pl-1 text-right tabular-nums sm:table-cell">
-                {percent(placement.wage.bonus.total, "+")}
+                {percent(placement.bonus, "+")}
               </td>
               <td className="hidden py-2.5 pl-1 text-right tabular-nums text-muted sm:table-cell">
-                {percent(placement.wage.incomeTax)}
+                {percent(placement.incomeTax)}
               </td>
-              <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.wage.posted)}</td>
+              <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.posted)}</td>
               <td className="py-2.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
-                {formatPrice(placement.wage.afterTax)}
+                {formatPrice(placement.afterTax)}
               </td>
             </tr>
           ))}
@@ -71,23 +63,26 @@ function PlacementTable({ placements }: { placements: Placement[] }) {
   );
 }
 
+/** Asks for the next page whenever the end of the list scrolls into view. */
+function LoadMore({ onVisible }: { onVisible: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    // Well before the end, so the next page is usually there before it is wanted.
+    const observer = new IntersectionObserver(entries => entries[0]?.isIntersecting && onVisible(), {
+      rootMargin: "600px",
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [onVisible]);
+
+  return <div ref={ref} aria-hidden className="h-px" />;
+}
+
 export function WageCalculatorPage() {
-  const { items, error, retry } = useItems();
-  const { countries, industrialism, loading: settling, error: settlementError } = useSettlementData();
-
-  const producible = useMemo(() => items.filter(isProducible), [items]);
-  // Every item, not only the producible ones: a recipe is priced off the raw
-  // materials it eats as much as off what it makes.
-  const codes = useMemo(() => items.map(item => item.code), [items]);
-  const { regions, market, loading: pricing, error: marketError } = useWageData(codes);
-
-  const top = useMemo(
-    () => rankPlacements(producible, regions, countries, industrialism.levels, market, TOP_PLACEMENTS),
-    [producible, regions, countries, industrialism, market],
-  );
-
-  const loading = settling || pricing;
-  const failed = settlementError ?? marketError;
+  const { rows, loading, error, done, loadMore } = usePlacements();
 
   return (
     <>
@@ -98,19 +93,30 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
-        {error && <ItemListError onRetry={retry} />}
-        {failed && <p className="text-sm text-down">Couldn't load the market and the map, so there is nothing to rank.</p>}
-
-        <h2 className="text-base font-semibold">Top ten placements</h2>
+        <h2 className="text-base font-semibold">Best placements</h2>
         <p className="pt-2 text-sm text-muted">
-          The best paying region of every country, by what a worker keeps at break even.
+          The best paying region of every country for every item, by what a worker keeps at break even.
         </p>
         <div className="pt-5">
-          <Panel label="top placements">
-            {loading && !top.length ? (
+          <Panel label="placements">
+            {!rows.length && loading ? (
               <p className="text-sm text-muted">Ranking every item against every region…</p>
+            ) : !rows.length && error ? null : (
+              <PlacementTable placements={rows} />
+            )}
+            {error ? (
+              <p className="pt-4 text-sm text-down">
+                Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
+                <button type="button" onClick={loadMore} className="underline">
+                  Try again
+                </button>
+              </p>
             ) : (
-              <PlacementTable placements={top} />
+              rows.length > 0 && !done && (
+                // Mounted afresh after every page, so a list still too short to
+                // reach the bottom of the screen keeps asking for more.
+                loading ? <p className="pt-4 text-sm text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
+              )
             )}
           </Panel>
         </div>

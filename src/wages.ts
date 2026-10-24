@@ -9,9 +9,9 @@
 // the company can post at break even, and the country's income tax decides how
 // much of it the worker keeps.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isFiniteNumber, type MarketItem } from "./hooks";
-import { fetchBestPrices, type BestPrices } from "./orders";
+import type { BestPrices } from "./orders";
 import {
   AGRARIAN_ITEMS,
   ethicBonusFor,
@@ -90,8 +90,6 @@ export function depositActive(deposit: Deposit | undefined, now = Date.now()): b
   if (Number.isFinite(ends) && ends <= now) return false;
   return true;
 }
-
-const EMPTY_MARKET: Market = { bids: {}, asks: {} };
 
 const NO_BONUS: Bonus = { strategic: 0, ethic: 0, deposit: 0, total: 0 };
 
@@ -277,51 +275,54 @@ export function toRegions(values: unknown): Region[] {
     }));
 }
 
-export async function fetchRegions(): Promise<Region[]> {
-  const res = await fetch("/api/trpc/region.getAll?input=%7B%7D");
+export async function fetchPlacements(offset: number, limit = PLACEMENTS_PAGE_SIZE): Promise<PlacementPage> {
+  const res = await fetch(`/api/placements?offset=${offset}&limit=${limit}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
-  const regions = toRegions(json?.result?.data);
-  if (!regions.length) throw new Error("Region list came back in an unexpected shape");
-  return regions;
+  if (!Array.isArray(json?.placements)) throw new Error("Placements came back in an unexpected shape");
+  return json;
 }
 
+const rowKey = (row: PlacementRow) => `${row.itemCode} ${row.regionId}`;
+
 /**
- * The regions and the order books the calculator ranks over, fetched once for
- * the page. The books are keyed by item, so the list of items to read them for
- * has to come from the caller.
+ * The ranked list a page at a time, for a list that grows as it is scrolled.
+ * The server reranks as the order books move, so a later page can repeat a row
+ * an earlier one already showed; only the first copy is kept.
  */
-export function useWageData(itemCodes: string[]) {
-  const [regions, setRegions] = useState<Region[]>([]);
-  const [market, setMarket] = useState<Market>(EMPTY_MARKET);
-  const [loading, setLoading] = useState(true);
+export function usePlacements() {
+  const [rows, setRows] = useState<PlacementRow[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const busy = useRef(false);
+  // How far down the list the next page starts, read without waiting on a render.
+  const shownRef = useRef(0);
 
-  // A fresh array every render would re-fetch every book on every render.
-  const key = itemCodes.join(",");
-
-  useEffect(() => {
-    if (!key) return;
-    let cancelled = false;
+  const loadMore = useCallback(() => {
+    if (busy.current) return;
+    busy.current = true;
     setLoading(true);
+    setError(null);
 
-    Promise.all([fetchRegions(), fetchBestPrices(key.split(","))])
-      .then(([list, books]) => {
-        if (cancelled) return;
-        setRegions(list);
-        setMarket(books);
+    fetchPlacements(shownRef.current)
+      .then(page => {
+        shownRef.current += page.placements.length;
+        setTotal(page.total);
+        setRows(shown => {
+          const seen = new Set(shown.map(rowKey));
+          return [...shown, ...page.placements.filter(row => !seen.has(rowKey(row)))];
+        });
       })
-      .catch(err => {
-        if (!cancelled) setError(err as Error);
-      })
+      .catch(err => setError(err as Error))
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        busy.current = false;
+        setLoading(false);
       });
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [key]);
+  useEffect(loadMore, [loadMore]);
 
-  return { regions, market, loading, error };
+  const done = total !== null && shownRef.current >= total;
+  return { rows, total, loading, error, done, loadMore };
 }
