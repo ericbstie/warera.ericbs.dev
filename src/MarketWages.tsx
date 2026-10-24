@@ -38,7 +38,7 @@ function JobCard({ job, rank }: { job: JobRow; rank: number }) {
         </div>
         <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-muted">
           <span>{job.openings} open</span>
-          {job.minLevel && <span>· level {job.minLevel}+</span>}
+          {job.minLevel && <span>level {job.minLevel}+</span>}
         </div>
       </a>
     </li>
