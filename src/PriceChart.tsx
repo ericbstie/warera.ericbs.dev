@@ -179,6 +179,8 @@ export function PriceChart({
   const prices = useMemo(() => toPriceHistory(transactions), [transactions]);
   const { ref, width, height: boxed } = useContainerSize();
   const [hovered, setHovered] = useState<number | null>(null);
+  /** Which pane the cursor is over: the volume pane reads volume, not price. */
+  const [pane, setPane] = useState<"price" | "volume">("price");
   const [draft, setDraft] = useState<DraggedDrawing | null>(null);
   const [scale, setScale] = useState<Scale>(FIT);
   const panFrom = useRef<{ x: number; y: number; offset: number; shift: number } | null>(null);
@@ -206,7 +208,10 @@ export function PriceChart({
   // click elsewhere on the page drops it back to the most recent one.
   useEffect(() => {
     const onPointerDown = (event: globalThis.PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setHovered(null);
+      if (!ref.current?.contains(event.target as Node)) {
+        setHovered(null);
+        setPane("price");
+      }
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -305,7 +310,10 @@ export function PriceChart({
     const bounds = event.currentTarget.getBoundingClientRect();
     const ratio = (event.clientX - bounds.left - PADDING.left) / innerWidth;
     const index = clamp(Math.round(offset + ratio * span), 0, lastIndex(prices.length));
-    return { index, price: priceAt(event.clientY - bounds.top) };
+    const offsetY = event.clientY - bounds.top;
+    // The gap between the panes is split down the middle.
+    const over = offsetY > priceBottom + PANE_GAP / 2 ? "volume" : "price";
+    return { index, price: priceAt(offsetY), over } as const;
   };
 
   /** Where along the plot a client x falls: 0 at the left edge of it, 1 at the right. */
@@ -378,8 +386,9 @@ export function PriceChart({
       return;
     }
     if (pointers.current.size > 2) return;
-    const { index, price } = locate(event);
+    const { index, price, over } = locate(event);
     setHovered(index);
+    setPane(over);
     // Capture keeps the drag alive when a finger slides off the plot.
     event.currentTarget.setPointerCapture(event.pointerId);
     // The crosshair is also the hand: dragging it carries the chart along in
@@ -405,8 +414,10 @@ export function PriceChart({
     }
     // Read the bar before the pan lands: measured against the offset it was
     // grabbed at, the bar under the finger stays under the finger.
-    const { index, price } = locate(event);
+    const { index, price, over } = locate(event);
     setHovered(index);
+    // A drag keeps the pane it started in, so the crosshair doesn't flip mid-pan.
+    if (!panFrom.current) setPane(over);
     if (panFrom.current) {
       panTo(panFrom.current.offset + (panFrom.current.x - event.clientX) / spacing);
       // The bars follow the finger, so pulling down lifts the window to the
@@ -476,6 +487,7 @@ export function PriceChart({
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key === "Escape") {
       setHovered(null);
+      setPane("price");
       setDraft(null);
       return;
     }
@@ -509,6 +521,13 @@ export function PriceChart({
   const dateTagX = point
     ? Math.min(Math.max(x(legendIndex) - dateTagWidth / 2, 0), Math.max(width - dateTagWidth, 0))
     : 0;
+
+  const onVolume = pane === "volume";
+  const volume = transactions[dataIndex]?.totalQuantity ?? 0;
+  const volumeTag = formatCompact(volume);
+  const volumeTagWidth = volumeTag.length * LABEL_CHAR_WIDTH + 10;
+  const volumeTagX = clamp(x(dataIndex), PADDING.left + volumeTagWidth / 2, plotRight - volumeTagWidth / 2);
+  const volumeTagY = volumeBottom - (volume / maxVolume) * volumeHeight - 12;
 
   const overlayLines = OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
     const style = OVERLAY_STYLE[entry.id];
@@ -756,7 +775,7 @@ export function PriceChart({
                 <g clipPath={`url(#${priceClipId})`}>
                   {overlayLines}
 
-                  {point && (
+                  {point && !onVolume && (
                     <line
                       x1={PADDING.left}
                       x2={width - PADDING.right}
@@ -802,37 +821,65 @@ export function PriceChart({
                 {drawings.map((drawing, i) => renderDrawing(drawing, `drawing-${i}`))}
                 {draft && renderDrawing(draft, "draft")}
 
-                {point && (
+                {point && onVolume && (
                   <g>
-                    <g clipPath={`url(#${priceClipId})`}>
-                      <circle
-                        cx={x(dataIndex)}
-                        cy={y(point.price)}
-                        r="4"
-                        fill={SERIES}
-                        stroke={SURFACE}
-                        strokeWidth="2"
-                      />
-                    </g>
                     <rect
-                      x={width - PADDING.right + 4}
-                      y={tagY - 9}
-                      width={PADDING.right - 8}
-                      height="18"
+                      x={volumeTagX - volumeTagWidth / 2}
+                      y={volumeTagY - 9}
+                      width={volumeTagWidth}
+                      height="17"
                       rx="3"
                       fill={PANEL}
                       stroke={EDGE}
                     />
                     <text
-                      x={axisX}
-                      y={tagY}
-                      textAnchor="end"
+                      x={volumeTagX}
+                      y={volumeTagY}
+                      textAnchor="middle"
                       dominantBaseline="middle"
                       fontSize="11"
                       fill={LABEL_TEXT}
                     >
-                      {point.price.toFixed(decimals)}
+                      {volumeTag}
                     </text>
+                  </g>
+                )}
+
+                {point && (
+                  <g>
+                    {!onVolume && (
+                      <>
+                        <g clipPath={`url(#${priceClipId})`}>
+                          <circle
+                            cx={x(dataIndex)}
+                            cy={y(point.price)}
+                            r="4"
+                            fill={SERIES}
+                            stroke={SURFACE}
+                            strokeWidth="2"
+                          />
+                        </g>
+                        <rect
+                          x={width - PADDING.right + 4}
+                          y={tagY - 9}
+                          width={PADDING.right - 8}
+                          height="18"
+                          rx="3"
+                          fill={PANEL}
+                          stroke={EDGE}
+                        />
+                        <text
+                          x={axisX}
+                          y={tagY}
+                          textAnchor="end"
+                          dominantBaseline="middle"
+                          fontSize="11"
+                          fill={LABEL_TEXT}
+                        >
+                          {point.price.toFixed(decimals)}
+                        </text>
+                      </>
+                    )}
                     <rect
                       x={dateTagX}
                       y={volumeBottom + 3}
