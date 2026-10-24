@@ -104,7 +104,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
       <table className="w-full table-fixed text-base">
         <thead className="text-muted">
           <tr className="border-b border-edge">
-            <th className="w-6 pb-3 text-left font-normal">#</th>
+            <th className="w-14 pb-3 pr-3 text-right font-normal">#</th>
             <th className="w-24 pb-3 text-left font-normal sm:w-36">Item</th>
             <th className="pb-3 text-left font-normal">Where</th>
             {/* A phone has no room for the workings, only for the answer. */}
@@ -117,7 +117,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
         <tbody>
           {placements.map((placement, index) => (
             <tr key={`${placement.itemCode}-${placement.regionId}`} className="border-b border-edge/60">
-              <td className="py-2.5 tabular-nums text-muted">{index + 1}</td>
+              <td className="py-2.5 pr-3 text-right tabular-nums text-muted">{index + 1}</td>
               <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
                   <img src={itemIcon(placement.itemCode)} alt="" width={18} height={18} className="shrink-0" />
