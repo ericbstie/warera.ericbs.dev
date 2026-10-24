@@ -118,7 +118,7 @@ export function GraphPage() {
         className={
           full
             ? "fixed inset-0 z-40 flex flex-col bg-surface px-3 pb-2 sm:px-4"
-            : "flex min-h-0 flex-1 flex-col px-3 pb-1 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-4"
+            : "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-4 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-14"
         }
       >
         {/* One faint outline holds the chart and the row that drives it, so
