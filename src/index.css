@@ -65,6 +65,14 @@
   body {
     @apply min-h-screen m-0;
   }
+
+  /* Tailwind v4's preflight leaves buttons on the default arrow; anything that
+     can be clicked should say so, wherever it sits. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  select:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* The slide is what tells a reader the panel came in from the edge rather than
