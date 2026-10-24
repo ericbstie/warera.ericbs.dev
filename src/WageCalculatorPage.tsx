@@ -85,7 +85,7 @@ function TopItems() {
     <section className="pb-10">
       <h2 className="text-xl font-semibold">Top items</h2>
       <p className="pt-2 text-sm text-muted">The most profitable items to produce, each where it pays best.</p>
-      <ol className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 pt-5 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
+      <ol className="-mx-6 flex snap-x scroll-px-6 gap-3 overflow-x-auto px-6 pb-2 pt-5 sm:-mx-10 sm:scroll-px-10 sm:px-10 lg:-mx-16 lg:scroll-px-16 lg:px-16">
         {rows.map((row, index) => (
           <ItemCard key={row.itemCode} row={row} rank={index + 1} now={now} />
         ))}
@@ -178,8 +178,12 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
-        <MarketWages />
-        <TopItems />
+        {/* Inset further than the list below, which keeps the full width. The
+            card rows reach back out through the inset so they still scroll edge to edge. */}
+        <div className="px-2 sm:px-4 lg:px-8">
+          <MarketWages />
+          <TopItems />
+        </div>
         <h2 className="text-base font-semibold">Best placements</h2>
         <p className="pt-2 text-sm text-muted">
           The best paying region of every country for every item, by what a worker keeps at break even.

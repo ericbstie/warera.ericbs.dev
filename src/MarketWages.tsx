@@ -58,7 +58,7 @@ export function MarketWages() {
       <p className="pt-2 text-sm text-muted">
         The best paying job offers for a worker with {MAX_ENERGY} energy and {MAX_PRODUCTION} production.
       </p>
-      <ol className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 pt-5 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
+      <ol className="-mx-6 flex snap-x scroll-px-6 gap-3 overflow-x-auto px-6 pb-2 pt-5 sm:-mx-10 sm:scroll-px-10 sm:px-10 lg:-mx-16 lg:scroll-px-16 lg:px-16">
         {rows.map((job, index) => (
           <JobCard key={job.offerId} job={job} rank={index + 1} />
         ))}
