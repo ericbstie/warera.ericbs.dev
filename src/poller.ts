@@ -5,10 +5,10 @@
 
 import type { Database } from "bun:sqlite";
 import { recordDailyTrading, recordSnapshots } from "./db";
-import { dailyRows, latestDay, snapshotFromBook, type DayTotals } from "./history";
+import { dailyRows, latestDay, POLL_INTERVAL_MS, snapshotFromBook, type DayTotals } from "./history";
 import { batchPath, chunk, TRPC_UPSTREAM, UPSTREAM_TIMEOUT_MS } from "./trpc";
 
-export const POLL_INTERVAL_MS = 15 * 60 * 1000;
+export { POLL_INTERVAL_MS };
 
 // One request per item would be 100+ calls a poll; upstream takes them in
 // batches, so send them in chunks that keep the URL a sane length.

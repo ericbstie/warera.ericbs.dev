@@ -456,7 +456,7 @@ function serveHistory(req: Request, db: Database): Response {
 
   const since = Date.now() - historyDays(params.get("days")) * DAY_MS;
   const bars = params.get("intraday")
-    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since))
+    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since)
     : readDailyTrading(db, itemCode, day(since));
 
   return jsonResponse(req, JSON.stringify({ bars }), POLL_INTERVAL_MS / 1000);

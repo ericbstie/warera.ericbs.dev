@@ -97,19 +97,30 @@ export function dailyRows(itemCode: string, values: unknown): DailyRow[] {
   }));
 }
 
+/** How often the poller reads the market; history.ts owns it so the bars can find the gaps. */
+export const POLL_INTERVAL_MS = 15 * 60 * 1000;
+
 /**
  * The polled series as the chart reads it: a mid price and what traded since
  * the previous poll. `valueAt` carries a full timestamp here where a daily row
  * carries a date, which is what tells the two apart downstream.
+ *
+ * While the server is down nothing is polled, so the first poll back would
+ * carry the whole outage's trading as one spike. Instead it is spread evenly
+ * over the polls that were missed, with the price walked in a straight line
+ * across them, and those bars are marked `estimated`. Missed polls before
+ * `since` belong to an earlier window and are left out with their share.
  */
 export function intradayBars(
   snapshots: Array<Omit<BookSnapshot, "itemCode">>,
-  leadIn: SnapshotTotals | null = null,
+  leadIn: (SnapshotTotals & { capturedAt?: number }) | null = null,
+  since = -Infinity,
+  intervalMs = POLL_INTERVAL_MS,
 ): Transaction[] {
   const bars: Transaction[] = [];
   // The poll before the window, so the bar at the left edge reports what traded
   // in its own quarter-hour rather than everything since midnight.
-  let previous: SnapshotTotals | null = leadIn;
+  let previous: (SnapshotTotals & { capturedAt?: number }) | null = leadIn;
 
   for (const snapshot of snapshots) {
     // Totals count up through a day and start again at midnight, so a fall
@@ -117,6 +128,7 @@ export function intradayBars(
     const carried = previous !== null && snapshot.dayQuantity >= previous.dayQuantity;
     const totalValue = carried ? snapshot.dayValue - previous!.dayValue : snapshot.dayValue;
     const totalQuantity = carried ? snapshot.dayQuantity - previous!.dayQuantity : snapshot.dayQuantity;
+    const gapStart = previous?.capturedAt;
     // Advanced even for a snapshot that draws no bar, so the next bar still
     // measures against the poll before it rather than one further back.
     previous = snapshot;
@@ -126,13 +138,23 @@ export function intradayBars(
     // reads better than a line dropped to whatever the other side asked.
     if (price === null) continue;
 
-    bars.push({
-      valueAt: new Date(snapshot.capturedAt).toISOString(),
-      avgValue: price,
-      totalValue,
-      totalQuantity,
-      transactionsCount: 0,
-    });
+    // Half a poll of slack, so a late poll isn't mistaken for a missed one.
+    const slots = gapStart === undefined ? 1 : Math.max(1, Math.round((snapshot.capturedAt - gapStart) / intervalMs));
+    const estimated = slots > 1;
+    const from = bars[bars.length - 1]?.avgValue ?? price;
+
+    for (let slot = 1; slot <= slots; slot++) {
+      const at = slot === slots ? snapshot.capturedAt : gapStart! + slot * intervalMs;
+      if (at < since) continue;
+      bars.push({
+        valueAt: new Date(at).toISOString(),
+        avgValue: from + ((price - from) * slot) / slots,
+        totalValue: totalValue / slots,
+        totalQuantity: totalQuantity / slots,
+        transactionsCount: 0,
+        ...(estimated && { estimated }),
+      });
+    }
   }
 
   return bars;

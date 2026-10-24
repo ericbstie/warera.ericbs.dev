@@ -7,6 +7,8 @@ export type Transaction = {
   totalValue: number;
   totalQuantity: number;
   transactionsCount: number;
+  /** Filled in over a stretch the server wasn't polling, rather than observed. */
+  estimated?: boolean;
 };
 
 export type PricePoint = { date: string; price: number };
