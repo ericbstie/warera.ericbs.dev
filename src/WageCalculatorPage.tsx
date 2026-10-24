@@ -177,9 +177,9 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
-        {/* Inset further than the list below, which keeps the full width. The
-            card rows reach back out through the inset so they still scroll edge to edge. */}
-        <div className="px-2 sm:px-4 lg:px-8">
+        {/* Inset further than the list below, which keeps the full width. Side
+            by side where there is room for both lists, stacked on a phone. */}
+        <div className="grid gap-x-16 px-2 sm:px-4 lg:grid-cols-2 lg:px-8">
           <MarketWages />
           <TopItems />
         </div>
