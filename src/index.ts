@@ -6,6 +6,7 @@ import { openDatabase, readDailyByItem, readDailyTrading, readSnapshotBefore, re
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
+import { JOB_OFFERS_PATH, openOffers, toJobRow } from "./jobs";
 import { bestPricesFromBatch, ORDER_BOOK_BATCH_SIZE, type BestPrices } from "./orders";
 import { POLL_INTERVAL_MS, startPolling } from "./poller";
 import type { Country } from "./settlement";
@@ -359,6 +360,46 @@ async function servePlacements(req: Request): Promise<Response> {
   }
 }
 
+// --- market wages --------------------------------------------------------
+// The best offers on the job market, each with the company that posted it and
+// the player who owns that company. Offers only carry ids, so that is one
+// batched lookup for the companies and one for their owners on top of the
+// offers themselves, built once per TTL however many people are looking.
+
+const JOBS_TTL_MS = 60 * 1000;
+
+/** What each call in a batch came back with, in the order the calls went out. */
+function batchData(entries: unknown): unknown[] {
+  if (!Array.isArray(entries)) throw new Error("Batched lookup did not answer with a list");
+  return entries.map(entry => (entry as { result?: { data?: unknown } }).result?.data);
+}
+
+async function buildJobs(): Promise<TrpcEntry> {
+  const offers = openOffers(await trpcData(JOB_OFFERS_PATH));
+
+  const companyIds = [...new Set(offers.map(offer => offer.company))];
+  const userIds = [...new Set(offers.map(offer => offer.user))];
+  const [companies, users] = await Promise.all([
+    companyIds.length ? trpcData(batchPath("company.getById", companyIds.map(companyId => ({ companyId })))).then(batchData) : [],
+    userIds.length ? trpcData(batchPath("user.getUserLite", userIds.map(userId => ({ userId })))).then(batchData) : [],
+  ]);
+  const companyById = new Map(companyIds.map((id, index) => [id, companies[index] as { name?: string; itemCode?: string }]));
+  const userById = new Map(userIds.map((id, index) => [id, users[index] as { username?: string }]));
+
+  const jobs = offers.map(offer => toJobRow(offer, companyById.get(offer.company), userById.get(offer.user)));
+  const body = JSON.stringify({ jobs });
+  return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + JOBS_TTL_MS, etag: etagFor(body) };
+}
+
+async function serveJobs(req: Request): Promise<Response> {
+  try {
+    const { entry, status } = await cached("GET /api/jobs", buildJobs, { staleWhileRevalidate: true });
+    return trpcResponse(req, entry, status);
+  } catch (err) {
+    return upstreamFailure(err, "market wages");
+  }
+}
+
 // --- recorded market history ----------------------------------------------
 // Upstream answers with 30 days of trading and nothing finer than a day, so a
 // poller writes the live order book and those daily totals into SQLite on a
@@ -502,6 +543,7 @@ const server = isProduction
           "/api/movers": req => serveMovers(req, historyDb),
           "/api/industrialism": serveIndustrialism,
           "/api/placements": servePlacements,
+          "/api/jobs": serveJobs,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
@@ -519,6 +561,7 @@ const server = isProduction
         "/api/movers": req => serveMovers(req, historyDb),
         "/api/industrialism": serveIndustrialism,
         "/api/placements": servePlacements,
+        "/api/jobs": serveJobs,
         "/api/trpc/*": proxyTrpc,
         "/*": index,
       },

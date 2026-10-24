@@ -18,6 +18,7 @@ export const TRPC_TTL_MS: Record<string, number> = {
   "itemTrading.getItemTrading": 10 * 60 * 1000,
   "itemTrading.getPrices": 60 * 1000,
   "tradingOrder.getTopOrders": 45 * 1000,
+  "workOffer.getWorkOffersPaginated": 60 * 1000,
 };
 
 export const INDUSTRIALISM_TTL_MS = 60 * 60 * 1000;
