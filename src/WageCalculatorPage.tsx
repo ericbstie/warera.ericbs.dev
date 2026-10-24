@@ -83,7 +83,7 @@ function TopItems() {
 
   return (
     <section className="pb-10">
-      <h2 className="text-base font-semibold">Top items</h2>
+      <h2 className="text-xl font-semibold">Top items</h2>
       <p className="pt-2 text-sm text-muted">The most profitable items to produce, each where it pays best.</p>
       <ol className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 pt-5 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
         {rows.map((row, index) => (
