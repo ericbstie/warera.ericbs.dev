@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { Header } from "./Header";
 import { itemIcon, itemLabel } from "./hooks";
 import { MarketWages } from "./MarketWages";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
-import { TitleBar } from "./TitleBar";
 import { usePlacements, useTopItems, type PlacementRow } from "./wages";
 
 function percent(value: number, sign = "") {
@@ -172,11 +172,7 @@ export function WageCalculatorPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-edge bg-panel">
-        <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 sm:pt-2 lg:px-8">
-          <TitleBar />
-        </div>
-      </header>
+      <Header />
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
         {/* One inset for the whole page, so the markets and the placements below share their edges. */}

@@ -147,7 +147,7 @@ export function Ticker({ items, onSelect }: { items: string[]; onSelect: (code: 
   return (
     <div
       ref={trackRef}
-      className="min-w-0 basis-full cursor-pointer select-none overflow-x-auto sm:flex-1 sm:basis-40 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
+      className="min-w-0 cursor-pointer select-none overflow-x-auto [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
       aria-label="7 day change"
       onPointerEnter={pause}
       onPointerLeave={() => (drag.current ? scheduleResume() : resumeNow())}

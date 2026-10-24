@@ -6,7 +6,7 @@ import { PageToggle } from "./PageToggle";
  */
 export function TitleBar() {
   return (
-    <div className="flex justify-center sm:mb-3">
+    <div className="flex justify-center">
       <PageToggle />
     </div>
   );

@@ -1,22 +1,16 @@
-import { Ticker } from "./Ticker";
+import type { ReactNode } from "react";
 import { TitleBar } from "./TitleBar";
-import { type MarketItem } from "./hooks";
 
-export function Header({
-  items,
-  onSelect,
-}: {
-  items: MarketItem[];
-  onSelect: (code: string) => void;
-}) {
+/**
+ * The one header every page shares, so the page switch sits in the same place
+ * on all of them. A page can hang a row of its own under it.
+ */
+export function Header({ children }: { children?: ReactNode }) {
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-panel">
-      <div className="flex flex-col gap-y-3 px-3 pb-3 pt-4 sm:px-4 sm:pt-2">
+      <div className="flex flex-col gap-y-3 px-4 pb-3 pt-4 sm:px-6 sm:pt-2">
         <TitleBar />
-
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <Ticker items={items.map(item => item.code)} onSelect={onSelect} />
-        </div>
+        {children}
       </div>
     </header>
   );

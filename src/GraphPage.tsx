@@ -7,6 +7,7 @@ import { availableRanges, largestRange, type Interval, type Range } from "./indi
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
 import { ScrollFade } from "./ScrollFade";
+import { Ticker } from "./Ticker";
 import { Divider, Toolbar } from "./Toolbar";
 import { FullscreenButton, ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
@@ -81,7 +82,9 @@ export function GraphPage() {
 
   return (
     <div className={full ? "flex h-dvh flex-col overflow-hidden" : "flex flex-col"}>
-      <Header items={items} onSelect={setSelected} />
+      <Header>
+        <Ticker items={items.map(item => item.code)} onSelect={setSelected} />
+      </Header>
 
       {error && (
         <div className="px-1 pt-1">
