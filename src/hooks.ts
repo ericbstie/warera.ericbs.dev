@@ -199,7 +199,12 @@ export async function fetchItems(): Promise<MarketItem[]> {
   });
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
-  const items = json?.result?.data?.items as Record<string, Omit<MarketItem, "code" | "type"> & {
+  return itemsFromConfig(json?.result?.data);
+}
+
+/** The game config lists every item; only the tradable ones belong on a market page. */
+export function itemsFromConfig(config: unknown): MarketItem[] {
+  const items = (config as { items?: unknown } | undefined)?.items as Record<string, Omit<MarketItem, "code" | "type"> & {
     isTradable?: boolean;
     type?: string;
   }> | undefined;
