@@ -43,37 +43,36 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
   );
 }
 
-function ItemCard({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
+/** One place on the leaderboard, laid out like a market wage's row. */
+function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
-    <li className="relative flex w-56 shrink-0 snap-start flex-col gap-3 overflow-hidden rounded border border-edge bg-panel p-4">
-      {/* Tucked into the corner, flush with the card's own edges. */}
-      <span className="absolute right-0 top-0 rounded-bl border-b border-l border-edge bg-surface px-2.5 py-1 text-base font-semibold tabular-nums">
-        #{rank}
-      </span>
-      <img src={itemIcon(row.itemCode)} alt={itemLabel(row.itemCode)} title={itemLabel(row.itemCode)} width={48} height={48} />
-      <div>
-        <p className="text-3xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+    <li className="flex items-center gap-3 border-b border-edge/60 py-3 sm:gap-4">
+      <span className="w-6 shrink-0 text-right text-lg font-semibold tabular-nums text-muted">{rank}</span>
+      <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-lg">{itemLabel(row.itemCode)}</p>
+        <p className="truncate text-base text-muted">
+          {row.regionName}, {row.countryName}
+        </p>
+        {row.deposit > 0 && (
+          <div className="pt-1">
+            <DepositLabel row={row} now={now} />
+          </div>
+        )}
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-2xl font-semibold leading-tight tabular-nums sm:text-3xl" style={{ color: "var(--up)" }}>
           {formatPrice(row.afterTax)}
         </p>
-        <p className="pt-1 text-base">
-          <span className="font-semibold tabular-nums">{formatPrice(row.posted)}</span>
-          <span className="pl-1 text-sm tabular-nums text-muted">({percent(row.incomeTax)} tax)</span>
+        <p className="text-sm tabular-nums text-muted">
+          {formatPrice(row.posted)} · {percent(row.incomeTax)} tax
         </p>
       </div>
-      <div className="min-w-0 text-sm leading-tight">
-        <p className="truncate">{row.regionName}</p>
-        <p className="truncate text-muted">{row.countryName}</p>
-      </div>
-      {row.deposit > 0 && (
-        <div className="mt-auto">
-          <DepositLabel row={row} now={now} />
-        </div>
-      )}
     </li>
   );
 }
 
-/** The most profitable items, each at the best place to make it, in a row that scrolls sideways. */
+/** The most profitable items, each at the best place to make it. */
 function TopItems() {
   const { rows, error } = useTopItems();
   const now = useNow();
@@ -82,12 +81,12 @@ function TopItems() {
   if (!rows.length) return null;
 
   return (
-    <section className="pb-10">
+    <section className="min-w-0 pb-10">
       <h2 className="text-2xl font-semibold">Top items</h2>
       <p className="pt-2 text-base text-muted">The most profitable items to produce, each where it pays best.</p>
-      <ol className="-mx-6 flex snap-x scroll-px-6 gap-3 overflow-x-auto px-6 pb-2 pt-5 sm:-mx-10 sm:scroll-px-10 sm:px-10 lg:-mx-16 lg:scroll-px-16 lg:px-16">
+      <ol className="pt-4">
         {rows.map((row, index) => (
-          <ItemCard key={row.itemCode} row={row} rank={index + 1} now={now} />
+          <ItemRow key={row.itemCode} row={row} rank={index + 1} now={now} />
         ))}
       </ol>
     </section>
