@@ -44,30 +44,30 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
 
 function ItemCard({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
-    <li className="flex w-52 shrink-0 snap-start flex-col gap-3 rounded border border-edge bg-panel p-4">
-      <div className="flex items-start justify-between gap-2">
-        <img src={itemIcon(row.itemCode)} alt={itemLabel(row.itemCode)} title={itemLabel(row.itemCode)} width={48} height={48} />
-        <span className="text-xs tabular-nums text-muted">#{rank}</span>
-      </div>
+    <li className="relative flex w-52 shrink-0 snap-start flex-col gap-3 overflow-hidden rounded border border-edge bg-panel p-4">
+      {/* Tucked into the corner, flush with the card's own edges. */}
+      <span className="absolute right-0 top-0 rounded-bl border-b border-l border-edge bg-surface px-2.5 py-1 text-sm font-semibold tabular-nums">
+        #{rank}
+      </span>
+      <img src={itemIcon(row.itemCode)} alt={itemLabel(row.itemCode)} title={itemLabel(row.itemCode)} width={48} height={48} />
       <div>
         <p className="text-2xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
           {formatPrice(row.afterTax)}
         </p>
-        <p className="text-xs text-muted">after tax</p>
+        <p className="pt-1 text-sm">
+          <span className="font-semibold tabular-nums">{formatPrice(row.posted)}</span>
+          <span className="pl-1 text-xs tabular-nums text-muted">({percent(row.incomeTax)} tax)</span>
+        </p>
       </div>
-      <p className="text-sm">
-        <span className="font-semibold tabular-nums">{formatPrice(row.posted)}</span>
-        <span className="pl-1 text-xs text-muted">wage</span>
-      </p>
       <div className="min-w-0 text-xs leading-tight">
         <p className="truncate">{row.regionName}</p>
         <p className="truncate text-muted">{row.countryName}</p>
       </div>
-      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-muted">
-        <span>{percent(row.bonus, "+")} bonus</span>
-        <span>{percent(row.incomeTax)} tax</span>
-        <DepositLabel row={row} now={now} />
-      </div>
+      {row.deposit > 0 && (
+        <div className="mt-auto">
+          <DepositLabel row={row} now={now} />
+        </div>
+      )}
     </li>
   );
 }
