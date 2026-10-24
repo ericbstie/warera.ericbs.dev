@@ -1,12 +1,96 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { itemIcon, itemLabel } from "./hooks";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
 import { TitleBar } from "./TitleBar";
-import { usePlacements, type PlacementRow } from "./wages";
+import { usePlacements, useTopItems, type PlacementRow } from "./wages";
 
 function percent(value: number, sign = "") {
   return `${sign}${Number(value.toFixed(2))}%`;
+}
+
+/** Ticks once a second, for anything counting down. */
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+/** The two largest units left, so a deposit days out doesn't tick seconds at you. */
+export function timeLeft(ms: number): string {
+  if (ms <= 0) return "ending";
+  const total = Math.floor(ms / 1000);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
+  if (!row.deposit) return null;
+  const ends = row.depositEndsAt ? Date.parse(row.depositEndsAt) : NaN;
+  return (
+    <span className="rounded border border-accent px-1.5 py-0.5 text-[11px] font-medium text-accent">
+      Deposit{Number.isFinite(ends) && <span className="tabular-nums"> · {timeLeft(ends - now)}</span>}
+    </span>
+  );
+}
+
+function ItemCard({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
+  return (
+    <li className="flex w-52 shrink-0 snap-start flex-col gap-3 rounded border border-edge bg-panel p-4">
+      <div className="flex items-start justify-between gap-2">
+        <img src={itemIcon(row.itemCode)} alt={itemLabel(row.itemCode)} title={itemLabel(row.itemCode)} width={48} height={48} />
+        <span className="text-xs tabular-nums text-muted">#{rank}</span>
+      </div>
+      <div>
+        <p className="text-2xl font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+          {formatPrice(row.afterTax)}
+        </p>
+        <p className="text-xs text-muted">after tax</p>
+      </div>
+      <p className="text-sm">
+        <span className="font-semibold tabular-nums">{formatPrice(row.posted)}</span>
+        <span className="pl-1 text-xs text-muted">wage</span>
+      </p>
+      <div className="min-w-0 text-xs leading-tight">
+        <p className="truncate">{row.regionName}</p>
+        <p className="truncate text-muted">{row.countryName}</p>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-muted">
+        <span>{percent(row.bonus, "+")} bonus</span>
+        <span>{percent(row.incomeTax)} tax</span>
+        <DepositLabel row={row} now={now} />
+      </div>
+    </li>
+  );
+}
+
+/** The most profitable items, each at the best place to make it, in a row that scrolls sideways. */
+function TopItems() {
+  const { rows, error } = useTopItems();
+  const now = useNow();
+
+  if (error) return <p className="text-sm text-down">Couldn't load the top items.</p>;
+  if (!rows.length) return null;
+
+  return (
+    <section className="pb-10">
+      <h2 className="text-base font-semibold">Top items</h2>
+      <p className="pt-2 text-sm text-muted">The most profitable items to produce, each where it pays best.</p>
+      <ol className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 pt-5 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
+        {rows.map((row, index) => (
+          <ItemCard key={row.itemCode} row={row} rank={index + 1} now={now} />
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 function PlacementTable({ placements }: { placements: PlacementRow[] }) {
@@ -93,6 +177,7 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+        <TopItems />
         <h2 className="text-base font-semibold">Best placements</h2>
         <p className="pt-2 text-sm text-muted">
           The best paying region of every country for every item, by what a worker keeps at break even.

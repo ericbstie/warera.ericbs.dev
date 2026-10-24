@@ -286,8 +286,8 @@ export function toRegions(values: unknown): Region[] {
     }));
 }
 
-export async function fetchPlacements(offset: number, limit = PLACEMENTS_PAGE_SIZE): Promise<PlacementPage> {
-  const res = await fetch(`/api/placements?offset=${offset}&limit=${limit}`);
+export async function fetchPlacements(offset: number, limit = PLACEMENTS_PAGE_SIZE, per = ""): Promise<PlacementPage> {
+  const res = await fetch(`/api/placements?offset=${offset}&limit=${limit}${per ? `&per=${per}` : ""}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   if (!Array.isArray(json?.placements)) throw new Error("Placements came back in an unexpected shape");
@@ -336,4 +336,25 @@ export function usePlacements() {
 
   const done = total !== null && shownRef.current >= total;
   return { rows, total, loading, error, done, loadMore };
+}
+
+/** How many items the cards above the list rank. */
+export const TOP_ITEMS = 10;
+
+/** Each item's best placement, most profitable item first. */
+export function useTopItems() {
+  const [rows, setRows] = useState<PlacementRow[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlacements(0, TOP_ITEMS, "item")
+      .then(page => !cancelled && setRows(page.placements))
+      .catch(err => !cancelled && setError(err as Error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { rows, error };
 }
