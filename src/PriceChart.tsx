@@ -37,7 +37,7 @@ const EDGE = "var(--edge)";
 /** The drawable height is split between the two panes, with a gap between them. */
 const PRICE_PANE_RATIO = 0.72;
 const VOLUME_PANE_RATIO = 0.28;
-const PANE_GAP = 28;
+const PANE_GAP = 40;
 const VOLUME_OPACITY = 0.5;
 const FLOOR_OPACITY = 0.6;
 const DRAWING_OPACITY = 0.6;
