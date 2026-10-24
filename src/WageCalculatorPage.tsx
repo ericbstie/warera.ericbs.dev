@@ -179,38 +179,40 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
-        {/* Inset further than the list below, which keeps the full width. Side
-            by side where there is room for both lists, stacked on a phone. */}
-        <div className="grid gap-x-16 px-2 sm:px-4 lg:grid-cols-2 lg:px-8">
-          <MarketWages />
-          <TopItems />
-        </div>
-        <h2 className="text-2xl font-semibold">Best placements</h2>
-        <p className="pt-2 text-base text-muted">
-          The best paying region of every country for every item, by what a worker keeps at break even.
-        </p>
-        <div className="pt-5">
-          <Panel label="placements">
-            {!rows.length && loading ? (
-              <p className="text-base text-muted">Ranking every item against every region…</p>
-            ) : !rows.length && error ? null : (
-              <PlacementTable placements={rows} />
-            )}
-            {error ? (
-              <p className="pt-4 text-base text-down">
-                Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
-                <button type="button" onClick={loadMore} className="underline">
-                  Try again
-                </button>
-              </p>
-            ) : (
-              rows.length > 0 && !done && (
-                // Mounted afresh after every page, so a list still too short to
-                // reach the bottom of the screen keeps asking for more.
-                loading ? <p className="pt-4 text-base text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
-              )
-            )}
-          </Panel>
+        {/* One inset for the whole page, so the markets and the placements below share their edges. */}
+        <div className="px-2 sm:px-4 lg:px-8">
+          {/* Side by side where there is room for both lists, stacked on a phone. */}
+          <div className="grid gap-x-16 lg:grid-cols-2">
+            <MarketWages />
+            <TopItems />
+          </div>
+          <h2 className="text-2xl font-semibold">Best placements</h2>
+          <p className="pt-2 text-base text-muted">
+            The best paying region of every country for every item, by what a worker keeps at break even.
+          </p>
+          <div className="pt-5">
+            <Panel label="placements">
+              {!rows.length && loading ? (
+                <p className="text-base text-muted">Ranking every item against every region…</p>
+              ) : !rows.length && error ? null : (
+                <PlacementTable placements={rows} />
+              )}
+              {error ? (
+                <p className="pt-4 text-base text-down">
+                  Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
+                  <button type="button" onClick={loadMore} className="underline">
+                    Try again
+                  </button>
+                </p>
+              ) : (
+                rows.length > 0 && !done && (
+                  // Mounted afresh after every page, so a list still too short to
+                  // reach the bottom of the screen keeps asking for more.
+                  loading ? <p className="pt-4 text-base text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
+                )
+              )}
+            </Panel>
+          </div>
         </div>
       </main>
     </>
