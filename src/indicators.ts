@@ -188,10 +188,14 @@ export function bucketBars(transactions: Transaction[], interval: Interval): Tra
         totalValue: 0,
         totalQuantity: 0,
         transactionsCount: 0,
+        // Cleared by the first observed bar, so a candle reads as estimated
+        // only when nothing in it was seen.
+        estimated: true,
       });
     }
 
     const bar = bars[bars.length - 1]!;
+    if (!t.estimated) delete bar.estimated;
     bar.totalValue += t.totalValue;
     bar.totalQuantity += t.totalQuantity;
     bar.transactionsCount += t.transactionsCount;
