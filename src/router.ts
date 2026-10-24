@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 
-export type PageId = "graph" | "bonuses" | "wages";
+export type PageId = "graph" | "wages";
 
 export const ROUTES: Record<PageId, string> = {
   graph: "/",
-  bonuses: "/production-bonuses",
   wages: "/wage-calculator",
 };
 

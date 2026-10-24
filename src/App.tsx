@@ -1,4 +1,3 @@
-import { BonusesPage } from "./BonusesPage";
 import { GraphPage } from "./GraphPage";
 import { WageCalculatorPage } from "./WageCalculatorPage";
 import { pageFor, usePath } from "./router";
@@ -9,7 +8,7 @@ export function App() {
 
   return (
     <div className="min-h-screen">
-      {page === "bonuses" ? <BonusesPage /> : page === "wages" ? <WageCalculatorPage /> : <GraphPage />}
+      {page === "wages" ? <WageCalculatorPage /> : <GraphPage />}
     </div>
   );
 }

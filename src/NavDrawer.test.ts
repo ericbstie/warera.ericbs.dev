@@ -3,7 +3,7 @@ import { NAV_LINKS } from "./NavDrawer";
 import { pageFor } from "./router";
 
 test("the drawer lists every page", () => {
-  expect(NAV_LINKS.map(link => link.label)).toEqual(["Graph Analysis", "Production Bonuses", "Wage Calculator"]);
+  expect(NAV_LINKS.map(link => link.label)).toEqual(["Graph Analysis", "Wage Calculator"]);
 });
 
 test("every link goes where it says it does", () => {
