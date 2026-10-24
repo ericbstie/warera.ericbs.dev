@@ -4,8 +4,8 @@ import { navigate, pageFor, ROUTES, usePath, type PageId } from "./router";
 export type NavLink = { page: PageId; href: string; label: string };
 
 export const NAV_LINKS: NavLink[] = [
-  { page: "graph", href: ROUTES.graph, label: "Graph Analysis" },
-  { page: "wages", href: ROUTES.wages, label: "Wage Calculator" },
+  { page: "graph", href: ROUTES.graph, label: "Graph" },
+  { page: "wages", href: ROUTES.wages, label: "Wages" },
 ];
 
 /** A segmented switch between the pages; the lit half is where you are. */
