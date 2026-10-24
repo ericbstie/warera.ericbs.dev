@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { itemIcon, itemLabel } from "./hooks";
+import { MarketWages } from "./MarketWages";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
 import { TitleBar } from "./TitleBar";
@@ -177,6 +178,7 @@ export function WageCalculatorPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+        <MarketWages />
         <TopItems />
         <h2 className="text-base font-semibold">Best placements</h2>
         <p className="pt-2 text-sm text-muted">
