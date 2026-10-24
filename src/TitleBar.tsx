@@ -1,15 +1,13 @@
 import { PageToggle } from "./PageToggle";
 
 /**
- * The one row every page shares: which page you are on and how to switch. The
- * outer columns stay equal so the toggle sits on the page's centre line.
+ * The one row every page shares: which page you are on and how to switch,
+ * centred on the page.
  */
 export function TitleBar() {
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-      <span aria-hidden />
+    <div className="flex justify-center">
       <PageToggle />
-      <span aria-hidden />
     </div>
   );
 }
