@@ -230,6 +230,36 @@ export function rankPlacements(
   return [...best.values()].sort((a, b) => b.wage.afterTax - a.wage.afterTax).slice(0, limit);
 }
 
+/** How many placements one page of the list holds. */
+export const PLACEMENTS_PAGE_SIZE = 25;
+
+/** A placement as the list draws it: everything a row needs and nothing it doesn't. */
+export type PlacementRow = {
+  itemCode: string;
+  regionId: string;
+  regionName: string;
+  countryName: string;
+  bonus: number;
+  incomeTax: number;
+  posted: number;
+  afterTax: number;
+};
+
+export function toPlacementRow({ item, region, country, wage }: Placement): PlacementRow {
+  return {
+    itemCode: item.code,
+    regionId: region.id,
+    regionName: region.name,
+    countryName: country.name,
+    bonus: wage.bonus.total,
+    incomeTax: wage.incomeTax,
+    posted: wage.posted,
+    afterTax: wage.afterTax,
+  };
+}
+
+export type PlacementPage = { placements: PlacementRow[]; total: number };
+
 // --- upstream data --------------------------------------------------------
 
 type RawRegion = { _id?: string; name?: string; country?: string; climate?: string; deposit?: Deposit };

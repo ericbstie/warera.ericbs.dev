@@ -4,10 +4,13 @@ import plugin from "bun-plugin-tailwind";
 import path from "path";
 import { openDatabase, readDailyByItem, readDailyTrading, readSnapshotBefore, readSnapshots } from "./db";
 import { intradayBars } from "./history";
-import { weeklyChangePct, type Mover } from "./hooks";
+import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
+import { bestPricesFromBatch, ORDER_BOOK_BATCH_SIZE, type BestPrices } from "./orders";
 import { POLL_INTERVAL_MS, startPolling } from "./poller";
+import type { Country } from "./settlement";
 import {
+  batchPath,
   chunk,
   cacheControl,
   COUNTRIES_PATH,
@@ -26,6 +29,7 @@ import {
   UPSTREAM_TIMEOUT_MS,
   type CacheStatus,
 } from "./trpc";
+import { PLACEMENTS_PAGE_SIZE, rankPlacements, toPlacementRow, toRegions, type PlacementPage, type PlacementRow } from "./wages";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -283,6 +287,73 @@ async function serveIndustrialism(req: Request): Promise<Response> {
   }
 }
 
+// --- wage placements ------------------------------------------------------
+// Ranking every item against every region takes the whole item list, the map,
+// the order book of every item and every country's ethic. Done in the browser
+// that was a dozen requests and the full ranking on every visit, for a table
+// that changes only as fast as the order books do. Here it is built once per
+// TTL from the cached upstream answers and handed out a page at a time.
+
+const PLACEMENTS_TTL_MS = 60 * 1000;
+const PLACEMENTS_KEY = "GET /api/placements";
+
+async function trpcData(pathAndQuery: string, method = "GET", body = ""): Promise<unknown> {
+  const { entry } = await cached(trpcCacheKey(method, pathAndQuery, body), () => fetchTrpc(pathAndQuery, method, body));
+  const payload = parseJson(entry.body, pathAndQuery) as unknown;
+  return Array.isArray(payload) ? payload : (payload as { result?: { data?: unknown } }).result?.data;
+}
+
+async function buildPlacements(): Promise<TrpcEntry> {
+  const [config, countryData, regionData, levels] = await Promise.all([
+    trpcData("gameConfig.getGameConfig", "POST", "{}"),
+    trpcData(COUNTRIES_PATH),
+    trpcData("region.getAll?input=%7B%7D"),
+    cached("GET /api/industrialism", buildIndustrialism, { staleWhileRevalidate: true }).then(
+      ({ entry }) => parseJson(entry.body, "Industrialism aggregate") as Record<string, number>,
+    ),
+  ]);
+
+  const items = itemsFromConfig(config);
+  if (typeof countryData !== "object" || countryData === null) throw new Error("Country list came back in an unexpected shape");
+  const countries = Object.values(countryData) as Country[];
+  const regions = toRegions(regionData);
+  if (!regions.length) throw new Error("Region list came back in an unexpected shape");
+
+  const market: BestPrices = { bids: {}, asks: {} };
+  for (const group of chunk(items.map(item => item.code), ORDER_BOOK_BATCH_SIZE)) {
+    const batch = bestPricesFromBatch(group, await trpcData(batchPath("tradingOrder.getTopOrders", group.map(itemCode => ({ itemCode })))));
+    Object.assign(market.bids, batch.bids);
+    Object.assign(market.asks, batch.asks);
+  }
+
+  const rows = rankPlacements(items, regions, countries, levels, market, Infinity).map(toPlacementRow);
+  const body = JSON.stringify(rows);
+  return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + PLACEMENTS_TTL_MS, etag: etagFor(body) };
+}
+
+/** Parsed once per build rather than once per page asked for. */
+let placementRows: { etag: string; rows: PlacementRow[] } | null = null;
+
+function pageParam(raw: string | null, fallback: number, max: number): number {
+  const value = Math.floor(Number(raw));
+  return raw !== null && Number.isFinite(value) && value >= 0 ? Math.min(value, max) : fallback;
+}
+
+async function servePlacements(req: Request): Promise<Response> {
+  try {
+    const { entry } = await cached(PLACEMENTS_KEY, buildPlacements, { staleWhileRevalidate: true });
+    if (placementRows?.etag !== entry.etag) placementRows = { etag: entry.etag, rows: JSON.parse(entry.body) };
+
+    const params = new URL(req.url).searchParams;
+    const offset = pageParam(params.get("offset"), 0, Number.MAX_SAFE_INTEGER);
+    const limit = pageParam(params.get("limit"), PLACEMENTS_PAGE_SIZE, 100);
+    const page: PlacementPage = { placements: placementRows.rows.slice(offset, offset + limit), total: placementRows.rows.length };
+    return jsonResponse(req, JSON.stringify(page), PLACEMENTS_TTL_MS / 1000);
+  } catch (err) {
+    return upstreamFailure(err, "wage placements");
+  }
+}
+
 // --- recorded market history ----------------------------------------------
 // Upstream answers with 30 days of trading and nothing finer than a day, so a
 // poller writes the live order book and those daily totals into SQLite on a
@@ -425,6 +496,7 @@ const server = isProduction
           "/api/history": req => serveHistory(req, historyDb),
           "/api/movers": req => serveMovers(req, historyDb),
           "/api/industrialism": serveIndustrialism,
+          "/api/placements": servePlacements,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
@@ -441,6 +513,7 @@ const server = isProduction
         "/api/history": req => serveHistory(req, historyDb),
         "/api/movers": req => serveMovers(req, historyDb),
         "/api/industrialism": serveIndustrialism,
+        "/api/placements": servePlacements,
         "/api/trpc/*": proxyTrpc,
         "/*": index,
       },
