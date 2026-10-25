@@ -24,18 +24,18 @@ export class Panel extends Component<{ label: string; children: ReactNode }, { f
   }
 }
 
-/** Every page is built out of the item list, so every page can lose it. */
+/**
+ * Every page is built out of the item list, so every page can lose it. Said
+ * the way every other failure on the site is: plain red text, with the retry
+ * as a link.
+ */
 export function ItemListError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded border border-down p-3 text-base text-down">
-      <span>Couldn't load the item list, so there is nothing to show.</span>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="rounded border border-down px-2 py-1 text-sm"
-      >
+    <p className="text-base text-down">
+      Couldn't load the item list, so there is nothing to show.{" "}
+      <button type="button" onClick={onRetry} className="underline">
         Try again
       </button>
-    </div>
+    </p>
   );
 }

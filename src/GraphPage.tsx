@@ -87,12 +87,6 @@ export function GraphPage() {
         <Ticker items={items.map(item => item.code)} onSelect={setSelected} />
       </Header>
 
-      {error && (
-        <div className="px-1 pt-1">
-          <ItemListError onRetry={retry} />
-        </div>
-      )}
-
       {/* The chart shares the page column every page uses, and on a laptop or
           desktop keeps to 2:1 inside it. */}
       <main
@@ -102,6 +96,12 @@ export function GraphPage() {
             : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-10`
         }
       >
+        {error && (
+          <div className="pb-6">
+            <ItemListError onRetry={retry} />
+          </div>
+        )}
+
         <div className="flex min-h-0 flex-1 flex-col">
           {/* One row over the chart: what is charted, then how it is cut, then
               what to draw on it. The hairline under it is the one over every
