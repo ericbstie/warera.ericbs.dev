@@ -30,8 +30,8 @@ function Entry({
       <img
         src={itemIcon(mover.code)}
         alt={itemLabel(mover.code)}
-        width={18}
-        height={18}
+        width={20}
+        height={20}
         draggable={false} // a native image drag would otherwise hijack the pointer events driving the swipe
       />
       <span className={`text-base tabular-nums underline-offset-4 group-hover:underline sm:text-lg ${rising ? "text-up" : "text-down"}`}>

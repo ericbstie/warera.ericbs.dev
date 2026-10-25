@@ -143,7 +143,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
               <td className="py-2.5 pr-4 text-right tabular-nums text-muted">{index + 1}</td>
               <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
-                  <img src={itemIcon(placement.itemCode)} alt="" width={18} height={18} className="shrink-0" />
+                  <img src={itemIcon(placement.itemCode)} alt="" width={20} height={20} className="shrink-0" />
                   <span className="truncate">{itemLabel(placement.itemCode)}</span>
                 </span>
               </td>
