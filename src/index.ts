@@ -528,10 +528,12 @@ const MOVERS_WINDOW_DAYS = 14;
 /**
  * A request that doesn't say how far back gets the whole record — that is what
  * ALL asks for. `Number("")` is 0 and `Number("abc")` is NaN; neither is a window.
+ * One reaching back past 1970 is the whole record too, rather than a date
+ * too far out for toISOString, which throws.
  */
 function historySince(raw: string | null): number {
   const days = Number(raw);
-  return Number.isFinite(days) && days > 0 ? Date.now() - days * DAY_MS : 0;
+  return Number.isFinite(days) && days > 0 ? Math.max(0, Date.now() - days * DAY_MS) : 0;
 }
 
 function day(at: number): string {
