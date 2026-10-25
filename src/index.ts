@@ -700,6 +700,9 @@ const server = isProduction
       if (!indexAsset) throw new Error("Production build produced no index.html to serve");
 
       return serve({
+        // Caddy on the same machine terminates TLS and proxies here, so the
+        // port itself needn't be reachable from anywhere else.
+        hostname: "127.0.0.1",
         error: onError,
         routes: {
           "/api/history": secured((req) => serveHistory(req, historyDb)),
