@@ -232,13 +232,17 @@ export function PriceChart({
   const height = boxed > MIN_BOX_HEIGHT ? boxed : width > 0 && width < 480 ? 260 : 380;
   // A range change refetches, and the bars already drawn are worth keeping on
   // screen while it does — only an empty chart has nothing better to show.
+  // With no item at all there is nothing to say about one, so the space stays
+  // empty rather than claiming an item has no history.
   const message = prices.length
     ? null
-    : loading
-      ? "Loading…"
-      : error
-        ? "Couldn't load price history."
-        : "No price history for this item.";
+    : !itemCode
+      ? ""
+      : loading
+        ? "Loading…"
+        : error
+          ? "Couldn't load price history."
+          : "No price history for this item.";
 
   const values = prices.map(p => p.price);
   const pad = (Math.max(...values) - Math.min(...values)) * 0.1 || Math.abs(values[0] ?? 0) * 0.1 || 1;
@@ -627,7 +631,7 @@ export function PriceChart({
   return (
     <div ref={ref} className="h-full w-full">
       <div style={{ height }} className="relative w-full select-none">
-        {message ? (
+        {message !== null ? (
           <p className="flex h-full items-center justify-center text-base text-muted">{message}</p>
         ) : (
           width > 0 && (
