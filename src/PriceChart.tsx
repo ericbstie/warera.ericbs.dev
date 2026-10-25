@@ -264,9 +264,13 @@ export function PriceChart({
   const low = centre - half;
   const high = centre + half;
   const decimals = Math.min(6, Math.max(2, Math.ceil(-Math.log10((high - low) / ROWS)) + 1));
-  const columns = width < 480 ? 3 : 5;
+  // A phone can't spare a fifth of its width for a column of prices, so the
+  // axis goes and the crosshair's tag reads the price from inside the plot.
+  const narrow = width < 480;
+  const columns = narrow ? 3 : 5;
+  const padRight = narrow ? PADDING.left : PADDING.right;
 
-  const innerWidth = width - PADDING.left - PADDING.right;
+  const innerWidth = width - PADDING.left - padRight;
   const paneHeight = height - PADDING.top - PADDING.bottom - PANE_GAP;
   const priceHeight = paneHeight * PRICE_PANE_RATIO;
   const volumeHeight = paneHeight * VOLUME_PANE_RATIO;
@@ -274,7 +278,7 @@ export function PriceChart({
   const priceBottom = priceTop + priceHeight;
   const volumeTop = priceBottom + PANE_GAP;
   const volumeBottom = volumeTop + volumeHeight;
-  const plotRight = width - PADDING.right;
+  const plotRight = width - padRight;
 
   const x = (index: number) =>
     PADDING.left + (span < 1 ? innerWidth / 2 : ((index - offset) / span) * innerWidth);
@@ -289,7 +293,7 @@ export function PriceChart({
   /** A bar on the first or last day is half outside the plot; trim it to the edge. */
   const band = (center: number, size: number) => {
     const left = Math.max(center - size / 2, PADDING.left);
-    const right = Math.min(center + size / 2, width - PADDING.right);
+    const right = Math.min(center + size / 2, width - padRight);
     return { x: left, width: Math.max(right - left, 0) };
   };
   const maxVolume = Math.max(1, ...transactions.map(t => t.totalQuantity));
@@ -511,6 +515,9 @@ export function PriceChart({
 
   /** A stretch can take the read price off the pane; its tag stays on the axis. */
   const tagY = point ? clamp(y(point.price), priceTop, priceBottom) : 0;
+  const priceTag = point ? point.price.toFixed(decimals) : "";
+  const priceTagWidth = narrow ? priceTag.length * LABEL_CHAR_WIDTH + 12 : PADDING.right - 8;
+  const priceTagX = narrow ? plotRight - priceTagWidth : width - PADDING.right + 4;
   const legendDate = point ? barDateAt(dates, legendIndex) : "";
   // The crosshair has a tag of its own to fill, so it keeps the time the axis
   // gave up when the window runs across days.
@@ -633,7 +640,7 @@ export function PriceChart({
                   type="button"
                   onClick={() => setScale(FIT)}
                   // Inside the plot rather than over the price axis.
-                  style={{ top: 2, right: PADDING.right + 4 }}
+                  style={{ top: 2, right: padRight + 4 }}
                   className="absolute z-10 rounded border border-edge bg-panel px-1.5 py-0.5 text-sm text-muted"
                 >
                   Now ›
@@ -684,7 +691,7 @@ export function PriceChart({
                       {row < ROWS && (
                         <line
                           x1={PADDING.left}
-                          x2={width - PADDING.right}
+                          x2={width - padRight}
                           y1={y(price)}
                           y2={y(price)}
                           // The floor of the price pane is what sets it off from the volume below.
@@ -692,23 +699,25 @@ export function PriceChart({
                           strokeOpacity={row === 0 ? FLOOR_OPACITY : undefined}
                         />
                       )}
-                      <text
-                        x={axisX}
-                        y={y(price)}
-                        textAnchor="end"
-                        dominantBaseline="middle"
-                        fontSize="13"
-                        fill={AXIS_TEXT}
-                      >
-                        {price.toFixed(decimals)}
-                      </text>
+                      {!narrow && (
+                        <text
+                          x={axisX}
+                          y={y(price)}
+                          textAnchor="end"
+                          dominantBaseline="middle"
+                          fontSize="13"
+                          fill={AXIS_TEXT}
+                        >
+                          {price.toFixed(decimals)}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
 
                 <line
                   x1={PADDING.left}
-                  x2={width - PADDING.right}
+                  x2={width - padRight}
                   y1={volumeTop + volumeHeight / 2}
                   y2={volumeTop + volumeHeight / 2}
                   stroke={GRID}
@@ -785,7 +794,7 @@ export function PriceChart({
                   {point && !onVolume && (
                     <line
                       x1={PADDING.left}
-                      x2={width - PADDING.right}
+                      x2={width - padRight}
                       y1={y(point.price)}
                       y2={y(point.price)}
                       stroke={AXIS_TEXT}
@@ -869,23 +878,23 @@ export function PriceChart({
                           />
                         </g>
                         <rect
-                          x={width - PADDING.right + 4}
+                          x={priceTagX}
                           y={tagY - 10}
-                          width={PADDING.right - 8}
+                          width={priceTagWidth}
                           height="20"
                           rx="3"
                           fill={PANEL}
                           stroke={EDGE}
                         />
                         <text
-                          x={axisX}
+                          x={narrow ? priceTagX + priceTagWidth - 6 : axisX}
                           y={tagY}
                           textAnchor="end"
                           dominantBaseline="middle"
                           fontSize="13"
                           fill={LABEL_TEXT}
                         >
-                          {point.price.toFixed(decimals)}
+                          {priceTag}
                         </text>
                       </>
                     )}
