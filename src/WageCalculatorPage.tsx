@@ -59,14 +59,16 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
 /** One place on the leaderboard, laid out like a market wage's row. */
 function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
-    <li className="flex items-center gap-3 border-b border-edge/60 py-3 pr-2 sm:gap-4">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-0 border-b border-edge/60 py-3 pr-2 sm:flex-nowrap sm:gap-x-4">
       <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
       <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-3.5">
           <p className="truncate text-base sm:text-lg">{itemLabel(row.itemCode)}</p>
+          {/* Beside the name only where there is room; on a phone it took all
+              of the name's, so there it gets a line of its own. */}
           {row.deposit > 0 && (
-            <span className="shrink-0">
+            <span className="hidden shrink-0 sm:inline-flex">
               <DepositLabel row={row} now={now} />
             </span>
           )}
@@ -83,6 +85,13 @@ function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: num
           {formatPrice(row.posted)} · {percent(row.incomeTax)} tax
         </p>
       </div>
+      {/* A line of its own on a phone, under the name and clear of the wage,
+          lined up with the name past the rank and the icon. */}
+      {row.deposit > 0 && (
+        <div className="w-full pl-20 pt-1.5 sm:hidden">
+          <DepositLabel row={row} now={now} />
+        </div>
+      )}
     </li>
   );
 }
