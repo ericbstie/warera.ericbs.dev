@@ -126,3 +126,17 @@ test("a skipped moment's trading lands on the next bar rather than an earlier ba
   // 300 - 250, measuring against the unplottable poll rather than the one before it.
   expect(bars[1]).toMatchObject({ totalQuantity: 50 });
 });
+
+test("missed polls are filled in at the pace the poller ran at then", () => {
+  const minute = 60_000;
+  // Old 15-minute polls, then a 15-minute gap at the 5-minute pace: two missed.
+  const bars = intradayBars(
+    [snap(0, 10, 1), snap(15 * minute, 20, 2), snap(30 * minute, 30, 3), snap(35 * minute, 40, 4), snap(50 * minute, 70, 7)],
+    null,
+    -Infinity,
+    30 * minute,
+  );
+
+  expect(bars.map(bar => bar.estimated ?? false)).toEqual([false, false, false, false, true, true, true]);
+  expect(bars.slice(-3).map(bar => bar.totalQuantity)).toEqual([10, 10, 10]);
+});

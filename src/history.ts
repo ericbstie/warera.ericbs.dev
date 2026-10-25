@@ -98,7 +98,7 @@ export function dailyRows(itemCode: string, values: unknown): DailyRow[] {
 }
 
 /** How often the poller reads the market; history.ts owns it so the bars can find the gaps. */
-export const POLL_INTERVAL_MS = 15 * 60 * 1000;
+export const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
  * The poller used to run every 15 minutes. A record kept back then is spaced
