@@ -164,21 +164,37 @@ export function isIntradayInterval(interval: Interval): boolean {
 const RANGE_SLACK_MS = 60 * MINUTE_MS;
 
 /**
+ * Candles this narrow across the whole record would run to tens of thousands
+ * of bars (a year of 5-minute polls is 105,000), so they stop at the longest
+ * fixed range rather than offering ALL.
+ */
+export function reachesAll(interval: Interval): boolean {
+  return intervalMs(interval) >= intervalMs("2h");
+}
+
+/** The longest range a narrow interval is offered, and so as far back as one is read. */
+export const NARROW_INTERVAL_DAYS = 30;
+
+/**
  * The daily records reach back past anything the ranges ask for, but candles
  * under a day only go back as far as the poller does, so a range longer than
- * that would chart the same bars as a shorter one. ALL always fits.
+ * that would chart the same bars as a shorter one. ALL always fits where it is
+ * offered.
  */
 export function availableRanges(
   interval: Interval,
   firstIntradayAt: number | null,
   now = Date.now(),
 ): Range[] {
-  if (!isIntradayInterval(interval) || firstIntradayAt === null) return RANGES;
+  const offered = reachesAll(interval) ? RANGES : RANGES.filter((range) => range !== "ALL");
+  if (!isIntradayInterval(interval) || firstIntradayAt === null) return offered;
   const reach = now - firstIntradayAt + RANGE_SLACK_MS;
-  return RANGES.filter((range) => {
+  const fits = offered.filter((range) => {
     const days = rangeDays(range);
     return days === null || days * 1440 * MINUTE_MS <= reach;
   });
+  // Without ALL, a record younger than a day still fills the shortest range as far as it goes.
+  return fits.length ? fits : offered.slice(0, 1);
 }
 
 /** The longest fixed range on offer, or ALL when none of them fits. */

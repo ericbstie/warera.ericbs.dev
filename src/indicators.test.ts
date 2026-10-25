@@ -218,11 +218,11 @@ test("an intraday interval offers only the ranges the poller reaches back over",
 
   expect(availableRanges("2h", threeDaysAgo, now)).toEqual(["1D", "ALL"]);
   expect(availableRanges("2h", now - 60 * 60 * 1000, now)).toEqual(["ALL"]);
-  // A record that started a few minutes short of a week still fills one.
+  // A record that started a few minutes short of a week still fills one. A
+  // narrow interval stops short of ALL.
   expect(availableRanges("15m", now - 7 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000, now)).toEqual([
     "1D",
     "7D",
-    "ALL",
   ]);
 });
 

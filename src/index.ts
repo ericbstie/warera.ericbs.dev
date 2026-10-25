@@ -13,7 +13,13 @@ import {
 } from "./db";
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
-import { bucketBars, INTERVALS, type Interval } from "./indicators";
+import {
+  bucketBars,
+  INTERVALS,
+  NARROW_INTERVAL_DAYS,
+  reachesAll,
+  type Interval,
+} from "./indicators";
 import index from "./index.html";
 import { JOB_OFFERS_PATH, openOffers, toJobRow } from "./jobs";
 import { bestPricesFromBatch, ORDER_BOOK_BATCH_SIZE, type BestPrices } from "./orders";
@@ -572,15 +578,20 @@ function serveHistory(req: Request, db: Database): Response {
   }
 
   const since = historySince(params.get("days"));
+  const interval = historyInterval(params.get("interval"));
+  // The chart never offers ALL at a narrow interval, which would be every poll on record.
+  const intradaySince = reachesAll(interval)
+    ? since
+    : Math.max(since, Date.now() - NARROW_INTERVAL_DAYS * DAY_MS);
   const bars = params.get("intraday")
     ? bucketBars(
         intradayBars(
-          readSnapshots(db, itemCode, since),
-          readSnapshotBefore(db, itemCode, since),
-          since,
+          readSnapshots(db, itemCode, intradaySince),
+          readSnapshotBefore(db, itemCode, intradaySince),
+          intradaySince,
           legacyUntil,
         ),
-        historyInterval(params.get("interval")),
+        interval,
       )
     : readDailyTrading(db, itemCode, day(since));
 
