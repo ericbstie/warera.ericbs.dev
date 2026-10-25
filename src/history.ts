@@ -128,7 +128,7 @@ export function intradayBars(
 ): Transaction[] {
   const bars: Transaction[] = [];
   // The poll before the window, so the bar at the left edge reports what traded
-  // in its own quarter-hour rather than everything since midnight.
+  // in its own five minutes rather than everything since midnight.
   let previous: (SnapshotTotals & { capturedAt?: number }) | null = leadIn;
 
   for (const snapshot of snapshots) {

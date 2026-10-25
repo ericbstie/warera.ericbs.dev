@@ -117,7 +117,7 @@ function trimTrailingZeros(value: string): string {
 }
 
 /**
- * A daily record is dated `2026-08-19`; a 15-minute one carries the whole
+ * A daily record is dated `2026-08-19`; a polled one carries the whole
  * timestamp. Which of the two a bar is decides how it wants to be labelled.
  */
 export function isTimestamp(at: string): boolean {

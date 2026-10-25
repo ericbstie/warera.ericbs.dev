@@ -50,7 +50,7 @@ export function usableTransactions(values: unknown): Transaction[] {
 /**
  * The server's own record rather than upstream's: upstream publishes 30 days of
  * daily averages and nothing finer, while this reaches back as far as the
- * poller has been running and down to the quarter-hour.
+ * poller has been running and down to the five minutes between polls.
  */
 export function historyPath(itemCode: string, range: Range, interval: Interval = "1d"): string {
   const days = rangeDays(range);

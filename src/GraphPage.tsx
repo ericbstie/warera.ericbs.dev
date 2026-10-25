@@ -40,7 +40,7 @@ export function GraphPage() {
     });
   }, [items, linked]);
 
-  // The range is part of the request rather than a slice of it — a short range is drawn from the 15-minute poll
+  // The range is part of the request rather than a slice of it — a short range is drawn from the 5-minute poll
   // and a long one from the daily records, so they aren't the same series.
   const { transactions, firstIntradayAt, loading, error: historyError } = useTransactionHistory(selected, range, interval);
 

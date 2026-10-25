@@ -57,9 +57,9 @@ export function rangeDays(range: Range): number | null {
 
 /**
  * Resolution follows the range, the way a trading terminal does it: a week or
- * less is drawn from the 15-minute poll — 672 candles at the outside — and
- * anything longer from the daily records, since a year of quarter-hours would
- * be 35,000 candles in a chart 800px wide.
+ * less is drawn from the 5-minute poll — 2,016 candles at the outside — and
+ * anything longer from the daily records, since a year of polls would
+ * be 105,000 candles in a chart 800px wide.
  */
 export function isIntraday(range: Range): boolean {
   const days = rangeDays(range);
