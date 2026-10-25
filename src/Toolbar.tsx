@@ -1,3 +1,4 @@
+import { Caret } from "./Caret";
 import { INTERVALS, RANGES, type Interval, type Range } from "./indicators";
 
 export type Overlay = "sma5" | "sma10" | "sma20" | "vwap";
@@ -46,7 +47,9 @@ export function Divider({ className = "" }: { className?: string }) {
 
 /**
  * The range says how far back the chart looks; this says how wide a candle in
- * it is. A native select is what a phone wants here, and it costs no room.
+ * it is. A native select is what a phone wants here, and it costs no room; the
+ * browser's own arrow is swapped for the item picker's caret, so the two
+ * dropdowns in the row look like one kind of thing.
  */
 function IntervalSelect({
   interval,
@@ -56,18 +59,21 @@ function IntervalSelect({
   onInterval: (interval: Interval) => void;
 }) {
   return (
-    <select
-      aria-label="Candle interval"
-      value={interval}
-      onChange={event => onInterval(event.target.value as Interval)}
-      className="h-10 shrink-0 cursor-pointer rounded bg-transparent px-1.5 text-base text-ink sm:text-lg hover:bg-panel [&>option]:bg-panel"
-    >
-      {INTERVALS.map(entry => (
-        <option key={entry} value={entry}>
-          {entry}
-        </option>
-      ))}
-    </select>
+    <span className="group relative flex h-10 shrink-0 items-center">
+      <select
+        aria-label="Candle interval"
+        value={interval}
+        onChange={event => onInterval(event.target.value as Interval)}
+        className="h-10 cursor-pointer appearance-none bg-transparent pl-2 pr-5 [field-sizing:content] text-base text-ink sm:text-lg [&>option]:bg-panel"
+      >
+        {INTERVALS.map(entry => (
+          <option key={entry} value={entry}>
+            {entry}
+          </option>
+        ))}
+      </select>
+      <Caret className="pointer-events-none absolute right-1 group-hover:text-ink" />
+    </span>
   );
 }
 
