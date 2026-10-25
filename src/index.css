@@ -6,6 +6,7 @@
  */
 @theme {
   --color-surface: var(--surface);
+  --color-band: var(--band);
   --color-panel: var(--panel);
   --color-canvas: var(--canvas);
   --color-edge: var(--edge);
@@ -24,6 +25,8 @@
 @layer base {
   :root {
     --surface: #161616;
+    /* The ticker's band, a shade off the page so it stands apart. */
+    --band: #1e1e1e;
     --panel: #232323;
     --canvas: #0e0e0e;
     --edge: #3d3d3d;

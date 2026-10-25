@@ -20,7 +20,7 @@ export function Header({
   onSelect: (code: string) => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-surface pb-2 pt-3">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-edge bg-band pb-2 pt-3">
       <div className="px-4 sm:px-6">
         <Ticker items={items.map((item) => item.code)} onSelect={onSelect} />
       </div>
