@@ -78,7 +78,7 @@ function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: num
         </p>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-xl font-semibold leading-tight tabular-nums sm:text-2xl" style={{ color: "var(--up)" }}>
+        <p className="text-xl font-semibold leading-tight tabular-nums text-up sm:text-2xl">
           {formatPrice(row.afterTax)}
         </p>
         <p className="text-sm tabular-nums text-muted">
@@ -165,7 +165,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
                 {percent(placement.incomeTax)}
               </td>
               <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.posted)}</td>
-              <td className="py-2.5 pl-1 pr-2 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+              <td className="py-2.5 pl-1 pr-2 text-right font-semibold tabular-nums text-up">
                 {formatPrice(placement.afterTax)}
               </td>
             </tr>

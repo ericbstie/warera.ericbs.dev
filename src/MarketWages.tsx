@@ -69,7 +69,7 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
           <Requirements job={job} />
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xl font-semibold leading-tight tabular-nums sm:text-2xl" style={{ color: "var(--up)" }}>
+          <p className="text-xl font-semibold leading-tight tabular-nums text-up sm:text-2xl">
             {formatPrice(job.afterTax)}
           </p>
           <p className="text-sm tabular-nums text-muted">
