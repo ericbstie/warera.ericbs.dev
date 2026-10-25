@@ -42,7 +42,7 @@ function Segment({
 
 /** What stands between one cluster of controls and the next in the chart's row. */
 export function Divider({ className = "" }: { className?: string }) {
-  return <span aria-hidden className={`h-5 w-0.5 shrink-0 rounded-full bg-edge ${className}`} />;
+  return <span aria-hidden className={`h-5 w-px shrink-0 bg-edge ${className}`} />;
 }
 
 /**
