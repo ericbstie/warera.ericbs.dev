@@ -107,6 +107,13 @@
   animation: none;
 }
 
+/* Quick enough that the switch feels immediate, slow enough to read as a fade. */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 100ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
