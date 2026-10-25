@@ -3,7 +3,7 @@ import { NAV_LINKS } from "./PageToggle";
 import { pageFor } from "./router";
 
 test("the toggle lists every page", () => {
-  expect(NAV_LINKS.map(link => link.label)).toEqual(["Graph", "Wages"]);
+  expect(NAV_LINKS.map(link => link.label)).toEqual(["Wages", "Graph"]);
 });
 
 test("every link goes where it says it does", () => {
