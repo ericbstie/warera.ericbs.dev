@@ -67,7 +67,7 @@ export function ToolRail({
             aria-label={label}
             aria-pressed={active}
             onClick={() => onTool(id)}
-            className={`grid h-9 w-8 place-items-center border-b-2 ${
+            className={`grid h-10 w-9 place-items-center border-b-2 ${
               active ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"
             }`}
           >
@@ -82,7 +82,7 @@ export function ToolRail({
         aria-label="Clear drawings"
         onClick={onClear}
         disabled={!hasDrawings}
-        className="grid h-9 w-8 place-items-center text-muted hover:text-ink disabled:opacity-40 disabled:hover:text-muted"
+        className="grid h-10 w-9 place-items-center text-muted hover:text-ink disabled:opacity-40 disabled:hover:text-muted"
       >
         <Glyph>
           <path d="M3.5 4.5h9M6 4.5V3h4v1.5M5 4.5l.6 8h4.8l.6-8" />
@@ -102,7 +102,7 @@ export function FullscreenButton({ full, onToggle }: { full: boolean; onToggle: 
       aria-label={label}
       aria-pressed={full}
       onClick={onToggle}
-      className="grid h-9 w-8 shrink-0 place-items-center text-muted hover:text-ink"
+      className="grid h-10 w-9 shrink-0 place-items-center text-muted hover:text-ink"
     >
       <Glyph>
         {full ? (
