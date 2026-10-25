@@ -4,3 +4,6 @@ env = "BUN_PUBLIC_*"
 
 [fmt]
 printWidth = 100
+
+[lint.rules]
+"@typescript-eslint/no-explicit-any" = "error"
