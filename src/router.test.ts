@@ -7,10 +7,15 @@ test("reads the page out of its path", () => {
 });
 
 test("a trailing slash is the same page", () => {
-  expect(pageFor(`${ROUTES.wages}/`)).toBe("wages");
+  expect(pageFor(`${ROUTES.graph}/`)).toBe("graph");
+  expect(pageFor("//")).toBe("wages");
 });
 
-test("an unknown path falls back to the chart the server just served", () => {
-  expect(pageFor("/nothing-here")).toBe("graph");
-  expect(pageFor("")).toBe("graph");
+test("an unknown path falls back to the front page, the wages", () => {
+  expect(pageFor("/nothing-here")).toBe("wages");
+  expect(pageFor("")).toBe("wages");
+});
+
+test("the wages' old address still reaches them", () => {
+  expect(pageFor("/wage-calculator")).toBe("wages");
 });

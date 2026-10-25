@@ -8,7 +8,7 @@ export function App() {
 
   return (
     <div className="min-h-screen">
-      {page === "wages" ? <WageCalculatorPage /> : <GraphPage />}
+      {page === "graph" ? <GraphPage /> : <WageCalculatorPage />}
     </div>
   );
 }

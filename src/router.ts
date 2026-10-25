@@ -3,15 +3,19 @@ import { useEffect, useState } from "react";
 export type PageId = "graph" | "wages";
 
 export const ROUTES: Record<PageId, string> = {
-  graph: "/",
-  wages: "/wage-calculator",
+  wages: "/",
+  graph: "/graph",
 };
 
-/** The server hands the app back for any path, so an unknown one lands on the chart. */
+/**
+ * The server hands the app back for any path, so an unknown one lands on the
+ * front page, the wages. That includes /wage-calculator, where the wages lived
+ * before they were the front page, so old links still reach them.
+ */
 export function pageFor(path: string): PageId {
-  const here = path.replace(/\/+$/, "");
+  const here = path.replace(/\/+$/, "") || "/";
   const match = (Object.keys(ROUTES) as PageId[]).find(page => ROUTES[page] === here);
-  return match ?? "graph";
+  return match ?? "wages";
 }
 
 /** The Graph page opened on one item, for a link from a page that can't chart it itself. */
