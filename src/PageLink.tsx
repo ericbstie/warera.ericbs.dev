@@ -34,9 +34,11 @@ function Arrow({ side }: { side: Side }) {
 }
 
 /**
- * The way to the other page, as a plain label with an arrow floating in the
- * top corner of the page it is on, over the gap above the page's content. The
- * page it sits in has to be positioned and leave that gap open.
+ * The way to the other page, as a button floating just under the ticker at the
+ * edge of the screen its arrow points to, whatever the width of the page. It
+ * hangs off the bottom of the sticky header, so it stays in reach however far
+ * the page is scrolled; at the top it sits in the gap every page leaves above
+ * its content.
  */
 export function PageLink({ page }: { page: PageId }) {
   const link = PAGE_LINKS[page];
@@ -52,12 +54,12 @@ export function PageLink({ page }: { page: PageId }) {
   return (
     <nav
       aria-label="Pages"
-      className={`absolute top-2.5 ${link.side === "right" ? "right-6" : "left-6"}`}
+      className={`absolute top-full mt-3 ${link.side === "right" ? "right-4 sm:right-6" : "left-4 sm:left-6"}`}
     >
       <a
         href={link.href}
         onClick={follow}
-        className="group flex min-h-11 items-center gap-2 whitespace-nowrap text-lg tracking-wide text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="group flex min-h-11 items-center gap-2 whitespace-nowrap rounded-lg border border-edge bg-surface/90 px-4 text-lg tracking-wide text-muted backdrop-blur-sm transition-colors hover:border-muted/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {link.side === "left" && <Arrow side="left" />}
         {link.label}

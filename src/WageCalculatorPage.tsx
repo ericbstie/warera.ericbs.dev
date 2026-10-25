@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Chip } from "./Chip";
 import { itemIcon, itemLabel } from "./hooks";
 import { PAGE_COLUMN } from "./layout";
-import { PageLink } from "./PageLink";
 import { MarketWages } from "./MarketWages";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
@@ -221,9 +220,7 @@ export function WageCalculatorPage() {
   const { rows, loading, error, done, loadMore } = usePlacements();
 
   return (
-    <main className={`${PAGE_COLUMN} relative pb-24 pt-16`}>
-      <PageLink page="wages" />
-
+    <main className={`${PAGE_COLUMN} pb-24 pt-20`}>
       {/* Side by side where there is room for both lists, stacked on a phone. */}
       <div className="grid gap-x-16 lg:grid-cols-2">
         <MarketWages />

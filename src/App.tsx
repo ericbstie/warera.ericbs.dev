@@ -24,7 +24,7 @@ export function App() {
 
   return (
     <div className={graphFull ? "flex h-dvh flex-col overflow-hidden" : "min-h-screen"}>
-      <Header items={items} onSelect={pick} />
+      <Header items={items} page={page} full={graphFull} onSelect={pick} />
       {page === "graph" ? (
         <GraphPage
           items={items}

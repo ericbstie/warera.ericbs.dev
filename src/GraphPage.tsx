@@ -10,7 +10,6 @@ import { CommandPalette } from "./CommandPalette";
 import { useTransactionHistory, type MarketItem } from "./hooks";
 import { ItemPicker } from "./ItemPicker";
 import { PAGE_COLUMN } from "./layout";
-import { PageLink } from "./PageLink";
 import { availableRanges, largestRange, type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
@@ -116,12 +115,9 @@ export function GraphPage({
       className={
         full
           ? "flex min-h-0 flex-1 flex-col p-3 sm:p-4"
-          : `${PAGE_COLUMN} relative flex min-h-0 flex-1 flex-col pb-6 pt-16`
+          : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-20`
       }
     >
-      {/* Full screen is for the chart alone; the way back returns with the page. */}
-      {!full && <PageLink page="graph" />}
-
       {error && (
         <div className="pb-6">
           <ItemListError onRetry={retry} />
