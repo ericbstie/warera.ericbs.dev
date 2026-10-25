@@ -93,3 +93,24 @@
     cursor: pointer;
   }
 }
+
+/*
+ * Changing page crossfades the page, but not the ticker along its top: it goes
+ * on drifting the whole time, so a frozen copy of it fading out would double
+ * every entry. It is lifted out of the fade and shown live throughout.
+ */
+::view-transition-old(ticker) {
+  display: none;
+}
+
+::view-transition-new(ticker) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

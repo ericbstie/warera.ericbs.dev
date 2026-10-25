@@ -145,11 +145,12 @@ export function Ticker({ items, onSelect }: { items: string[]; onSelect: (code: 
   };
 
   // Laid out as tall as an entry before the movers arrive, so their arrival
-  // doesn't push the whole page down.
+  // doesn't push the whole page down. Named so a page change can leave it out
+  // of the crossfade (see index.css).
   return (
     <div
       ref={trackRef}
-      className="min-h-6 min-w-0 cursor-pointer select-none overflow-x-auto sm:min-h-7 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
+      className="min-h-6 min-w-0 [view-transition-name:ticker] cursor-pointer select-none overflow-x-auto sm:min-h-7 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
       aria-label="7 day change"
       onPointerEnter={pause}
       onPointerLeave={() => (drag.current ? scheduleResume() : resumeNow())}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 export type PageId = "graph" | "wages";
 
@@ -30,24 +31,55 @@ export function takeLinkedItem(): string {
   return item;
 }
 
+/** Everything that reads the path, told together so one transition covers them all. */
+const watchers = new Set<() => void>();
+
+function announce() {
+  for (const watcher of watchers) watcher();
+}
+
 /**
- * `pushState` alone changes the URL without telling anyone, and only `popstate`
- * reaches a listener. Announcing the push is what lets the page re-render.
+ * Swaps the page inside a view transition where the browser has them, so the
+ * old page fades into the new one rather than blinking out. The browser
+ * snapshots the page on either side of the update, so the new page has to be
+ * in the DOM by the time the update returns, which a React render only is
+ * under flushSync. Without them the page simply swaps.
+ */
+function swap(update: () => void) {
+  if (!document.startViewTransition) return update();
+  document.startViewTransition(() => flushSync(update));
+}
+
+function onPopState(event: PopStateEvent) {
+  // A swipe back on a phone already slides the old page away; fading it out
+  // as well would play the change twice.
+  if (event.hasUAVisualTransition) announce();
+  else swap(announce);
+}
+
+function subscribe(watcher: () => void) {
+  if (!watchers.size) window.addEventListener("popstate", onPopState);
+  watchers.add(watcher);
+  return () => {
+    watchers.delete(watcher);
+    if (!watchers.size) window.removeEventListener("popstate", onPopState);
+  };
+}
+
+/**
+ * `pushState` changes the URL without telling anyone, so the push is announced
+ * here to let the page re-render. Like following a real link, the new page
+ * starts at its top rather than wherever the old one was scrolled to.
  */
 export function navigate(to: string) {
   if (to === window.location.pathname) return;
   window.history.pushState(null, "", to);
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  swap(() => {
+    announce();
+    window.scrollTo(0, 0);
+  });
 }
 
 export function usePath(): string {
-  const [path, setPath] = useState(() => window.location.pathname);
-
-  useEffect(() => {
-    const onPop = () => setPath(window.location.pathname);
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
-
-  return path;
+  return useSyncExternalStore(subscribe, () => window.location.pathname);
 }
