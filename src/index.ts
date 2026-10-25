@@ -2,7 +2,7 @@ import { serve } from "bun";
 import type { Database } from "bun:sqlite";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
-import { openDatabase, readDailyByItem, readDailyTrading, readFirstSnapshotAt, readSnapshotBefore, readSnapshots } from "./db";
+import { legacyPollsUntil, openDatabase, readDailyByItem, readDailyTrading, readFirstSnapshotAt, readSnapshotBefore, readSnapshots } from "./db";
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
@@ -457,7 +457,7 @@ function serveHistory(req: Request, db: Database): Response {
 
   const since = historySince(params.get("days"));
   const bars = params.get("intraday")
-    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since)
+    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since, legacyUntil)
     : readDailyTrading(db, itemCode, day(since));
 
   // Sent with every answer so the chart can tell which ranges an intraday
@@ -490,6 +490,8 @@ hot.wareraHistory?.poller.stop();
 hot.wareraHistory?.db.close();
 
 const historyDb = openDatabase();
+// Pinned before the first poll at the new pace lands, or it would count as an old one.
+const legacyUntil = legacyPollsUntil(historyDb);
 hot.wareraHistory = { db: historyDb, poller: startPolling(historyDb) };
 
 type Asset = { bytes: ArrayBuffer; contentType: string };

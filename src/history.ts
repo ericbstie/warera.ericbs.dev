@@ -101,6 +101,13 @@ export function dailyRows(itemCode: string, values: unknown): DailyRow[] {
 export const POLL_INTERVAL_MS = 15 * 60 * 1000;
 
 /**
+ * The poller used to run every 15 minutes. A record kept back then is spaced
+ * that way, and read at today's pace every one of its steps would look like
+ * missed polls and be filled in with estimates.
+ */
+export const LEGACY_POLL_INTERVAL_MS = 15 * 60 * 1000;
+
+/**
  * The polled series as the chart reads it: a mid price and what traded since
  * the previous poll. `valueAt` carries a full timestamp here where a daily row
  * carries a date, which is what tells the two apart downstream.
@@ -110,12 +117,14 @@ export const POLL_INTERVAL_MS = 15 * 60 * 1000;
  * over the polls that were missed, with the price walked in a straight line
  * across them, and those bars are marked `estimated`. Missed polls before
  * `since` belong to an earlier window and are left out with their share.
+ * A gap that starts at or before `legacyUntil` is measured in the old poll's
+ * slots rather than today's.
  */
 export function intradayBars(
   snapshots: Array<Omit<BookSnapshot, "itemCode">>,
   leadIn: (SnapshotTotals & { capturedAt?: number }) | null = null,
   since = -Infinity,
-  intervalMs = POLL_INTERVAL_MS,
+  legacyUntil = -Infinity,
 ): Transaction[] {
   const bars: Transaction[] = [];
   // The poll before the window, so the bar at the left edge reports what traded
@@ -138,6 +147,7 @@ export function intradayBars(
     // reads better than a line dropped to whatever the other side asked.
     if (price === null) continue;
 
+    const intervalMs = gapStart !== undefined && gapStart <= legacyUntil ? LEGACY_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
     // Half a poll of slack, so a late poll isn't mistaken for a missed one.
     const slots = gapStart === undefined ? 1 : Math.max(1, Math.round((snapshot.capturedAt - gapStart) / intervalMs));
     const estimated = slots > 1;

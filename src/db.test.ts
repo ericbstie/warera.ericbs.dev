@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { openDatabase, readDailyTrading, readFirstSnapshotAt, readSnapshots, recordDailyTrading, recordSnapshots } from "./db";
+import { legacyPollsUntil, openDatabase, readDailyTrading, readFirstSnapshotAt, readSnapshots, recordDailyTrading, recordSnapshots } from "./db";
 
 const snapshot = (capturedAt: number, bestBid: number | null = 1) => ({
   itemCode: "lightAmmo",
@@ -84,4 +84,14 @@ test("knows when an item was first polled, and that an unpolled one never was", 
   expect(readFirstSnapshotAt(db, "lightAmmo")).toBe(100);
   expect(readFirstSnapshotAt(db, "ironOre")).toBeNull();
   db.close();
+});
+
+test("the end of the 15-minute record is pinned once and kept", () => {
+  const db = openDatabase(":memory:");
+  recordSnapshots(db, [{ itemCode: "iron", capturedAt: 5_000, bestBid: 1, bestAsk: 2, bidDepth: 1, askDepth: 1, dayValue: 0, dayQuantity: 0 }]);
+
+  expect(legacyPollsUntil(db)).toBe(5_000);
+  recordSnapshots(db, [{ itemCode: "iron", capturedAt: 9_000, bestBid: 1, bestAsk: 2, bidDepth: 1, askDepth: 1, dayValue: 0, dayQuantity: 0 }]);
+  expect(legacyPollsUntil(db)).toBe(5_000);
+  expect(legacyPollsUntil(openDatabase(":memory:"))).toBe(0);
 });

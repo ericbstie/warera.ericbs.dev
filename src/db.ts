@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS daily_trading (
   transactions_count INTEGER NOT NULL,
   PRIMARY KEY (item_code, value_at)
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+) WITHOUT ROWID;
 `;
 
 export function openDatabase(file = DB_PATH): Database {
@@ -64,6 +69,20 @@ function migrate(db: Database): void {
   for (const column of ["day_value", "day_quantity"]) {
     if (!present.has(column)) db.exec(`ALTER TABLE book_snapshot ADD COLUMN ${column} REAL NOT NULL DEFAULT 0`);
   }
+}
+
+/**
+ * The last poll taken at the old 15-minute pace. Pinned the first time a
+ * store is opened by a server that polls faster, so every restart after
+ * agrees on it; a store that starts out at the new pace pins 0.
+ */
+export function legacyPollsUntil(db: Database): number {
+  db.run(
+    `INSERT OR IGNORE INTO meta (key, value)
+     SELECT 'legacy_polls_until', COALESCE(MAX(captured_at), 0) FROM book_snapshot`,
+  );
+  const row = db.query(`SELECT value FROM meta WHERE key = 'legacy_polls_until'`).get() as { value: number };
+  return row.value;
 }
 
 /** A snapshot is an observation of a moment, so a repeat of one is a no-op. */
