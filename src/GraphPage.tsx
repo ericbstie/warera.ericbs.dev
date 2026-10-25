@@ -7,14 +7,17 @@ import { PAGE_COLUMN } from "./layout";
 import { availableRanges, largestRange, type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
+import { takeLinkedItem } from "./router";
 import { ScrollFade } from "./ScrollFade";
-import { Ticker } from "./Ticker";
 import { Divider, Toolbar } from "./Toolbar";
 import { FullscreenButton, ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 
 export function GraphPage() {
   const { items, error, retry } = useItems();
+  // A ticker entry clicked on another page lands here with its item picked,
+  // once the list it has to be found in has arrived.
+  const [linked] = useState(takeLinkedItem);
   const [selected, setSelected] = useState("");
 
   const [range, setRange] = useState<Range>("30D");
@@ -31,10 +34,11 @@ export function GraphPage() {
   // A list that arrives, changes or empties must never leave the chart pointed
   // at an item that is no longer in it.
   useEffect(() => {
-    setSelected(current =>
-      items.some(item => item.code === current) ? current : (items[0]?.code ?? ""),
-    );
-  }, [items]);
+    setSelected(current => {
+      const wanted = current || linked;
+      return items.some(item => item.code === wanted) ? wanted : (items[0]?.code ?? "");
+    });
+  }, [items, linked]);
 
   // The range is part of the request rather than a slice of it — a short range is drawn from the 15-minute poll
   // and a long one from the daily records, so they aren't the same series.
@@ -83,9 +87,7 @@ export function GraphPage() {
 
   return (
     <div className={full ? "flex h-dvh flex-col overflow-hidden" : "flex flex-col"}>
-      <Header>
-        <Ticker items={items.map(item => item.code)} onSelect={setSelected} />
-      </Header>
+      <Header items={items} onSelect={setSelected} />
 
       {/* The chart shares the page column every page uses, and on a laptop or
           desktop keeps to 2:1 inside it. */}

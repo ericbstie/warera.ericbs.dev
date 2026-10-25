@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Chip } from "./Chip";
 import { Header } from "./Header";
-import { itemIcon, itemLabel } from "./hooks";
+import { itemIcon, itemLabel, useItems } from "./hooks";
 import { PAGE_COLUMN } from "./layout";
+import { graphOf, navigate } from "./router";
 import { MarketWages } from "./MarketWages";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
@@ -196,10 +197,12 @@ function LoadMore({ onVisible }: { onVisible: () => void }) {
 
 export function WageCalculatorPage() {
   const { rows, loading, error, done, loadMore } = usePlacements();
+  const { items } = useItems();
 
   return (
     <>
-      <Header />
+      {/* The ticker charts nothing here, so an entry opens it on the Graph page. */}
+      <Header items={items} onSelect={code => navigate(graphOf(code))} />
 
       <main className={`${PAGE_COLUMN} pb-24 pt-10`}>
         {/* Side by side where there is room for both lists, stacked on a phone. */}
