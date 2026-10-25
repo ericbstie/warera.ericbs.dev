@@ -120,7 +120,7 @@ function ItemOption({
       aria-selected={selected}
       onClick={() => onSelect(code)}
       className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-base ${
-        selected ? "bg-accent text-on-accent" : "text-ink hover:bg-surface"
+        selected ? "bg-edge/40 font-semibold text-ink" : "text-ink hover:bg-edge/40"
       }`}
     >
       <img src={itemIcon(code)} alt="" width={20} height={20} className="shrink-0" />

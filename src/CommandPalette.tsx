@@ -146,18 +146,14 @@ export function CommandPalette({
                   onMouseDown={event => event.preventDefault()}
                   onClick={() => choose(index)}
                   className={`flex min-h-10 cursor-pointer items-center gap-2.5 px-3 py-2 ${
-                    current ? "bg-accent text-on-accent" : "text-ink"
+                    current ? "bg-edge/40 text-ink" : "text-ink"
                   }`}
                 >
                   <img src={itemIcon(item.code)} alt="" width={24} height={24} className="shrink-0" />
                   <span className="min-w-0 flex-1 truncate text-base">
                     {itemLabel(item.code)}
                   </span>
-                  <span
-                    className={`shrink-0 text-sm tracking-wide ${
-                      current ? "text-on-accent" : "text-muted"
-                    }`}
-                  >
+                  <span className="shrink-0 text-sm tracking-wide text-muted">
                     {item.type}
                   </span>
                 </li>

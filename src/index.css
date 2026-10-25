@@ -13,7 +13,6 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-on-accent: var(--on-accent);
   --color-mid: var(--mid);
   --color-up: var(--up);
   --color-down: var(--down);
@@ -32,7 +31,6 @@
     --ink: #f5efe2;
     --muted: #a8a29e;
     --accent: #f5efe2;
-    --on-accent: #211c19;
     --mid: #bef264;
     --up: #4ade80;
     --down: #f87171;
