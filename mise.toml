@@ -1,5 +1,5 @@
 [tools]
-bun = "1.3"
+bun = "latest"
 
 # `mise bootstrap` installs this as the systemd user unit dev.mise.warera:
 # it starts on boot, restarts on a crash, and logs to the journal.
