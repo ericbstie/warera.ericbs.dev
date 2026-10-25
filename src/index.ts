@@ -663,6 +663,9 @@ const SECURITY_HEADERS: Record<string, string> = {
     "form-action 'none'",
     "frame-ancestors 'none'",
   ].join("; "),
+  // Caddy only ever serves the site over HTTPS, and a browser ignores this
+  // header on a plain HTTP response, such as a local run.
+  "Strict-Transport-Security": "max-age=31536000",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
