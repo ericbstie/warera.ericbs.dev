@@ -160,7 +160,8 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
   const text = await upstream.text();
-  const contentType = upstream.headers.get("content-type") ?? "application/json";
+  // Only a JSON payload is ever kept, so it goes out as JSON whatever upstream labelled it.
+  const contentType = "application/json";
 
   const ok = upstream.status >= 200 && upstream.status < 300 && isTrpcPayload(text);
   if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
@@ -238,17 +239,16 @@ function upstreamFailure(err: unknown, context: string): Response {
   // Guarded rather than cast: a rejection from fetch is an Error, and a timeout
   // is a DOMException, neither of which carries the fields a TrpcFailure has.
   const failure: Partial<TrpcFailure> = typeof err === "object" && err !== null ? err : {};
-  return new Response(
-    failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }),
-    {
-      status: failure.status ?? 502,
-      headers: {
-        "Content-Type": failure.contentType ?? "application/json",
-        "X-Cache": "MISS",
-        "Cache-Control": "no-store", // never let a browser hold on to an error
-      },
+  // Upstream's own body stays in the log: passed on with its Content-Type, a
+  // gateway's HTML error page would be served as a page on this site.
+  return new Response(JSON.stringify({ error: { message: "Upstream request failed" } }), {
+    status: failure.status && failure.status >= 400 ? failure.status : 502,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Cache": "MISS",
+      "Cache-Control": "no-store", // never let a browser hold on to an error
     },
-  );
+  });
 }
 
 /**
