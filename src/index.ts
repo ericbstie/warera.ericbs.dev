@@ -649,6 +649,35 @@ const respond = (asset: Asset, status = 200): Response =>
   new Response(asset.bytes, { status, headers: { "Content-Type": asset.contentType } });
 
 /**
+ * The page loads nothing but its own bundle, its own API and the game's item
+ * icons, so the policy allows exactly those. A game-provided string that ever
+ * slipped into the markup would have nowhere to load a script from, and no
+ * other site can frame the page.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "img-src 'self' https://media.warera.io",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Cross-Origin-Opener-Policy": "same-origin",
+};
+
+const secured =
+  (handler: (req: Request) => Response | Promise<Response>) =>
+  async (req: Request): Promise<Response> => {
+    const res = await handler(req);
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.headers.set(name, value);
+    return res;
+  };
+
+/**
  * Bun's default handler renders the error page — a stack trace outside
  * production — for anything a route throws. Answer plainly and keep the trace
  * in the log where it belongs.
@@ -673,18 +702,18 @@ const server = isProduction
       return serve({
         error: onError,
         routes: {
-          "/api/history": (req) => serveHistory(req, historyDb),
-          "/api/movers": (req) => serveMovers(req, historyDb),
-          "/api/industrialism": serveIndustrialism,
-          "/api/placements": servePlacements,
-          "/api/jobs": serveJobs,
-          "/api/trpc/*": proxyTrpc,
+          "/api/history": secured((req) => serveHistory(req, historyDb)),
+          "/api/movers": secured((req) => serveMovers(req, historyDb)),
+          "/api/industrialism": secured(serveIndustrialism),
+          "/api/placements": secured(servePlacements),
+          "/api/jobs": secured(serveJobs),
+          "/api/trpc/*": secured(proxyTrpc),
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
-          "/*": (req) => {
+          "/*": secured((req) => {
             const asset = assets.get(path.basename(new URL(req.url).pathname));
             return asset ? respond(asset) : respond(indexAsset);
-          },
+          }),
         },
       });
     })()
