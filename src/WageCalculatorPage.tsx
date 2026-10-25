@@ -182,10 +182,7 @@ export function WageCalculatorPage() {
           <TopItems />
         </div>
         <h2 className="text-2xl font-semibold">Best placements</h2>
-        <p className="pt-2 text-base text-muted">
-          The best paying region of every country for every item, by what a worker keeps at break even.
-        </p>
-        <div className="pt-5">
+        <div className="pt-4">
           <Panel label="placements">
             {!rows.length && loading ? (
               <p className="text-base text-muted">Ranking every item against every region…</p>
