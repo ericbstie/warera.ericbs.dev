@@ -14,7 +14,7 @@ function Requirement({ kind, value, children }: { kind: keyof typeof REQUIREMENT
   return (
     <span
       title={`${kind[0]!.toUpperCase()}${kind.slice(1)} ${value} or more`}
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-semibold tabular-nums ${REQUIREMENT_STYLES[kind]}`}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium tabular-nums ${REQUIREMENT_STYLES[kind]}`}
     >
       <svg aria-hidden viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round">
         {children}

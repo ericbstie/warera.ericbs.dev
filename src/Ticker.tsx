@@ -34,7 +34,7 @@ function Entry({
         height={18}
         draggable={false} // a native image drag would otherwise hijack the pointer events driving the swipe
       />
-      <span className={`text-base font-medium tabular-nums sm:text-lg ${rising ? "text-up" : "text-down"}`}>
+      <span className={`text-base tabular-nums sm:text-lg ${rising ? "text-up" : "text-down"}`}>
         {rising ? "+" : ""}
         {mover.changePct.toFixed(2)}%
       </span>

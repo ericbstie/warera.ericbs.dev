@@ -150,7 +150,7 @@ export function CommandPalette({
                   }`}
                 >
                   <img src={itemIcon(item.code)} alt="" width={24} height={24} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate text-base font-medium">
+                  <span className="min-w-0 flex-1 truncate text-base">
                     {itemLabel(item.code)}
                   </span>
                   <span
