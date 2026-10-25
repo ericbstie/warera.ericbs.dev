@@ -48,7 +48,7 @@ function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
 function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: number }) {
   return (
     <li className="flex items-center gap-3 border-b border-edge/60 py-3 pr-2 sm:gap-4">
-      <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
+      <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
       <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-3.5">
@@ -106,20 +106,20 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
       <table className="w-full table-fixed text-base">
         <thead className="text-sm text-muted">
           <tr className="border-b border-edge">
-            <th className="w-14 pb-3 pr-3 text-right font-normal">#</th>
+            <th className="w-10 pb-3 pr-4 text-right font-normal">#</th>
             <th className="w-24 pb-3 text-left font-normal sm:w-36">Item</th>
             <th className="pb-3 text-left font-normal">Where</th>
             {/* A phone has no room for the workings, only for the answer. */}
             <th className="hidden w-20 pb-3 text-right font-normal sm:table-cell">Bonus</th>
             <th className="hidden w-16 pb-3 text-right font-normal sm:table-cell">Tax</th>
             <th className="w-14 pb-3 text-right font-normal sm:w-20">Wage</th>
-            <th className="w-16 pb-3 text-right font-normal sm:w-24">After tax</th>
+            <th className="w-18 pb-3 pr-2 text-right font-normal sm:w-26">After tax</th>
           </tr>
         </thead>
         <tbody>
           {placements.map((placement, index) => (
             <tr key={`${placement.itemCode}-${placement.regionId}`} className="border-b border-edge/60">
-              <td className="py-2.5 pr-3 text-right tabular-nums text-muted">{index + 1}</td>
+              <td className="py-2.5 pr-4 text-right tabular-nums text-muted">{index + 1}</td>
               <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
                   <img src={itemIcon(placement.itemCode)} alt="" width={18} height={18} className="shrink-0" />
@@ -139,7 +139,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
                 {percent(placement.incomeTax)}
               </td>
               <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.posted)}</td>
-              <td className="py-2.5 pl-1 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
+              <td className="py-2.5 pl-1 pr-2 text-right font-semibold tabular-nums" style={{ color: "var(--up)" }}>
                 {formatPrice(placement.afterTax)}
               </td>
             </tr>

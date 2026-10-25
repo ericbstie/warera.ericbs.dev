@@ -58,7 +58,7 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
         rel="noreferrer"
         className="flex items-center gap-3 rounded py-3 pr-2 transition-colors hover:bg-panel sm:gap-4"
       >
-        <span className="w-5 shrink-0 text-right text-base font-semibold tabular-nums text-muted sm:w-6 sm:text-lg">{rank}</span>
+        <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
         {job.itemCode ? (
           <img src={itemIcon(job.itemCode)} alt={itemLabel(job.itemCode)} title={itemLabel(job.itemCode)} width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
         ) : (
