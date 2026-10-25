@@ -679,15 +679,19 @@ export function PriceChart({
                   const price = low + ((high - low) * row) / ROWS;
                   return (
                     <g key={row}>
-                      <line
-                        x1={PADDING.left}
-                        x2={width - PADDING.right}
-                        y1={y(price)}
-                        y2={y(price)}
-                        // The floor of the price pane is what sets it off from the volume below.
-                        stroke={row === 0 ? AXIS_TEXT : GRID}
-                        strokeOpacity={row === 0 ? FLOOR_OPACITY : undefined}
-                      />
+                      {/* The toolbar's hairline already runs just above the top
+                          row, and two lines that close read as one thick one. */}
+                      {row < ROWS && (
+                        <line
+                          x1={PADDING.left}
+                          x2={width - PADDING.right}
+                          y1={y(price)}
+                          y2={y(price)}
+                          // The floor of the price pane is what sets it off from the volume below.
+                          stroke={row === 0 ? AXIS_TEXT : GRID}
+                          strokeOpacity={row === 0 ? FLOOR_OPACITY : undefined}
+                        />
+                      )}
                       <text
                         x={axisX}
                         y={y(price)}
