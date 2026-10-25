@@ -49,7 +49,9 @@ test("stale-while-revalidate is offered alongside whatever max-age applies", () 
 
 test("no stale-while-revalidate directive when none was asked for", () => {
   const now = 1_000_000;
-  expect(cacheControl("HIT", now + 1_000, { now, staleWhileRevalidate: 0 })).toBe("public, max-age=1");
+  expect(cacheControl("HIT", now + 1_000, { now, staleWhileRevalidate: 0 })).toBe(
+    "public, max-age=1",
+  );
 });
 
 test("the cache drops its least recently used entry once it is full", () => {
@@ -119,7 +121,10 @@ test("a different or absent tag is not a match", () => {
 
 test("chunk splits into full groups plus the remainder", () => {
   expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
-  expect(chunk([1, 2, 3, 4], 2)).toEqual([[1, 2], [3, 4]]);
+  expect(chunk([1, 2, 3, 4], 2)).toEqual([
+    [1, 2],
+    [3, 4],
+  ]);
   expect(chunk([], 50)).toEqual([]);
 });
 
@@ -131,7 +136,10 @@ test("a batch path asks for one procedure per party id", () => {
 });
 
 test("a batch path indexes its inputs whatever the procedure", () => {
-  const path = batchPath("tradingOrder.getTopOrders", [{ itemCode: "lightAmmo" }, { itemCode: "ironOre" }]);
+  const path = batchPath("tradingOrder.getTopOrders", [
+    { itemCode: "lightAmmo" },
+    { itemCode: "ironOre" },
+  ]);
   const [procedures, query] = path.split("?");
   expect(procedures).toBe("tradingOrder.getTopOrders,tradingOrder.getTopOrders");
   expect(JSON.parse(decodeURIComponent(query!.split("input=")[1]!))).toEqual({
@@ -154,7 +162,10 @@ test("a party with no ethics counts as zero rather than failing the batch", () =
 });
 
 test("a failed entry fails the whole batch instead of reading as zero", () => {
-  const entries = [{ result: { data: { ethics: { industrialism: 2 } } } }, { error: { message: "nope" } }];
+  const entries = [
+    { result: { data: { ethics: { industrialism: 2 } } } },
+    { error: { message: "nope" } },
+  ];
 
   expect(() => industrialismByParty(["a", "b"], entries)).toThrow();
 });

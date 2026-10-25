@@ -168,10 +168,14 @@ const RANGE_SLACK_MS = 60 * MINUTE_MS;
  * under a day only go back as far as the poller does, so a range longer than
  * that would chart the same bars as a shorter one. ALL always fits.
  */
-export function availableRanges(interval: Interval, firstIntradayAt: number | null, now = Date.now()): Range[] {
+export function availableRanges(
+  interval: Interval,
+  firstIntradayAt: number | null,
+  now = Date.now(),
+): Range[] {
   if (!isIntradayInterval(interval) || firstIntradayAt === null) return RANGES;
   const reach = now - firstIntradayAt + RANGE_SLACK_MS;
-  return RANGES.filter(range => {
+  return RANGES.filter((range) => {
     const days = rangeDays(range);
     return days === null || days * 1440 * MINUTE_MS <= reach;
   });
@@ -179,7 +183,7 @@ export function availableRanges(interval: Interval, firstIntradayAt: number | nu
 
 /** The longest fixed range on offer, or ALL when none of them fits. */
 export function largestRange(ranges: Range[]): Range {
-  return ranges.filter(range => range !== "ALL").pop() ?? "ALL";
+  return ranges.filter((range) => range !== "ALL").pop() ?? "ALL";
 }
 
 /**
@@ -189,7 +193,7 @@ export function largestRange(ranges: Range[]): Range {
  */
 export function bucketBars(transactions: Transaction[], interval: Interval): Transaction[] {
   if (transactions.length === 0) return transactions;
-  if (transactions.some(t => !t.valueAt.includes("T"))) return transactions;
+  if (transactions.some((t) => !t.valueAt.includes("T"))) return transactions;
 
   const step = intervalMs(interval);
   const bars: Transaction[] = [];

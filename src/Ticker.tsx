@@ -34,7 +34,9 @@ function Entry({
         height={20}
         draggable={false} // a native image drag would otherwise hijack the pointer events driving the swipe
       />
-      <span className={`text-base tabular-nums underline-offset-4 group-hover:underline sm:text-lg ${rising ? "text-up" : "text-down"}`}>
+      <span
+        className={`text-base tabular-nums underline-offset-4 group-hover:underline sm:text-lg ${rising ? "text-up" : "text-down"}`}
+      >
         {rising ? "+" : ""}
         {mover.changePct.toFixed(2)}%
       </span>
@@ -158,10 +160,15 @@ export function Ticker({ items, onSelect }: { items: string[]; onSelect: (code: 
       onClickCapture={onClickCapture}
     >
       <div className="flex w-max gap-6">
-        {[0, 1].map(copy => (
+        {[0, 1].map((copy) => (
           <div key={copy} className="flex shrink-0 gap-6 pr-6" aria-hidden={copy === 1}>
-            {movers.map(mover => (
-              <Entry key={mover.code} mover={mover} onSelect={onSelect} tabIndex={copy === 1 ? -1 : undefined} />
+            {movers.map((mover) => (
+              <Entry
+                key={mover.code}
+                mover={mover}
+                onSelect={onSelect}
+                tabIndex={copy === 1 ? -1 : undefined}
+              />
             ))}
           </div>
         ))}

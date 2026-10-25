@@ -32,7 +32,9 @@ function Segment({
       aria-pressed={active}
       disabled={disabled}
       className={`h-10 border-b-2 px-2 text-base disabled:opacity-35 sm:px-2.5 sm:text-lg ${
-        active ? "border-ink font-semibold text-ink" : "border-transparent text-muted enabled:hover:text-ink"
+        active
+          ? "border-ink font-semibold text-ink"
+          : "border-transparent text-muted enabled:hover:text-ink"
       }`}
     >
       {label}
@@ -63,10 +65,10 @@ function IntervalSelect({
       <select
         aria-label="Candle interval"
         value={interval}
-        onChange={event => onInterval(event.target.value as Interval)}
+        onChange={(event) => onInterval(event.target.value as Interval)}
         className="h-10 cursor-pointer appearance-none bg-transparent pl-2 pr-5 [field-sizing:content] text-base text-ink sm:text-lg [&>option]:bg-panel"
       >
-        {INTERVALS.map(entry => (
+        {INTERVALS.map((entry) => (
           <option key={entry} value={entry}>
             {entry}
           </option>
@@ -94,7 +96,7 @@ export function Toolbar({
   return (
     <div className="flex shrink-0 items-center gap-x-1">
       <div role="group" aria-label="Date range" className="flex items-center">
-        {RANGES.map(entry => (
+        {RANGES.map((entry) => (
           <Segment
             key={entry}
             label={entry}

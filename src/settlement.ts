@@ -71,7 +71,11 @@ export function ethicBonusFor(itemCode: string, industrialism: number): number {
  * and a fanatic agrarian government has given up the law that picks one, so
  * whatever specialization it is still listed with pays nothing.
  */
-export function strategicBonusFor(country: Country, itemCode: string, industrialism: number): number {
+export function strategicBonusFor(
+  country: Country,
+  itemCode: string,
+  industrialism: number,
+): number {
   if (industrialism === FANATIC_AGRARIAN || country.specializedItem !== itemCode) return 0;
   // ?? 0 would pass a numeric string straight through, and "10" + 0 is "100".
   const percent = country.strategicResources?.bonuses?.productionPercent;
@@ -90,7 +94,8 @@ export async function fetchCountries(): Promise<Country[]> {
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
   const data = json?.result?.data;
-  if (typeof data !== "object" || data === null) throw new Error("Country list came back in an unexpected shape");
+  if (typeof data !== "object" || data === null)
+    throw new Error("Country list came back in an unexpected shape");
   return Object.values(data);
 }
 
@@ -104,7 +109,12 @@ export async function fetchIndustrialism(countries: Country[]): Promise<Industri
     if (res.ok) {
       const levels = await res.json();
       // An aggregate that isn't a plain object of levels is no better than none.
-      if (typeof levels === "object" && levels !== null && !Array.isArray(levels) && !levels.error) {
+      if (
+        typeof levels === "object" &&
+        levels !== null &&
+        !Array.isArray(levels) &&
+        !levels.error
+      ) {
         return { levels, complete: true };
       }
     }
@@ -117,7 +127,7 @@ export async function fetchIndustrialism(countries: Country[]): Promise<Industri
 export async function fetchIndustrialismPerCountry(countries: Country[]): Promise<Industrialism> {
   // Every country with a government, not only the ones that specialize: an
   // agrarian country can't pick a specialization and still earns on its deposits.
-  const governed = countries.filter(country => country.rulingParty);
+  const governed = countries.filter((country) => country.rulingParty);
   const levels: Record<string, number> = {};
   let missing = 0;
   let next = 0;
@@ -158,7 +168,7 @@ export function rankPlacements(
   limit = 10,
 ): Placement[] {
   return countries
-    .map(country => {
+    .map((country) => {
       const level = industrialism[country._id] ?? 0;
       const strategicBonus = strategicBonusFor(country, itemCode, level);
       const ethicBonus = ethicBonusFor(itemCode, level);
@@ -185,14 +195,14 @@ export function useSettlementData() {
     let cancelled = false;
 
     fetchCountries()
-      .then(async list => {
+      .then(async (list) => {
         if (cancelled) return;
         const result = await fetchIndustrialism(list);
         if (cancelled) return;
         setCountries(list);
         setIndustrialism(result);
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err as Error);
       })
       .finally(() => {

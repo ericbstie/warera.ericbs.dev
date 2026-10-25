@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 import { measurementOf, TOOLS, toolLabel, type Drawing } from "./tools";
 
-const span = (fromPrice: number, toPrice: number, fromIndex = 2, toIndex = 9): Extract<Drawing, { kind: "measure" }> => ({
+const span = (
+  fromPrice: number,
+  toPrice: number,
+  fromIndex = 2,
+  toIndex = 9,
+): Extract<Drawing, { kind: "measure" }> => ({
   kind: "measure",
   fromIndex,
   toIndex,
@@ -32,8 +37,8 @@ test("reports no percentage rather than infinity from a zero start", () => {
 });
 
 test("names every tool, and falls back for an unknown one", () => {
-  expect(TOOLS.map(tool => tool.id)).toEqual(["crosshair", "line", "measure"]);
-  expect(TOOLS.every(tool => tool.label && tool.hint)).toBe(true);
+  expect(TOOLS.map((tool) => tool.id)).toEqual(["crosshair", "line", "measure"]);
+  expect(TOOLS.every((tool) => tool.label && tool.hint)).toBe(true);
   expect(toolLabel("measure")).toBe("Measure");
   expect(toolLabel("nope" as never)).toBe("Crosshair");
 });

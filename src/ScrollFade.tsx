@@ -6,7 +6,13 @@ const FADE = "linear-gradient(to right, black calc(100% - 2.5rem), transparent)"
  * A row of controls wider than its room scrolls sideways, and fades out at the
  * edge while there is more of it to the right, so nothing looks cut off.
  */
-export function ScrollFade({ className = "", children }: { className?: string; children: ReactNode }) {
+export function ScrollFade({
+  className = "",
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
 

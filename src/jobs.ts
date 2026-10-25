@@ -41,7 +41,14 @@ export type RawOffer = {
 };
 
 /** An offer with everything a row needs present. */
-export type OpenOffer = RawOffer & { _id: string; company: string; user: string; quantity: number; wage: number; wageAfterTax: number };
+export type OpenOffer = RawOffer & {
+  _id: string;
+  company: string;
+  user: string;
+  quantity: number;
+  wage: number;
+  wageAfterTax: number;
+};
 
 /** An offer as the section draws it. */
 export type JobRow = {
@@ -130,13 +137,14 @@ export function useMarketWages() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/jobs")
-      .then(res => res.json())
-      .then(json => {
+      .then((res) => res.json())
+      .then((json) => {
         if (json.error) throw new Error(json.error.message);
-        if (!Array.isArray(json?.jobs)) throw new Error("Job offers came back in an unexpected shape");
+        if (!Array.isArray(json?.jobs))
+          throw new Error("Job offers came back in an unexpected shape");
         if (!cancelled) setRows(json.jobs);
       })
-      .catch(err => !cancelled && setError(err as Error));
+      .catch((err) => !cancelled && setError(err as Error));
     return () => {
       cancelled = true;
     };

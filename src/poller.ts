@@ -5,7 +5,13 @@
 
 import type { Database } from "bun:sqlite";
 import { recordDailyTrading, recordSnapshots } from "./db";
-import { dailyRows, latestDay, POLL_INTERVAL_MS, snapshotFromBook, type DayTotals } from "./history";
+import {
+  dailyRows,
+  latestDay,
+  POLL_INTERVAL_MS,
+  snapshotFromBook,
+  type DayTotals,
+} from "./history";
 import { batchPath, chunk, TRPC_UPSTREAM, UPSTREAM_TIMEOUT_MS } from "./trpc";
 
 export { POLL_INTERVAL_MS };
@@ -16,7 +22,10 @@ export const POLL_BATCH_SIZE = 20;
 
 /** Unwraps a batched response into one payload per item, in the order asked. */
 async function batchFetch(procedure: string, itemCodes: string[]): Promise<unknown[]> {
-  const url = `${TRPC_UPSTREAM}/${batchPath(procedure, itemCodes.map(itemCode => ({ itemCode })))}`;
+  const url = `${TRPC_UPSTREAM}/${batchPath(
+    procedure,
+    itemCodes.map((itemCode) => ({ itemCode })),
+  )}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`${procedure} batch answered ${res.status}`);
 
@@ -26,7 +35,7 @@ async function batchFetch(procedure: string, itemCodes: string[]): Promise<unkno
   if (!Array.isArray(entries) || entries.length !== itemCodes.length) {
     throw new Error(`${procedure} batch came back in an unexpected shape`);
   }
-  return entries.map(entry => entry?.result?.data);
+  return entries.map((entry) => entry?.result?.data);
 }
 
 // The game config is the largest thing a poll downloads and the item list in it
@@ -51,8 +60,11 @@ export async function fetchTradableItems(): Promise<string[]> {
 
   const json = await res.json();
   const items = json?.result?.data?.items as Record<string, { isTradable?: boolean }> | undefined;
-  if (!items || typeof items !== "object") throw new Error("Item list came back in an unexpected shape");
-  return Object.keys(items).filter(code => items[code]?.isTradable).sort();
+  if (!items || typeof items !== "object")
+    throw new Error("Item list came back in an unexpected shape");
+  return Object.keys(items)
+    .filter((code) => items[code]?.isTradable)
+    .sort();
 }
 
 /**
@@ -60,7 +72,10 @@ export async function fetchTradableItems(): Promise<string[]> {
  * items rather than smearing over however long the walk took. A batch that
  * fails costs its own items this round and nothing else.
  */
-export async function pollOnce(db: Database, capturedAt = Date.now()): Promise<{ snapshots: number; days: number }> {
+export async function pollOnce(
+  db: Database,
+  capturedAt = Date.now(),
+): Promise<{ snapshots: number; days: number }> {
   const itemCodes = await tradableItems(capturedAt);
   let snapshots = 0;
   let days = 0;
@@ -70,7 +85,9 @@ export async function pollOnce(db: Database, capturedAt = Date.now()): Promise<{
     // the book was read, so it has to know them before it is built.
     const today = new Map<string, DayTotals>();
     try {
-      const trading = (await batchFetch("itemTrading.getItemTrading", group)) as Array<{ values?: unknown } | undefined>;
+      const trading = (await batchFetch("itemTrading.getItemTrading", group)) as Array<
+        { values?: unknown } | undefined
+      >;
       const rows = group.flatMap((code, index) => {
         const parsed = dailyRows(code, trading[index]?.values);
         today.set(code, latestDay(parsed));
@@ -85,7 +102,9 @@ export async function pollOnce(db: Database, capturedAt = Date.now()): Promise<{
       const books = await batchFetch("tradingOrder.getTopOrders", group);
       snapshots += recordSnapshots(
         db,
-        group.map((code, index) => snapshotFromBook(code, books[index], capturedAt, today.get(code))),
+        group.map((code, index) =>
+          snapshotFromBook(code, books[index], capturedAt, today.get(code)),
+        ),
       );
     } catch (err) {
       console.error("[history] order book batch failed:", err);

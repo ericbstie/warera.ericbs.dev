@@ -89,7 +89,9 @@ test("volumeProfile bands prices low to high and puts the highest price in the l
 });
 
 test("volumeProfile splits into 24 buckets by default", () => {
-  const transactions = Array.from({ length: 50 }, (_, i) => tx({ avgValue: i + 1, totalQuantity: 1 }));
+  const transactions = Array.from({ length: 50 }, (_, i) =>
+    tx({ avgValue: i + 1, totalQuantity: 1 }),
+  );
   const profile = volumeProfile(transactions);
 
   expect(profile).toHaveLength(24);
@@ -157,8 +159,18 @@ test("only a day-wide candle can be drawn from the daily records", () => {
 test("bucketBars groups the polled bars into the chosen width and weights price by volume", () => {
   const bars = bucketBars(
     [
-      tx({ valueAt: "2026-08-17T00:00:00.000Z", avgValue: 0.1, totalValue: 10, totalQuantity: 100 }),
-      tx({ valueAt: "2026-08-17T00:15:00.000Z", avgValue: 0.3, totalValue: 90, totalQuantity: 300 }),
+      tx({
+        valueAt: "2026-08-17T00:00:00.000Z",
+        avgValue: 0.1,
+        totalValue: 10,
+        totalQuantity: 100,
+      }),
+      tx({
+        valueAt: "2026-08-17T00:15:00.000Z",
+        avgValue: 0.3,
+        totalValue: 90,
+        totalQuantity: 300,
+      }),
       tx({ valueAt: "2026-08-17T00:30:00.000Z", avgValue: 0.2, totalValue: 4, totalQuantity: 20 }),
     ],
     "30m",
@@ -187,14 +199,11 @@ test("bucketBars averages the mids when a bucket traded nothing", () => {
 
 test("a day-wide candle is dated like a daily record so the axis labels it by day", () => {
   const bars = bucketBars(
-    [
-      tx({ valueAt: "2026-08-17T09:00:00.000Z" }),
-      tx({ valueAt: "2026-08-18T09:00:00.000Z" }),
-    ],
+    [tx({ valueAt: "2026-08-17T09:00:00.000Z" }), tx({ valueAt: "2026-08-18T09:00:00.000Z" })],
     "1d",
   );
 
-  expect(bars.map(bar => bar.valueAt)).toEqual(["2026-08-17", "2026-08-18"]);
+  expect(bars.map((bar) => bar.valueAt)).toEqual(["2026-08-17", "2026-08-18"]);
 });
 
 test("bucketBars leaves a daily series alone — a day can't be cut finer than it was recorded", () => {
@@ -210,7 +219,11 @@ test("an intraday interval offers only the ranges the poller reaches back over",
   expect(availableRanges("2h", threeDaysAgo, now)).toEqual(["1D", "ALL"]);
   expect(availableRanges("2h", now - 60 * 60 * 1000, now)).toEqual(["ALL"]);
   // A record that started a few minutes short of a week still fills one.
-  expect(availableRanges("15m", now - 7 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000, now)).toEqual(["1D", "7D", "ALL"]);
+  expect(availableRanges("15m", now - 7 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000, now)).toEqual([
+    "1D",
+    "7D",
+    "ALL",
+  ]);
 });
 
 test("the daily interval, or an unknown record, offers every range", () => {

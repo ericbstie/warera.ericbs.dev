@@ -53,11 +53,7 @@ export function ToolRail({
   hasDrawings: boolean;
 }) {
   return (
-    <div
-      role="toolbar"
-      aria-label="Chart tools"
-      className="flex shrink-0 items-center gap-1"
-    >
+    <div role="toolbar" aria-label="Chart tools" className="flex shrink-0 items-center gap-1">
       {TOOLS.map(({ id, label, hint }) => {
         const active = tool === id;
         return (

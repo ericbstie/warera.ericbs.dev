@@ -34,20 +34,28 @@ export function GraphPage() {
   // A list that arrives, changes or empties must never leave the chart pointed
   // at an item that is no longer in it.
   useEffect(() => {
-    setSelected(current => {
+    setSelected((current) => {
       const wanted = current || linked;
-      return items.some(item => item.code === wanted) ? wanted : (items[0]?.code ?? "");
+      return items.some((item) => item.code === wanted) ? wanted : (items[0]?.code ?? "");
     });
   }, [items, linked]);
 
   // The range is part of the request rather than a slice of it — a short range is drawn from the 5-minute poll
   // and a long one from the daily records, so they aren't the same series.
-  const { transactions, firstIntradayAt, loading, error: historyError } = useTransactionHistory(selected, range, interval);
+  const {
+    transactions,
+    firstIntradayAt,
+    loading,
+    error: historyError,
+  } = useTransactionHistory(selected, range, interval);
 
   // Candles under a day only reach back to the first poll, so a range further
   // back than that is turned off — and if it was the one picked, the chart
   // moves to the longest one that still fits.
-  const ranges = useMemo(() => availableRanges(interval, firstIntradayAt), [interval, firstIntradayAt]);
+  const ranges = useMemo(
+    () => availableRanges(interval, firstIntradayAt),
+    [interval, firstIntradayAt],
+  );
   useEffect(() => {
     if (!ranges.includes(range)) setRange(largestRange(ranges));
   }, [ranges, range]);
@@ -57,21 +65,25 @@ export function GraphPage() {
   useEffect(() => setDrawings([]), [selected, range, interval]);
 
   const reset = useCallback(() => {
-    setResetAt(count => count + 1);
+    setResetAt((count) => count + 1);
     setDrawings([]);
     setTool("crosshair");
     setRange("30D");
     setInterval("1d");
   }, []);
 
-  const toggleFull = useCallback(() => setFull(current => !current), []);
+  const toggleFull = useCallback(() => setFull((current) => !current), []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A shortcut that fires while someone is typing a search steals the letter.
       const target = event.target as HTMLElement | null;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "SELECT" || target.isContentEditable)
+      )
+        return;
 
       const key = event.key.toLowerCase();
       if (key === "r") reset();
@@ -119,7 +131,13 @@ export function GraphPage() {
             {/* Only the controls scroll on a narrow screen; the picker's list
                 would be clipped inside a scrolling box. */}
             <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
-              <Toolbar range={range} ranges={ranges} onRange={setRange} interval={interval} onInterval={setInterval} />
+              <Toolbar
+                range={range}
+                ranges={ranges}
+                onRange={setRange}
+                interval={interval}
+                onInterval={setInterval}
+              />
               <Divider />
               <ToolRail
                 tool={tool}
@@ -131,7 +149,9 @@ export function GraphPage() {
             <FullscreenButton full={full} onToggle={toggleFull} />
           </div>
 
-          <div className={`min-h-0 min-w-0 flex-1 pt-3 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
+          <div
+            className={`min-h-0 min-w-0 flex-1 pt-3 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}
+          >
             <Panel label="price chart">
               <PriceChart
                 itemCode={selected}
@@ -140,7 +160,7 @@ export function GraphPage() {
                 error={historyError}
                 tool={tool}
                 drawings={drawings}
-                onDraw={drawing => setDrawings(current => [...current, drawing])}
+                onDraw={(drawing) => setDrawings((current) => [...current, drawing])}
                 resetAt={resetAt}
               />
             </Panel>

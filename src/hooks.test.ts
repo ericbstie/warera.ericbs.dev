@@ -1,5 +1,12 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { fetchTransactionHistory, fetchWeeklyMovers, historyPath, itemLabel, toPriceHistory, type Transaction } from "./hooks";
+import {
+  fetchTransactionHistory,
+  fetchWeeklyMovers,
+  historyPath,
+  itemLabel,
+  toPriceHistory,
+  type Transaction,
+} from "./hooks";
 
 const realFetch = globalThis.fetch;
 
@@ -8,7 +15,9 @@ afterEach(() => {
 });
 
 function stubFetch(payload: unknown) {
-  const fetchMock = mock(async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)));
+  const fetchMock = mock(
+    async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)),
+  );
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }

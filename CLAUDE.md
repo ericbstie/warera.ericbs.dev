@@ -1,4 +1,3 @@
-
 ## UI requirements
 
 - The site must be usable on both mobile and desktop screen sizes.

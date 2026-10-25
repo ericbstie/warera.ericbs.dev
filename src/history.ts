@@ -41,7 +41,9 @@ export type DailyRow = {
 /** An order without a usable price or quantity can't move a best or a depth. */
 function usableOrders(orders: unknown): Order[] {
   if (!Array.isArray(orders)) return [];
-  return orders.filter((order): order is Order => isFiniteNumber(order?.price) && isFiniteNumber(order?.quantity));
+  return orders.filter(
+    (order): order is Order => isFiniteNumber(order?.price) && isFiniteNumber(order?.quantity),
+  );
 }
 
 /**
@@ -58,7 +60,9 @@ export function snapshotFromBook(
   const sells = usableOrders((book as OrderBook | undefined)?.sellOrders);
 
   const best = (orders: Order[], pick: (a: number, b: number) => number) =>
-    orders.length ? orders.reduce((chosen, order) => pick(chosen, order.price), orders[0]!.price) : null;
+    orders.length
+      ? orders.reduce((chosen, order) => pick(chosen, order.price), orders[0]!.price)
+      : null;
   const depth = (orders: Order[]) => orders.reduce((total, order) => total + order.quantity, 0);
 
   return {
@@ -87,13 +91,15 @@ export function latestDay(rows: DailyRow[]): DayTotals {
 }
 
 export function dailyRows(itemCode: string, values: unknown): DailyRow[] {
-  return usableTransactions(values).map(transaction => ({
+  return usableTransactions(values).map((transaction) => ({
     itemCode,
     valueAt: transaction.valueAt,
     avgValue: transaction.avgValue,
     totalValue: isFiniteNumber(transaction.totalValue) ? transaction.totalValue : 0,
     totalQuantity: transaction.totalQuantity,
-    transactionsCount: isFiniteNumber(transaction.transactionsCount) ? transaction.transactionsCount : 0,
+    transactionsCount: isFiniteNumber(transaction.transactionsCount)
+      ? transaction.transactionsCount
+      : 0,
   }));
 }
 
@@ -136,7 +142,9 @@ export function intradayBars(
     // means a new day rather than negative volume.
     const carried = previous !== null && snapshot.dayQuantity >= previous.dayQuantity;
     const totalValue = carried ? snapshot.dayValue - previous!.dayValue : snapshot.dayValue;
-    const totalQuantity = carried ? snapshot.dayQuantity - previous!.dayQuantity : snapshot.dayQuantity;
+    const totalQuantity = carried
+      ? snapshot.dayQuantity - previous!.dayQuantity
+      : snapshot.dayQuantity;
     const gapStart = previous?.capturedAt;
     // Advanced even for a snapshot that draws no bar, so the next bar still
     // measures against the poll before it rather than one further back.
@@ -147,9 +155,15 @@ export function intradayBars(
     // reads better than a line dropped to whatever the other side asked.
     if (price === null) continue;
 
-    const intervalMs = gapStart !== undefined && gapStart <= legacyUntil ? LEGACY_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
+    const intervalMs =
+      gapStart !== undefined && gapStart <= legacyUntil
+        ? LEGACY_POLL_INTERVAL_MS
+        : POLL_INTERVAL_MS;
     // Half a poll of slack, so a late poll isn't mistaken for a missed one.
-    const slots = gapStart === undefined ? 1 : Math.max(1, Math.round((snapshot.capturedAt - gapStart) / intervalMs));
+    const slots =
+      gapStart === undefined
+        ? 1
+        : Math.max(1, Math.round((snapshot.capturedAt - gapStart) / intervalMs));
     const estimated = slots > 1;
     const from = bars[bars.length - 1]?.avgValue ?? price;
 

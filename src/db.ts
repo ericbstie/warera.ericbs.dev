@@ -65,9 +65,10 @@ export function openDatabase(file = DB_PATH): Database {
  */
 function migrate(db: Database): void {
   const columns = db.query("PRAGMA table_info(book_snapshot)").all() as Array<{ name: string }>;
-  const present = new Set(columns.map(column => column.name));
+  const present = new Set(columns.map((column) => column.name));
   for (const column of ["day_value", "day_quantity"]) {
-    if (!present.has(column)) db.exec(`ALTER TABLE book_snapshot ADD COLUMN ${column} REAL NOT NULL DEFAULT 0`);
+    if (!present.has(column))
+      db.exec(`ALTER TABLE book_snapshot ADD COLUMN ${column} REAL NOT NULL DEFAULT 0`);
   }
 }
 
@@ -81,7 +82,9 @@ export function legacyPollsUntil(db: Database): number {
     `INSERT OR IGNORE INTO meta (key, value)
      SELECT 'legacy_polls_until', COALESCE(MAX(captured_at), 0) FROM book_snapshot`,
   );
-  const row = db.query(`SELECT value FROM meta WHERE key = 'legacy_polls_until'`).get() as { value: number };
+  const row = db.query(`SELECT value FROM meta WHERE key = 'legacy_polls_until'`).get() as {
+    value: number;
+  };
   return row.value;
 }
 
@@ -138,7 +141,11 @@ export function readSnapshots(db: Database, itemCode: string, since = 0): Stored
  * The poll just before a window, which is what the first bar in it needs to
  * report its own volume rather than everything since midnight.
  */
-export function readSnapshotBefore(db: Database, itemCode: string, at: number): StoredSnapshot | null {
+export function readSnapshotBefore(
+  db: Database,
+  itemCode: string,
+  at: number,
+): StoredSnapshot | null {
   return (db
     .query(
       `SELECT captured_at AS capturedAt, best_bid AS bestBid, best_ask AS bestAsk,

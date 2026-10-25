@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { bucketBars, isIntraday, isIntradayInterval, rangeDays, type Interval, type Range } from "./indicators";
+import {
+  bucketBars,
+  isIntraday,
+  isIntradayInterval,
+  rangeDays,
+  type Interval,
+  type Range,
+} from "./indicators";
 
 export type Transaction = {
   valueAt: string;
@@ -44,7 +51,7 @@ export function usableTransactions(values: unknown): Transaction[] {
   if (!Array.isArray(values)) return [];
   return values
     .filter((t): t is Transaction => isFiniteNumber(t?.avgValue) && typeof t?.valueAt === "string")
-    .map(t => ({ ...t, totalQuantity: isFiniteNumber(t.totalQuantity) ? t.totalQuantity : 0 }));
+    .map((t) => ({ ...t, totalQuantity: isFiniteNumber(t.totalQuantity) ? t.totalQuantity : 0 }));
 }
 
 /**
@@ -65,7 +72,11 @@ export function historyPath(itemCode: string, range: Range, interval: Interval =
 /** The bars, plus when the poller first saw the item — null if it never has. */
 export type History = { transactions: Transaction[]; firstIntradayAt: number | null };
 
-export async function fetchHistory(itemCode: string, range: Range, interval: Interval = "1d"): Promise<History> {
+export async function fetchHistory(
+  itemCode: string,
+  range: Range,
+  interval: Interval = "1d",
+): Promise<History> {
   const res = await fetch(historyPath(itemCode, range, interval));
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
@@ -99,7 +110,8 @@ export function weeklyChangePct(transactions: Transaction[], days = 7): number |
   if (!last) return null;
 
   const cutoff = Date.parse(last.valueAt) - days * 24 * 60 * 60 * 1000;
-  const earlier = transactions.filter(t => Date.parse(t.valueAt) <= cutoff).pop() ?? transactions[0];
+  const earlier =
+    transactions.filter((t) => Date.parse(t.valueAt) <= cutoff).pop() ?? transactions[0];
   if (!earlier || earlier === last || !earlier.avgValue) return null;
 
   return ((last.avgValue - earlier.avgValue) / earlier.avgValue) * 100;
@@ -115,12 +127,15 @@ export async function fetchWeeklyMovers(itemCodes: string[]): Promise<Mover[]> {
 
   const res = await fetch("/api/movers");
   const json = await res.json();
-  if (!Array.isArray(json?.movers)) throw new Error("Weekly movers came back in an unexpected shape");
+  if (!Array.isArray(json?.movers))
+    throw new Error("Weekly movers came back in an unexpected shape");
 
   // The strip only shows what the picker lists, so an item the record still
   // holds but the game no longer trades stays off it.
   const listed = new Set(itemCodes);
-  return (json.movers as Mover[]).filter(mover => listed.has(mover.code) && isFiniteNumber(mover.changePct));
+  return (json.movers as Mover[]).filter(
+    (mover) => listed.has(mover.code) && isFiniteNumber(mover.changePct),
+  );
 }
 
 export function useWeeklyMovers(itemCodes: string[]): Mover[] {
@@ -132,11 +147,11 @@ export function useWeeklyMovers(itemCodes: string[]): Mover[] {
     let cancelled = false;
 
     fetchWeeklyMovers(key.split(","))
-      .then(values => {
+      .then((values) => {
         if (!cancelled) setMovers(values);
       })
       // The ticker is a garnish; a failure leaves it empty rather than shouting.
-      .catch(err => console.error("[ticker] weekly movers failed to load:", err));
+      .catch((err) => console.error("[ticker] weekly movers failed to load:", err));
 
     return () => {
       cancelled = true;
@@ -147,7 +162,7 @@ export function useWeeklyMovers(itemCodes: string[]): Mover[] {
 }
 
 export function toPriceHistory(transactions: Transaction[]): PricePoint[] {
-  return transactions.map(t => ({ date: t.valueAt, price: t.avgValue }));
+  return transactions.map((t) => ({ date: t.valueAt, price: t.avgValue }));
 }
 
 export function useTransactionHistory(itemCode: string, range: Range, interval: Interval = "1d") {
@@ -174,12 +189,12 @@ export function useTransactionHistory(itemCode: string, range: Range, interval: 
     let cancelled = false;
     setLoading(true);
     fetchHistory(itemCode, range, interval)
-      .then(history => {
+      .then((history) => {
         if (cancelled) return;
         setTransactions(history.transactions);
         setFirstIntradayAt(history.firstIntradayAt);
       })
-      .catch(err => {
+      .catch((err) => {
         if (cancelled) return;
         // Keeping the last range's bars up here would label a failed request as
         // a successful one, so a failure clears them and says so instead.
@@ -206,7 +221,7 @@ export function usePriceHistory(itemCode: string, range: Range, interval: Interv
 
 /** Codes arrive as camelCase identifiers — "lightAmmo", "helmet1" — and the UI wants words. */
 export function itemLabel(code: string): string {
-  return code.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/^./, first => first.toUpperCase());
+  return code.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/^./, (first) => first.toUpperCase());
 }
 
 export async function fetchItems(): Promise<MarketItem[]> {
@@ -222,17 +237,29 @@ export async function fetchItems(): Promise<MarketItem[]> {
 
 /** The game config lists every item; only the tradable ones belong on a market page. */
 export function itemsFromConfig(config: unknown): MarketItem[] {
-  const items = (config as { items?: unknown } | undefined)?.items as Record<string, Omit<MarketItem, "code" | "type"> & {
-    isTradable?: boolean;
-    type?: string;
-  }> | undefined;
+  const items = (config as { items?: unknown } | undefined)?.items as
+    | Record<
+        string,
+        Omit<MarketItem, "code" | "type"> & {
+          isTradable?: boolean;
+          type?: string;
+        }
+      >
+    | undefined;
   if (!items) throw new Error("Item list came back in an unexpected shape");
   return Object.keys(items)
-    .filter(code => items[code]?.isTradable)
+    .filter((code) => items[code]?.isTradable)
     .sort()
-    .map(code => {
+    .map((code) => {
       const { productionPoints, productionNeeds, isDeposit, climates } = items[code]!;
-      return { code, type: items[code]?.type ?? "", productionPoints, productionNeeds, isDeposit, climates };
+      return {
+        code,
+        type: items[code]?.type ?? "",
+        productionPoints,
+        productionNeeds,
+        isDeposit,
+        climates,
+      };
     });
 }
 
@@ -247,10 +274,10 @@ export function useItems() {
     setError(null);
 
     fetchItems()
-      .then(listed => {
+      .then((listed) => {
         if (!cancelled) setItems(listed);
       })
-      .catch(err => {
+      .catch((err) => {
         if (cancelled) return;
         // Without this the page rendered as a healthy but empty shell: an empty
         // picker, and three panels each reporting "no data for this item".
@@ -263,5 +290,5 @@ export function useItems() {
     };
   }, [attempt]);
 
-  return { items, error, retry: () => setAttempt(current => current + 1) };
+  return { items, error, retry: () => setAttempt((current) => current + 1) };
 }

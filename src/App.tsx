@@ -7,9 +7,7 @@ export function App() {
   const page = pageFor(usePath());
 
   return (
-    <div className="min-h-screen">
-      {page === "graph" ? <GraphPage /> : <WageCalculatorPage />}
-    </div>
+    <div className="min-h-screen">{page === "graph" ? <GraphPage /> : <WageCalculatorPage />}</div>
   );
 }
 

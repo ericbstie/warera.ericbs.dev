@@ -45,7 +45,8 @@ export function quoteFor(transactions: Transaction[]): Quote | null {
   const close = finite(last.avgValue);
   // With a single day there is nothing to compare against, so the day opens
   // where it closes and reports a flat change rather than a fall from zero.
-  const previous = transactions.length > 1 ? finite(transactions[transactions.length - 2]!.avgValue) : close;
+  const previous =
+    transactions.length > 1 ? finite(transactions[transactions.length - 2]!.avgValue) : close;
   const change = close - previous;
 
   return {
@@ -105,7 +106,7 @@ export function formatPrice(value: number, decimals = 3): string {
 export function formatCompact(value: number): string {
   const amount = finite(value);
   const magnitude = Math.abs(amount);
-  const unit = COMPACT_UNITS.find(u => magnitude >= u.limit);
+  const unit = COMPACT_UNITS.find((u) => magnitude >= u.limit);
   const scaled = unit ? amount / unit.limit : amount;
   return trimTrailingZeros(scaled.toFixed(2)) + (unit?.suffix ?? "");
 }
@@ -132,7 +133,11 @@ export function parseBarDate(at: string): Date {
 export function formatTime(at: string): string {
   const parsed = parseBarDate(at);
   if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  return parsed.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
 }
 
 export function formatDay(date: string): string {

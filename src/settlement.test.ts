@@ -17,11 +17,15 @@ function country(id: string, productionPercent: number, specializedItem?: string
 test("strategic resources pay for the specialized item and nothing else", () => {
   // The game only lifts what a country specializes in, so strategic resources
   // buy an iron company nothing in a country that has settled on wood.
-  const countries = [country("low", 5, "iron"), country("high", 20, "iron"), country("elsewhere", 40, "wood")];
+  const countries = [
+    country("low", 5, "iron"),
+    country("high", 20, "iron"),
+    country("elsewhere", 40, "wood"),
+  ];
   const ranked = rankPlacements(countries, {}, "iron");
 
-  expect(ranked.map(p => p.country)).toEqual(["high", "low", "elsewhere"]);
-  expect(ranked.map(p => p.totalBonus)).toEqual([20, 5, 0]);
+  expect(ranked.map((p) => p.country)).toEqual(["high", "low", "elsewhere"]);
+  expect(ranked.map((p) => p.totalBonus)).toEqual([20, 5, 0]);
 });
 
 test("a specializing country adds its ethic on top of its strategic resources", () => {
@@ -43,7 +47,7 @@ test("adds 10% at industrialism 1 and nothing at 0", () => {
   const countries = [country("a", 0, "iron"), country("b", 0, "iron")];
   const ranked = rankPlacements(countries, { a: 1, b: 0 }, "iron");
 
-  expect(ranked.map(p => p.totalBonus)).toEqual([10, 0]);
+  expect(ranked.map((p) => p.totalBonus)).toEqual([10, 0]);
 });
 
 test("the ethic pays on the item's own axis, not on the specialization", () => {
@@ -75,7 +79,7 @@ test("countries stay distinguishable when their display names aren't", () => {
     { ...country("c", 5), name: undefined as unknown as string },
   ];
 
-  const ids = rankPlacements(countries, {}, "iron").map(placement => placement.id);
+  const ids = rankPlacements(countries, {}, "iron").map((placement) => placement.id);
   expect(ids).toEqual(["a", "b", "c"]);
   expect(new Set(ids).size).toBe(ids.length);
 });

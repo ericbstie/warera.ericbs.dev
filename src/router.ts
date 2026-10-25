@@ -14,7 +14,7 @@ export const ROUTES: Record<PageId, string> = {
  */
 export function pageFor(path: string): PageId {
   const here = path.replace(/\/+$/, "") || "/";
-  const match = (Object.keys(ROUTES) as PageId[]).find(page => ROUTES[page] === here);
+  const match = (Object.keys(ROUTES) as PageId[]).find((page) => ROUTES[page] === here);
   return match ?? "wages";
 }
 

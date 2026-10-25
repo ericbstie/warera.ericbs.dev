@@ -207,7 +207,7 @@ export function rankPlacements(
   limit = 10,
   now = Date.now(),
 ): Placement[] {
-  const byId = new Map(countries.map(country => [country._id, country]));
+  const byId = new Map(countries.map((country) => [country._id, country]));
   const best = new Map<string, Placement>();
 
   for (const item of items) {
@@ -221,7 +221,8 @@ export function rankPlacements(
 
       const key = `${item.code} ${country._id}`;
       const standing = best.get(key);
-      if (!standing || wage.afterTax > standing.wage.afterTax) best.set(key, { item, region, country, wage });
+      if (!standing || wage.afterTax > standing.wage.afterTax)
+        best.set(key, { item, region, country, wage });
     }
   }
 
@@ -264,20 +265,26 @@ export function toPlacementRow({ item, region, country, wage }: Placement): Plac
 /** The first row of each item in a ranked list, which is where that item pays best. */
 export function bestPerItem(rows: PlacementRow[]): PlacementRow[] {
   const seen = new Set<string>();
-  return rows.filter(row => !seen.has(row.itemCode) && seen.add(row.itemCode));
+  return rows.filter((row) => !seen.has(row.itemCode) && seen.add(row.itemCode));
 }
 
 export type PlacementPage = { placements: PlacementRow[]; total: number };
 
 // --- upstream data --------------------------------------------------------
 
-type RawRegion = { _id?: string; name?: string; country?: string; climate?: string; deposit?: Deposit };
+type RawRegion = {
+  _id?: string;
+  name?: string;
+  country?: string;
+  climate?: string;
+  deposit?: Deposit;
+};
 
 export function toRegions(values: unknown): Region[] {
   if (!Array.isArray(values)) return [];
   return (values as RawRegion[])
-    .filter(region => typeof region._id === "string" && typeof region.country === "string")
-    .map(region => ({
+    .filter((region) => typeof region._id === "string" && typeof region.country === "string")
+    .map((region) => ({
       id: region._id!,
       name: region.name ?? region._id!,
       countryId: region.country!,
@@ -286,11 +293,18 @@ export function toRegions(values: unknown): Region[] {
     }));
 }
 
-export async function fetchPlacements(offset: number, limit = PLACEMENTS_PAGE_SIZE, per = ""): Promise<PlacementPage> {
-  const res = await fetch(`/api/placements?offset=${offset}&limit=${limit}${per ? `&per=${per}` : ""}`);
+export async function fetchPlacements(
+  offset: number,
+  limit = PLACEMENTS_PAGE_SIZE,
+  per = "",
+): Promise<PlacementPage> {
+  const res = await fetch(
+    `/api/placements?offset=${offset}&limit=${limit}${per ? `&per=${per}` : ""}`,
+  );
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
-  if (!Array.isArray(json?.placements)) throw new Error("Placements came back in an unexpected shape");
+  if (!Array.isArray(json?.placements))
+    throw new Error("Placements came back in an unexpected shape");
   return json;
 }
 
@@ -317,15 +331,15 @@ export function usePlacements() {
     setError(null);
 
     fetchPlacements(shownRef.current)
-      .then(page => {
+      .then((page) => {
         shownRef.current += page.placements.length;
         setTotal(page.total);
-        setRows(shown => {
+        setRows((shown) => {
           const seen = new Set(shown.map(rowKey));
-          return [...shown, ...page.placements.filter(row => !seen.has(rowKey(row)))];
+          return [...shown, ...page.placements.filter((row) => !seen.has(rowKey(row)))];
         });
       })
-      .catch(err => setError(err as Error))
+      .catch((err) => setError(err as Error))
       .finally(() => {
         busy.current = false;
         setLoading(false);
@@ -349,8 +363,8 @@ export function useTopItems() {
   useEffect(() => {
     let cancelled = false;
     fetchPlacements(0, TOP_ITEMS, "item")
-      .then(page => !cancelled && setRows(page.placements))
-      .catch(err => !cancelled && setError(err as Error));
+      .then((page) => !cancelled && setRows(page.placements))
+      .catch((err) => !cancelled && setError(err as Error));
     return () => {
       cancelled = true;
     };

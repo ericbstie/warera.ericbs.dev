@@ -36,7 +36,9 @@ export function groupOrdersByPrice(orders: Order[]): PriceLevel[] {
     if (!isFiniteNumber(order?.price) || !isFiniteNumber(order?.quantity)) continue;
     totals.set(order.price, (totals.get(order.price) ?? 0) + order.quantity);
   }
-  return Array.from(totals, ([price, quantity]) => ({ price, quantity })).sort((a, b) => b.price - a.price);
+  return Array.from(totals, ([price, quantity]) => ({ price, quantity })).sort(
+    (a, b) => b.price - a.price,
+  );
 }
 
 export function useTransactions(itemCode: string) {
@@ -57,13 +59,13 @@ export function useTransactions(itemCode: string) {
     let cancelled = false;
     setLoading(true);
     fetchOrders(itemCode)
-      .then(book => {
+      .then((book) => {
         if (!cancelled) {
           setBuyOrders(book.buyOrders);
           setSellOrders(book.sellOrders);
         }
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err as Error);
       })
       .finally(() => {
@@ -94,13 +96,17 @@ export type BestPrices = { bids: Record<string, number>; asks: Record<string, nu
  */
 export function topOrdersBatchPath(itemCodes: string[]): string {
   const procedures = Array(itemCodes.length).fill("tradingOrder.getTopOrders").join(",");
-  const input = JSON.stringify(Object.fromEntries(itemCodes.map((itemCode, index) => [index, { itemCode }])));
+  const input = JSON.stringify(
+    Object.fromEntries(itemCodes.map((itemCode, index) => [index, { itemCode }])),
+  );
   return `/api/trpc/${procedures}?batch=1&input=${encodeURIComponent(input)}`;
 }
 
 function best(orders: unknown, pick: (a: number, b: number) => number): number | null {
   if (!Array.isArray(orders)) return null;
-  const prices = orders.map(order => order?.price).filter(price => isFiniteNumber(price) && price > 0);
+  const prices = orders
+    .map((order) => order?.price)
+    .filter((price) => isFiniteNumber(price) && price > 0);
   // reduce hands its callback the index and the array too, and Math.max would
   // take those as further numbers and answer NaN.
   return prices.length ? prices.reduce((chosen, price) => pick(chosen, price)) : null;

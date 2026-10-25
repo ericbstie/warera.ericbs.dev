@@ -2,7 +2,9 @@ import { expect, test } from "bun:test";
 import { barDateAt, clampOffset, clampShift, futureSpan, lastIndex, stepMs } from "./pan";
 
 const days = (count: number) =>
-  Array.from({ length: count }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10));
+  Array.from({ length: count }, (_, i) =>
+    new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10),
+  );
 
 test("reaches one window past the record, and no further", () => {
   expect(futureSpan(30)).toBe(29);
@@ -28,8 +30,12 @@ test("drags the price window off the bars, but keeps a corner of them on the pan
 });
 
 test("takes the middle gap, so a missing bar doesn't stretch the future", () => {
-  expect(stepMs(["2026-01-01", "2026-01-02", "2026-01-09", "2026-01-10"])).toBe(24 * 60 * 60 * 1000);
-  expect(stepMs(["2026-01-01T00:00:00Z", "2026-01-01T00:15:00Z", "2026-01-01T00:30:00Z"])).toBe(15 * 60 * 1000);
+  expect(stepMs(["2026-01-01", "2026-01-02", "2026-01-09", "2026-01-10"])).toBe(
+    24 * 60 * 60 * 1000,
+  );
+  expect(stepMs(["2026-01-01T00:00:00Z", "2026-01-01T00:15:00Z", "2026-01-01T00:30:00Z"])).toBe(
+    15 * 60 * 1000,
+  );
   expect(stepMs(["2026-01-01"])).toBe(24 * 60 * 60 * 1000);
   expect(stepMs([])).toBe(24 * 60 * 60 * 1000);
 });

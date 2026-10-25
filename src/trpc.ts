@@ -52,12 +52,16 @@ export function ttlFor(procedure: string): number {
 export function cacheControl(
   status: CacheStatus,
   expiresAt: number,
-  { now = Date.now(), staleWhileRevalidate = 0 }: { now?: number; staleWhileRevalidate?: number } = {},
+  {
+    now = Date.now(),
+    staleWhileRevalidate = 0,
+  }: { now?: number; staleWhileRevalidate?: number } = {},
 ): string {
   const fresh = status === "HIT" || status === "MISS";
   const seconds = fresh ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
   const directives = ["public", `max-age=${seconds}`];
-  if (staleWhileRevalidate > 0) directives.push(`stale-while-revalidate=${Math.floor(staleWhileRevalidate)}`);
+  if (staleWhileRevalidate > 0)
+    directives.push(`stale-while-revalidate=${Math.floor(staleWhileRevalidate)}`);
   return directives.join(", ");
 }
 
@@ -73,7 +77,12 @@ export function lruGet<T>(cache: Map<string, T>, key: string): T | undefined {
   return value;
 }
 
-export function lruSet<T>(cache: Map<string, T>, key: string, value: T, maxEntries = TRPC_CACHE_MAX_ENTRIES): void {
+export function lruSet<T>(
+  cache: Map<string, T>,
+  key: string,
+  value: T,
+  maxEntries = TRPC_CACHE_MAX_ENTRIES,
+): void {
   cache.delete(key);
   cache.set(key, value);
   while (cache.size > maxEntries) {
@@ -101,7 +110,10 @@ export function etagMatches(ifNoneMatch: string | null | undefined, etag: string
   const withoutWeakPrefix = (value: string) => value.trim().replace(/^W\//, "");
   return ifNoneMatch
     .split(",")
-    .some(candidate => candidate.trim() === "*" || withoutWeakPrefix(candidate) === withoutWeakPrefix(etag));
+    .some(
+      (candidate) =>
+        candidate.trim() === "*" || withoutWeakPrefix(candidate) === withoutWeakPrefix(etag),
+    );
 }
 
 export function chunk<T>(items: T[], size: number): T[][] {
@@ -121,7 +133,10 @@ export function batchPath(procedure: string, inputs: object[]): string {
 }
 
 export function partyBatchPath(partyIds: string[]): string {
-  return batchPath("party.getById", partyIds.map(partyId => ({ partyId })));
+  return batchPath(
+    "party.getById",
+    partyIds.map((partyId) => ({ partyId })),
+  );
 }
 
 type BatchEntry = { error?: unknown; result?: { data?: { ethics?: { industrialism?: number } } } };
@@ -132,13 +147,18 @@ type BatchEntry = { error?: unknown; result?: { data?: { ethics?: { industrialis
  * so anything missing fails the whole batch and the caller serves its last
  * good copy instead.
  */
-export function industrialismByParty(partyIds: string[], entries: BatchEntry[]): Record<string, number> {
-  if (entries.length !== partyIds.length) throw new Error("Batched party lookup returned the wrong number of entries");
+export function industrialismByParty(
+  partyIds: string[],
+  entries: BatchEntry[],
+): Record<string, number> {
+  if (entries.length !== partyIds.length)
+    throw new Error("Batched party lookup returned the wrong number of entries");
 
   const levels: Record<string, number> = {};
   partyIds.forEach((id, index) => {
     const entry = entries[index];
-    if (!entry || "error" in entry || !entry.result) throw new Error(`Batched party lookup failed for ${id}`);
+    if (!entry || "error" in entry || !entry.result)
+      throw new Error(`Batched party lookup failed for ${id}`);
     levels[id] = entry.result.data?.ethics?.industrialism ?? 0;
   });
   return levels;

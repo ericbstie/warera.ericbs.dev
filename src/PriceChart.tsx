@@ -149,7 +149,10 @@ function dayStarts(dates: string[]): number[] {
   return dates.flatMap((date, i) => {
     if (!isTimestamp(date)) return [];
     const previous = dates[i - 1];
-    const opens = previous === undefined ? date.slice(11, 16) === "00:00" : previous.slice(0, 10) !== date.slice(0, 10);
+    const opens =
+      previous === undefined
+        ? date.slice(11, 16) === "00:00"
+        : previous.slice(0, 10) !== date.slice(0, 10);
     return opens ? [i] : [];
   });
 }
@@ -219,7 +222,7 @@ export function PriceChart({
   }, [ref]);
 
   const overlayValues = useMemo(() => {
-    const closes = prices.map(p => p.price);
+    const closes = prices.map((p) => p.price);
     return {
       sma5: sma(closes, 5),
       sma10: sma(closes, 10),
@@ -244,8 +247,9 @@ export function PriceChart({
           ? "Couldn't load price history."
           : "No price history for this item.";
 
-  const values = prices.map(p => p.price);
-  const pad = (Math.max(...values) - Math.min(...values)) * 0.1 || Math.abs(values[0] ?? 0) * 0.1 || 1;
+  const values = prices.map((p) => p.price);
+  const pad =
+    (Math.max(...values) - Math.min(...values)) * 0.1 || Math.abs(values[0] ?? 0) * 0.1 || 1;
   const fitLow = Math.min(...values) - pad;
   const fitHigh = Math.max(...values) + pad;
   // How many gaps the view spans — the whole record until a pinch narrows it.
@@ -300,7 +304,7 @@ export function PriceChart({
     const right = Math.min(center + size / 2, width - padRight);
     return { x: left, width: Math.max(right - left, 0) };
   };
-  const maxVolume = Math.max(1, ...transactions.map(t => t.totalQuantity));
+  const maxVolume = Math.max(1, ...transactions.map((t) => t.totalQuantity));
 
   // With nothing hovered, the highlight sticks to the most recent day.
   const legendIndex = hovered ?? prices.length - 1;
@@ -308,7 +312,7 @@ export function PriceChart({
   // on into the empty room while the figures stay on the last one there was.
   const dataIndex = Math.min(legendIndex, prices.length - 1);
   const point = prices[dataIndex];
-  const dates = prices.map(p => p.date);
+  const dates = prices.map((p) => p.date);
   // Which UTC days the window holds, so the axis knows whether a clock reading
   // on its own is enough to place a bar.
   const firstVisible = barDateAt(dates, Math.max(Math.round(offset), 0));
@@ -330,17 +334,17 @@ export function PriceChart({
     clamp((clientX - left - PADDING.left) / innerWidth, 0, 1);
 
   const panTo = (next: number) =>
-    setScale(current => ({ ...current, offset: clampOffset(next, prices.length, span) }));
+    setScale((current) => ({ ...current, offset: clampOffset(next, prices.length, span) }));
 
   /** The other axis of the drag: how far the price window sits off the bars. */
-  const liftTo = (next: number) => setScale(current => ({ ...current, shift: clampShift(next) }));
+  const liftTo = (next: number) => setScale((current) => ({ ...current, shift: clampShift(next) }));
 
   /**
    * Zoom about a point of the plot: the bar under the fingers, or under the
    * cursor, is the one that stays where it is while the rest close in on it.
    */
   const zoomAt = (ratio: number, factor: number) =>
-    setScale(current => {
+    setScale((current) => {
       const from = current.span ?? futureSpan(prices.length);
       const next = clampSpan(from * factor, prices.length);
       const held = current.offset + ratio * from;
@@ -352,7 +356,7 @@ export function PriceChart({
     });
 
   const stretchBy = (factor: number) =>
-    setScale(current => ({ ...current, stretch: clampStretch(current.stretch * factor) }));
+    setScale((current) => ({ ...current, stretch: clampStretch(current.stretch * factor) }));
 
   /** Two fingers work the axes apart: spreading sideways zooms, spreading up stretches. */
   const pinchTo = (a: { x: number; y: number }, b: { x: number; y: number }) => {
@@ -380,7 +384,10 @@ export function PriceChart({
     // A second finger down turns the drag into a pinch, and whatever the first
     // one had started — a pan, a measurement — is abandoned to it.
     if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const [a, b] = [...pointers.current.values()] as [
+        { x: number; y: number },
+        { x: number; y: number },
+      ];
       panFrom.current = null;
       setDraft(null);
       pinchFrom.current = {
@@ -416,7 +423,10 @@ export function PriceChart({
     }
     if (pinchFrom.current) {
       if (pointers.current.size >= 2) {
-        const [a, b] = [...pointers.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+        const [a, b] = [...pointers.current.values()] as [
+          { x: number; y: number },
+          { x: number; y: number },
+        ];
         pinchTo(a, b);
       }
       return;
@@ -538,10 +548,14 @@ export function PriceChart({
   const volume = transactions[dataIndex]?.totalQuantity ?? 0;
   const volumeTag = formatCompact(volume);
   const volumeTagWidth = volumeTag.length * LABEL_CHAR_WIDTH + 10;
-  const volumeTagX = clamp(x(dataIndex), PADDING.left + volumeTagWidth / 2, plotRight - volumeTagWidth / 2);
+  const volumeTagX = clamp(
+    x(dataIndex),
+    PADDING.left + volumeTagWidth / 2,
+    plotRight - volumeTagWidth / 2,
+  );
   const volumeTagY = volumeBottom - (volume / maxVolume) * volumeHeight - 12;
 
-  const overlayLines = OVERLAYS.filter(entry => overlays.includes(entry.id)).map(entry => {
+  const overlayLines = OVERLAYS.filter((entry) => overlays.includes(entry.id)).map((entry) => {
     const style = OVERLAY_STYLE[entry.id];
     return (
       <path
@@ -568,7 +582,14 @@ export function PriceChart({
       const y2 = clamp(y(clamp(drawing.toPrice, low, high)), priceTop, priceBottom);
       return (
         <g key={key}>
-          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LABEL_TEXT} strokeOpacity={DRAWING_OPACITY} />
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={LABEL_TEXT}
+            strokeOpacity={DRAWING_OPACITY}
+          />
           <circle cx={x1} cy={y1} r={3} fill={LABEL_TEXT} fillOpacity={DRAWING_OPACITY} />
           <circle cx={x2} cy={y2} r={3} fill={LABEL_TEXT} fillOpacity={DRAWING_OPACITY} />
         </g>
@@ -578,7 +599,11 @@ export function PriceChart({
     const { change, changePct, bars, rising } = measurementOf(drawing);
     // Scrolling can carry half a measurement off the plot; the rest stays put.
     const left = clamp(Math.min(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
-    const right = clamp(Math.max(x(drawing.fromIndex), x(drawing.toIndex)), PADDING.left, plotRight);
+    const right = clamp(
+      Math.max(x(drawing.fromIndex), x(drawing.toIndex)),
+      PADDING.left,
+      plotRight,
+    );
     // Stretching can carry an end of it off the pane; the box stops at the edge.
     const top = clamp(y(Math.max(drawing.fromPrice, drawing.toPrice)), priceTop, priceBottom);
     const bottom = clamp(y(Math.min(drawing.fromPrice, drawing.toPrice)), priceTop, priceBottom);
@@ -665,7 +690,7 @@ export function PriceChart({
                 onPointerMove={onPointerMove}
                 onPointerDown={onPointerDown}
                 onPointerUp={onPointerUp}
-                onPointerCancel={event => {
+                onPointerCancel={(event) => {
                   pointers.current.delete(event.pointerId);
                   if (pointers.current.size < 2) pinchFrom.current = null;
                   panFrom.current = null;
@@ -732,7 +757,7 @@ export function PriceChart({
 
                 {/* A day-wide candle is a day already; only finer ones get split. */}
                 <g clipPath={`url(#${clipId})`}>
-                  {dayStarts(dates).map(i => (
+                  {dayStarts(dates).map((i) => (
                     <line
                       key={dates[i]}
                       x1={x(i - 0.5)}
@@ -755,7 +780,9 @@ export function PriceChart({
                       <text
                         x={columnX}
                         y={volumeBottom + 18}
-                        textAnchor={column === 0 ? "start" : column === columns - 1 ? "end" : "middle"}
+                        textAnchor={
+                          column === 0 ? "start" : column === columns - 1 ? "end" : "middle"
+                        }
                         fontSize="14"
                         fill={AXIS_TEXT}
                       >
@@ -776,7 +803,9 @@ export function PriceChart({
                         {...band(x(i), barWidth)}
                         y={volumeBottom - barHeight}
                         height={barHeight}
-                        fill={transactions[i]?.estimated ? AXIS_TEXT : p.price >= previous ? UP : DOWN}
+                        fill={
+                          transactions[i]?.estimated ? AXIS_TEXT : p.price >= previous ? UP : DOWN
+                        }
                         fillOpacity={VOLUME_OPACITY}
                       />
                     );
@@ -826,12 +855,23 @@ export function PriceChart({
                     const prev = prices[i - 1]!.price;
                     // A stretch the server missed is drawn grey: its prices are a guess.
                     const color =
-                      transactions[i]?.estimated || p.price === prev ? AXIS_TEXT : p.price > prev ? UP : DOWN;
+                      transactions[i]?.estimated || p.price === prev
+                        ? AXIS_TEXT
+                        : p.price > prev
+                          ? UP
+                          : DOWN;
                     const top = y(Math.max(prev, p.price));
                     const bottom = y(Math.min(prev, p.price));
                     return (
                       <g key={p.date}>
-                        <line x1={x(i)} x2={x(i)} y1={top} y2={bottom} stroke={color} strokeWidth="1" />
+                        <line
+                          x1={x(i)}
+                          x2={x(i)}
+                          y1={top}
+                          y2={bottom}
+                          stroke={color}
+                          strokeWidth="1"
+                        />
                         <rect
                           {...band(x(i), candleWidth)}
                           y={top}
@@ -927,7 +967,6 @@ export function PriceChart({
                   </g>
                 )}
               </svg>
-
             </>
           )
         )}

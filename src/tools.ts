@@ -26,5 +26,5 @@ export function measurementOf(drawing: Extract<Drawing, { kind: "measure" }>): M
 }
 
 export function toolLabel(id: ToolId): string {
-  return TOOLS.find(tool => tool.id === id)?.label ?? "Crosshair";
+  return TOOLS.find((tool) => tool.id === id)?.label ?? "Crosshair";
 }

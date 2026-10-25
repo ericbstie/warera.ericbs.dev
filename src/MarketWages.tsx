@@ -11,9 +11,21 @@ const REQUIREMENT_STYLES = {
 };
 
 /** Coloured as the game colours them, so the number alone says what is asked for. */
-function Requirement({ kind, value, children }: { kind: keyof typeof REQUIREMENT_STYLES; value: number; children: ReactNode }) {
+function Requirement({
+  kind,
+  value,
+  children,
+}: {
+  kind: keyof typeof REQUIREMENT_STYLES;
+  value: number;
+  children: ReactNode;
+}) {
   return (
-    <Chip tone={REQUIREMENT_STYLES[kind]} title={`${kind[0]!.toUpperCase()}${kind.slice(1)} ${value} or more`} icon={children}>
+    <Chip
+      tone={REQUIREMENT_STYLES[kind]}
+      title={`${kind[0]!.toUpperCase()}${kind.slice(1)} ${value} or more`}
+      icon={children}
+    >
       {value}+
     </Chip>
   );
@@ -55,7 +67,14 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
       >
         <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
         {job.itemCode ? (
-          <img src={itemIcon(job.itemCode)} alt={itemLabel(job.itemCode)} title={itemLabel(job.itemCode)} width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
+          <img
+            src={itemIcon(job.itemCode)}
+            alt={itemLabel(job.itemCode)}
+            title={itemLabel(job.itemCode)}
+            width={40}
+            height={40}
+            className="h-8 w-8 shrink-0 sm:h-10 sm:w-10"
+          />
         ) : (
           <span aria-hidden className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
         )}
@@ -101,7 +120,17 @@ export function MarketWages() {
           title="Open the job market in the game"
           className="text-muted/60 transition-colors hover:text-ink"
         >
-          <svg aria-hidden viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            width={18}
+            height={18}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
             <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
           </svg>

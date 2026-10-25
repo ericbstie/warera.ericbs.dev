@@ -55,14 +55,14 @@ export function scoreItem(item: MarketItem, query: string): number {
 
 /** Anything that isn't an item with a code can't be matched or rendered. */
 function usableItems(items: MarketItem[]): MarketItem[] {
-  return Array.isArray(items) ? items.filter(item => typeof item?.code === "string") : [];
+  return Array.isArray(items) ? items.filter((item) => typeof item?.code === "string") : [];
 }
 
 export function rankItems(items: MarketItem[], query: string): Match[] {
   const needle = normalize(query);
   return usableItems(items)
-    .map(item => ({ item, score: scoreItem(item, needle) }))
-    .filter(match => match.score > SCORE.none)
+    .map((item) => ({ item, score: scoreItem(item, needle) }))
+    .filter((match) => match.score > SCORE.none)
     .sort((a, b) => b.score - a.score || a.item.code.localeCompare(b.item.code));
 }
 
@@ -77,5 +77,5 @@ export function searchItems(
   if (!needle) return usableItems(items).slice(0, cap);
   return rankItems(items, needle)
     .slice(0, cap)
-    .map(match => match.item);
+    .map((match) => match.item);
 }

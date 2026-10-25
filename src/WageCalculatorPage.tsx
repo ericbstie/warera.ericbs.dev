@@ -62,7 +62,13 @@ function ItemRow({ row, rank, now }: { row: PlacementRow; rank: number; now: num
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-0 border-b border-edge/60 py-3 pr-2 sm:flex-nowrap sm:gap-x-4">
       <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
-      <img src={itemIcon(row.itemCode)} alt="" width={40} height={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
+      <img
+        src={itemIcon(row.itemCode)}
+        alt=""
+        width={40}
+        height={40}
+        className="h-8 w-8 shrink-0 sm:h-10 sm:w-10"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-3.5">
           <p className="truncate text-base sm:text-lg">{itemLabel(row.itemCode)}</p>
@@ -119,7 +125,8 @@ function TopItems() {
 }
 
 function PlacementTable({ placements }: { placements: PlacementRow[] }) {
-  if (!placements.length) return <p className="text-base text-muted">Nothing is priced well enough to rank yet.</p>;
+  if (!placements.length)
+    return <p className="text-base text-muted">Nothing is priced well enough to rank yet.</p>;
 
   return (
     <div className="overflow-x-auto">
@@ -137,16 +144,27 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
             <th className="hidden w-20 pb-3 text-right font-normal sm:table-cell">Bonus</th>
             <th className="hidden w-16 pb-3 text-right font-normal sm:table-cell">Tax</th>
             <th className="w-14 pb-3 text-right font-normal sm:w-20">Wage</th>
-            <th className="w-20 whitespace-nowrap pb-3 pr-2 text-right font-normal sm:w-26">After tax</th>
+            <th className="w-20 whitespace-nowrap pb-3 pr-2 text-right font-normal sm:w-26">
+              After tax
+            </th>
           </tr>
         </thead>
         <tbody>
           {placements.map((placement, index) => (
-            <tr key={`${placement.itemCode}-${placement.regionId}`} className="border-b border-edge/60">
+            <tr
+              key={`${placement.itemCode}-${placement.regionId}`}
+              className="border-b border-edge/60"
+            >
               <td className="py-2.5 pr-4 text-right tabular-nums text-muted">{index + 1}</td>
               <td className="py-2.5 pr-2">
                 <span className="flex items-center gap-1.5">
-                  <img src={itemIcon(placement.itemCode)} alt="" width={20} height={20} className="shrink-0" />
+                  <img
+                    src={itemIcon(placement.itemCode)}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="shrink-0"
+                  />
                   <span className="truncate">{itemLabel(placement.itemCode)}</span>
                 </span>
                 <span className="block truncate pl-[1.625rem] text-sm text-muted sm:hidden">
@@ -165,7 +183,9 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
               <td className="hidden py-2.5 pl-1 text-right tabular-nums text-muted sm:table-cell">
                 {percent(placement.incomeTax)}
               </td>
-              <td className="py-2.5 pl-1 text-right tabular-nums">{formatPrice(placement.posted)}</td>
+              <td className="py-2.5 pl-1 text-right tabular-nums">
+                {formatPrice(placement.posted)}
+              </td>
               <td className="py-2.5 pl-1 pr-2 text-right font-semibold tabular-nums text-up">
                 {formatPrice(placement.afterTax)}
               </td>
@@ -185,9 +205,12 @@ function LoadMore({ onVisible }: { onVisible: () => void }) {
     const node = ref.current;
     if (!node) return;
     // Well before the end, so the next page is usually there before it is wanted.
-    const observer = new IntersectionObserver(entries => entries[0]?.isIntersecting && onVisible(), {
-      rootMargin: "600px",
-    });
+    const observer = new IntersectionObserver(
+      (entries) => entries[0]?.isIntersecting && onVisible(),
+      {
+        rootMargin: "600px",
+      },
+    );
     observer.observe(node);
     return () => observer.disconnect();
   }, [onVisible]);
@@ -202,7 +225,7 @@ export function WageCalculatorPage() {
   return (
     <>
       {/* The ticker charts nothing here, so an entry opens it on the Graph page. */}
-      <Header items={items} onSelect={code => navigate(graphOf(code))} />
+      <Header items={items} onSelect={(code) => navigate(graphOf(code))} />
 
       <main className={`${PAGE_COLUMN} pb-24 pt-10`}>
         {/* Side by side where there is room for both lists, stacked on a phone. */}
@@ -226,11 +249,15 @@ export function WageCalculatorPage() {
                 </button>
               </p>
             ) : (
-              rows.length > 0 && !done && (
-                // Mounted afresh after every page, so a list still too short to
-                // reach the bottom of the screen keeps asking for more.
-                loading ? <p className="pt-4 text-base text-muted">Loading more…</p> : <LoadMore onVisible={loadMore} />
-              )
+              rows.length > 0 &&
+              !done &&
+              // Mounted afresh after every page, so a list still too short to
+              // reach the bottom of the screen keeps asking for more.
+              (loading ? (
+                <p className="pt-4 text-base text-muted">Loading more…</p>
+              ) : (
+                <LoadMore onVisible={loadMore} />
+              ))
             )}
           </Panel>
         </div>

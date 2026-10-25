@@ -2,7 +2,15 @@ import { serve } from "bun";
 import type { Database } from "bun:sqlite";
 import plugin from "bun-plugin-tailwind";
 import path from "path";
-import { legacyPollsUntil, openDatabase, readDailyByItem, readDailyTrading, readFirstSnapshotAt, readSnapshotBefore, readSnapshots } from "./db";
+import {
+  legacyPollsUntil,
+  openDatabase,
+  readDailyByItem,
+  readDailyTrading,
+  readFirstSnapshotAt,
+  readSnapshotBefore,
+  readSnapshots,
+} from "./db";
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
 import index from "./index.html";
@@ -30,7 +38,15 @@ import {
   UPSTREAM_TIMEOUT_MS,
   type CacheStatus,
 } from "./trpc";
-import { bestPerItem, PLACEMENTS_PAGE_SIZE, rankPlacements, toPlacementRow, toRegions, type PlacementPage, type PlacementRow } from "./wages";
+import {
+  bestPerItem,
+  PLACEMENTS_PAGE_SIZE,
+  rankPlacements,
+  toPlacementRow,
+  toRegions,
+  type PlacementPage,
+  type PlacementRow,
+} from "./wages";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -66,7 +82,13 @@ const contentTypeFor = (name: string, fallback = "application/octet-stream"): st
 // coalescing means that burst hits the upstream at most once per TTL, no
 // matter how many visitors are loading the page at the same time.
 
-type TrpcEntry = { status: number; body: string; contentType: string; expiresAt: number; etag: string };
+type TrpcEntry = {
+  status: number;
+  body: string;
+  contentType: string;
+  expiresAt: number;
+  etag: string;
+};
 type TrpcFailure = { status: number; body: string; contentType: string };
 
 const trpcCache = new Map<string, TrpcEntry>();
@@ -76,7 +98,7 @@ const trpcInFlight = new Map<string, Promise<TrpcEntry>>();
 function refresh(key: string, produce: () => Promise<TrpcEntry>): Promise<TrpcEntry> {
   let pending = trpcInFlight.get(key);
   if (!pending) {
-    pending = produce().then(entry => {
+    pending = produce().then((entry) => {
       lruSet(trpcCache, key, entry);
       return entry;
     });
@@ -107,7 +129,9 @@ async function cached(
     // A failed rebuild leaves the copy we are about to serve in place. That is
     // the point, but it also means a permanently broken rebuild would keep
     // serving an ever-older copy silently, so say so.
-    refresh(key, produce).catch(err => console.error(`[trpc] background rebuild of ${key} failed:`, err));
+    refresh(key, produce).catch((err) =>
+      console.error(`[trpc] background rebuild of ${key} failed:`, err),
+    );
     return { entry: hit, status: "REVALIDATING" };
   }
 
@@ -142,7 +166,13 @@ async function fetchTrpc(pathAndQuery: string, method: string, body: string): Pr
   if (!ok) throw { status: upstream.status, body: text, contentType } satisfies TrpcFailure;
 
   const procedure = pathAndQuery.split("?")[0]!;
-  return { status: upstream.status, body: text, contentType, expiresAt: Date.now() + ttlFor(procedure), etag: etagFor(text) };
+  return {
+    status: upstream.status,
+    body: text,
+    contentType,
+    expiresAt: Date.now() + ttlFor(procedure),
+    etag: etagFor(text),
+  };
 }
 
 /**
@@ -162,7 +192,10 @@ function isTrpcPayload(body: string): boolean {
   // A batched call answers with one entry per procedure; a single call with one object.
   const entries = Array.isArray(parsed) ? parsed : [parsed];
   if (entries.length === 0) return false;
-  return entries.every(entry => typeof entry === "object" && entry !== null && !("error" in entry) && "result" in entry);
+  return entries.every(
+    (entry) =>
+      typeof entry === "object" && entry !== null && !("error" in entry) && "result" in entry,
+  );
 }
 
 function parseJson(body: string, what: string): unknown {
@@ -173,7 +206,12 @@ function parseJson(body: string, what: string): unknown {
   }
 }
 
-function trpcResponse(req: Request, entry: TrpcEntry, cacheStatus: CacheStatus, staleWhileRevalidate = 0): Response {
+function trpcResponse(
+  req: Request,
+  entry: TrpcEntry,
+  cacheStatus: CacheStatus,
+  staleWhileRevalidate = 0,
+): Response {
   const validators = {
     "X-Cache": cacheStatus,
     "Cache-Control": cacheControl(cacheStatus, entry.expiresAt, { staleWhileRevalidate }),
@@ -200,14 +238,17 @@ function upstreamFailure(err: unknown, context: string): Response {
   // Guarded rather than cast: a rejection from fetch is an Error, and a timeout
   // is a DOMException, neither of which carries the fields a TrpcFailure has.
   const failure: Partial<TrpcFailure> = typeof err === "object" && err !== null ? err : {};
-  return new Response(failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }), {
-    status: failure.status ?? 502,
-    headers: {
-      "Content-Type": failure.contentType ?? "application/json",
-      "X-Cache": "MISS",
-      "Cache-Control": "no-store", // never let a browser hold on to an error
+  return new Response(
+    failure.body ?? JSON.stringify({ error: { message: "Upstream request failed" } }),
+    {
+      status: failure.status ?? 502,
+      headers: {
+        "Content-Type": failure.contentType ?? "application/json",
+        "X-Cache": "MISS",
+        "Cache-Control": "no-store", // never let a browser hold on to an error
+      },
     },
-  });
+  );
 }
 
 async function proxyTrpc(req: Request): Promise<Response> {
@@ -242,7 +283,8 @@ async function fetchPartyLevels(partyIds: string[]): Promise<Record<string, numb
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
   const text = await res.text();
-  if (!res.ok) throw { status: res.status, body: text, contentType: "application/json" } satisfies TrpcFailure;
+  if (!res.ok)
+    throw { status: res.status, body: text, contentType: "application/json" } satisfies TrpcFailure;
 
   const entries = parseJson(text, "Batched party lookup");
   if (!Array.isArray(entries)) throw new Error("Batched party lookup did not answer with a list");
@@ -253,19 +295,25 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
   const countries = await cached(trpcCacheKey("GET", COUNTRIES_PATH, ""), () =>
     fetchTrpc(COUNTRIES_PATH, "GET", ""),
   );
-  const payload = parseJson(countries.entry.body, "Country list") as { result?: { data?: unknown } };
+  const payload = parseJson(countries.entry.body, "Country list") as {
+    result?: { data?: unknown };
+  };
   const data = payload.result?.data;
-  if (typeof data !== "object" || data === null) throw new Error("Country list came back in an unexpected shape");
+  if (typeof data !== "object" || data === null)
+    throw new Error("Country list came back in an unexpected shape");
 
   const all = Object.values(data) as Array<{
     _id: string;
     specializedItem?: string;
     rulingParty?: string;
   }>;
-  const governed = all.filter(country => country.rulingParty);
+  const governed = all.filter((country) => country.rulingParty);
 
   const byParty: Record<string, number> = {};
-  for (const group of chunk([...new Set(governed.map(country => country.rulingParty!))], PARTY_BATCH_SIZE)) {
+  for (const group of chunk(
+    [...new Set(governed.map((country) => country.rulingParty!))],
+    PARTY_BATCH_SIZE,
+  )) {
     Object.assign(byParty, await fetchPartyLevels(group));
   }
 
@@ -281,7 +329,9 @@ async function buildIndustrialism(): Promise<TrpcEntry> {
 
 async function serveIndustrialism(req: Request): Promise<Response> {
   try {
-    const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism, { staleWhileRevalidate: true });
+    const { entry, status } = await cached("GET /api/industrialism", buildIndustrialism, {
+      staleWhileRevalidate: true,
+    });
     return trpcResponse(req, entry, status, INDUSTRIALISM_SWR_MS / 1000);
   } catch (err) {
     return upstreamFailure(err, "industrialism aggregate");
@@ -299,9 +349,13 @@ const PLACEMENTS_TTL_MS = 60 * 1000;
 const PLACEMENTS_KEY = "GET /api/placements";
 
 async function trpcData(pathAndQuery: string, method = "GET", body = ""): Promise<unknown> {
-  const { entry } = await cached(trpcCacheKey(method, pathAndQuery, body), () => fetchTrpc(pathAndQuery, method, body));
+  const { entry } = await cached(trpcCacheKey(method, pathAndQuery, body), () =>
+    fetchTrpc(pathAndQuery, method, body),
+  );
   const payload = parseJson(entry.body, pathAndQuery) as unknown;
-  return Array.isArray(payload) ? payload : (payload as { result?: { data?: unknown } }).result?.data;
+  return Array.isArray(payload)
+    ? payload
+    : (payload as { result?: { data?: unknown } }).result?.data;
 }
 
 async function buildPlacements(): Promise<TrpcEntry> {
@@ -315,21 +369,41 @@ async function buildPlacements(): Promise<TrpcEntry> {
   ]);
 
   const items = itemsFromConfig(config);
-  if (typeof countryData !== "object" || countryData === null) throw new Error("Country list came back in an unexpected shape");
+  if (typeof countryData !== "object" || countryData === null)
+    throw new Error("Country list came back in an unexpected shape");
   const countries = Object.values(countryData) as Country[];
   const regions = toRegions(regionData);
   if (!regions.length) throw new Error("Region list came back in an unexpected shape");
 
   const market: BestPrices = { bids: {}, asks: {} };
-  for (const group of chunk(items.map(item => item.code), ORDER_BOOK_BATCH_SIZE)) {
-    const batch = bestPricesFromBatch(group, await trpcData(batchPath("tradingOrder.getTopOrders", group.map(itemCode => ({ itemCode })))));
+  for (const group of chunk(
+    items.map((item) => item.code),
+    ORDER_BOOK_BATCH_SIZE,
+  )) {
+    const batch = bestPricesFromBatch(
+      group,
+      await trpcData(
+        batchPath(
+          "tradingOrder.getTopOrders",
+          group.map((itemCode) => ({ itemCode })),
+        ),
+      ),
+    );
     Object.assign(market.bids, batch.bids);
     Object.assign(market.asks, batch.asks);
   }
 
-  const rows = rankPlacements(items, regions, countries, levels, market, Infinity).map(toPlacementRow);
+  const rows = rankPlacements(items, regions, countries, levels, market, Infinity).map(
+    toPlacementRow,
+  );
   const body = JSON.stringify(rows);
-  return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + PLACEMENTS_TTL_MS, etag: etagFor(body) };
+  return {
+    status: 200,
+    body,
+    contentType: "application/json",
+    expiresAt: Date.now() + PLACEMENTS_TTL_MS,
+    etag: etagFor(body),
+  };
 }
 
 /** Parsed once per build rather than once per page asked for. */
@@ -353,7 +427,10 @@ async function servePlacements(req: Request): Promise<Response> {
     const limit = pageParam(params.get("limit"), PLACEMENTS_PAGE_SIZE, 100);
     // `per=item` keeps only each item's best placement, for the cards above the list.
     const list = params.get("per") === "item" ? placementRows.items : placementRows.rows;
-    const page: PlacementPage = { placements: list.slice(offset, offset + limit), total: list.length };
+    const page: PlacementPage = {
+      placements: list.slice(offset, offset + limit),
+      total: list.length,
+    };
     return jsonResponse(req, JSON.stringify(page), PLACEMENTS_TTL_MS / 1000);
   } catch (err) {
     return upstreamFailure(err, "wage placements");
@@ -370,39 +447,57 @@ const JOBS_TTL_MS = 60 * 1000;
 /** What each call in a batch came back with, in the order the calls went out. */
 function batchData(entries: unknown): unknown[] {
   if (!Array.isArray(entries)) throw new Error("Batched lookup did not answer with a list");
-  return entries.map(entry => (entry as { result?: { data?: unknown } }).result?.data);
+  return entries.map((entry) => (entry as { result?: { data?: unknown } }).result?.data);
 }
 
 async function buildJobs(): Promise<TrpcEntry> {
   const offers = openOffers(await trpcData(JOB_OFFERS_PATH));
 
-  const companyIds = [...new Set(offers.map(offer => offer.company))];
+  const companyIds = [...new Set(offers.map((offer) => offer.company))];
   const companies = companyIds.length
-    ? await trpcData(batchPath("company.getById", companyIds.map(companyId => ({ companyId })))).then(batchData)
+    ? await trpcData(
+        batchPath(
+          "company.getById",
+          companyIds.map((companyId) => ({ companyId })),
+        ),
+      ).then(batchData)
     : [];
-  const companyById = new Map(companyIds.map((id, index) => [id, companies[index] as { name?: string; itemCode?: string }]));
+  const companyById = new Map(
+    companyIds.map((id, index) => [id, companies[index] as { name?: string; itemCode?: string }]),
+  );
 
   // The offer says where the work happens, and that country's income tax is what comes off the wage.
-  const [countryData, regionData] = await Promise.all([trpcData(COUNTRIES_PATH), trpcData("region.getAll?input=%7B%7D")]);
-  const countryOf = new Map(toRegions(regionData).map(region => [region.id, region.countryId]));
+  const [countryData, regionData] = await Promise.all([
+    trpcData(COUNTRIES_PATH),
+    trpcData("region.getAll?input=%7B%7D"),
+  ]);
+  const countryOf = new Map(toRegions(regionData).map((region) => [region.id, region.countryId]));
   const taxOf = new Map(
-    (typeof countryData === "object" && countryData !== null ? (Object.values(countryData) as Country[]) : []).map(country => [
-      country._id,
-      country.taxes?.income,
-    ]),
+    (typeof countryData === "object" && countryData !== null
+      ? (Object.values(countryData) as Country[])
+      : []
+    ).map((country) => [country._id, country.taxes?.income]),
   );
   const incomeTax = (regionId?: string) => taxOf.get(countryOf.get(regionId ?? "") ?? "") ?? null;
 
-  const jobs = offers.map(offer =>
+  const jobs = offers.map((offer) =>
     toJobRow(offer, companyById.get(offer.company), incomeTax(offer.region)),
   );
   const body = JSON.stringify({ jobs });
-  return { status: 200, body, contentType: "application/json", expiresAt: Date.now() + JOBS_TTL_MS, etag: etagFor(body) };
+  return {
+    status: 200,
+    body,
+    contentType: "application/json",
+    expiresAt: Date.now() + JOBS_TTL_MS,
+    etag: etagFor(body),
+  };
 }
 
 async function serveJobs(req: Request): Promise<Response> {
   try {
-    const { entry, status } = await cached("GET /api/jobs", buildJobs, { staleWhileRevalidate: true });
+    const { entry, status } = await cached("GET /api/jobs", buildJobs, {
+      staleWhileRevalidate: true,
+    });
     return trpcResponse(req, entry, status);
   } catch (err) {
     return upstreamFailure(err, "market wages");
@@ -436,7 +531,8 @@ function jsonResponse(req: Request, body: string, maxAgeSeconds: number): Respon
   const etag = etagFor(body);
   const headers = { ETag: etag, "Cache-Control": `public, max-age=${maxAgeSeconds}` };
   // Nothing changes between polls, so a reload inside one costs a few headers.
-  if (etagMatches(req.headers.get("If-None-Match"), etag)) return new Response(null, { status: 304, headers });
+  if (etagMatches(req.headers.get("If-None-Match"), etag))
+    return new Response(null, { status: 304, headers });
   return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
 }
 
@@ -457,7 +553,12 @@ function serveHistory(req: Request, db: Database): Response {
 
   const since = historySince(params.get("days"));
   const bars = params.get("intraday")
-    ? intradayBars(readSnapshots(db, itemCode, since), readSnapshotBefore(db, itemCode, since), since, legacyUntil)
+    ? intradayBars(
+        readSnapshots(db, itemCode, since),
+        readSnapshotBefore(db, itemCode, since),
+        since,
+        legacyUntil,
+      )
     : readDailyTrading(db, itemCode, day(since));
 
   // Sent with every answer so the chart can tell which ranges an intraday
@@ -485,7 +586,9 @@ function serveMovers(req: Request, db: Database): Response {
  * one, each reload would leave another timer polling upstream and another
  * connection open on the same file.
  */
-const hot = globalThis as typeof globalThis & { wareraHistory?: { db: Database; poller: { stop: () => void } } };
+const hot = globalThis as typeof globalThis & {
+  wareraHistory?: { db: Database; poller: { stop: () => void } };
+};
 hot.wareraHistory?.poller.stop();
 hot.wareraHistory?.db.close();
 
@@ -521,7 +624,10 @@ const buildAssets = async (): Promise<Map<string, Asset>> => {
   const assets = new Map<string, Asset>();
   for (const output of result.outputs) {
     const name = path.basename(output.path);
-    assets.set(name, { bytes: await output.arrayBuffer(), contentType: contentTypeFor(name, output.type) });
+    assets.set(name, {
+      bytes: await output.arrayBuffer(),
+      contentType: contentTypeFor(name, output.type),
+    });
   }
   return assets;
 };
@@ -554,15 +660,15 @@ const server = isProduction
       return serve({
         error: onError,
         routes: {
-          "/api/history": req => serveHistory(req, historyDb),
-          "/api/movers": req => serveMovers(req, historyDb),
+          "/api/history": (req) => serveHistory(req, historyDb),
+          "/api/movers": (req) => serveMovers(req, historyDb),
           "/api/industrialism": serveIndustrialism,
           "/api/placements": servePlacements,
           "/api/jobs": serveJobs,
           "/api/trpc/*": proxyTrpc,
           // Assets are looked up by file name so they resolve from any URL depth,
           // and anything else falls back to the single page app entry point.
-          "/*": req => {
+          "/*": (req) => {
             const asset = assets.get(path.basename(new URL(req.url).pathname));
             return asset ? respond(asset) : respond(indexAsset);
           },
@@ -572,8 +678,8 @@ const server = isProduction
   : serve({
       error: onError,
       routes: {
-        "/api/history": req => serveHistory(req, historyDb),
-        "/api/movers": req => serveMovers(req, historyDb),
+        "/api/history": (req) => serveHistory(req, historyDb),
+        "/api/movers": (req) => serveMovers(req, historyDb),
         "/api/industrialism": serveIndustrialism,
         "/api/placements": servePlacements,
         "/api/jobs": serveJobs,

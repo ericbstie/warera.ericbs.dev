@@ -19,12 +19,45 @@ const to3 = (value: number) => {
   return rounded === 0 ? 0 : rounded;
 };
 
-const GRAIN: MarketItem = { code: "grain", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "tropical"] };
-const IRON: MarketItem = { code: "iron", type: "raw", productionPoints: 1, isDeposit: true, climates: ["moderate", "arid", "tropical", "polar"] };
-const FISH: MarketItem = { code: "fish", type: "raw", productionPoints: 40, isDeposit: true, climates: ["polar"] };
-const STEEL: MarketItem = { code: "steel", type: "product", productionPoints: 10, productionNeeds: { iron: 10 } };
-const CONCRETE: MarketItem = { code: "concrete", type: "product", productionPoints: 10, productionNeeds: { limestone: 10 } };
-const COOKED_FISH: MarketItem = { code: "cookedFish", type: "product", productionPoints: 40, productionNeeds: { fish: 1 } };
+const GRAIN: MarketItem = {
+  code: "grain",
+  type: "raw",
+  productionPoints: 1,
+  isDeposit: true,
+  climates: ["moderate", "tropical"],
+};
+const IRON: MarketItem = {
+  code: "iron",
+  type: "raw",
+  productionPoints: 1,
+  isDeposit: true,
+  climates: ["moderate", "arid", "tropical", "polar"],
+};
+const FISH: MarketItem = {
+  code: "fish",
+  type: "raw",
+  productionPoints: 40,
+  isDeposit: true,
+  climates: ["polar"],
+};
+const STEEL: MarketItem = {
+  code: "steel",
+  type: "product",
+  productionPoints: 10,
+  productionNeeds: { iron: 10 },
+};
+const CONCRETE: MarketItem = {
+  code: "concrete",
+  type: "product",
+  productionPoints: 10,
+  productionNeeds: { limestone: 10 },
+};
+const COOKED_FISH: MarketItem = {
+  code: "cookedFish",
+  type: "product",
+  productionPoints: 40,
+  productionNeeds: { fish: 1 },
+};
 const KNIFE: MarketItem = { code: "knife", type: "weapon" };
 
 // The four placements below were read off the game on 2026-08-22, with the
@@ -53,7 +86,12 @@ const ARGENTINA: Country = {
   specializedItem: "cookedFish",
   strategicResources: { bonuses: { productionPercent: 5 } },
 };
-const RESISTENCIA: Region = { id: "ar-res", name: "Resistencia", countryId: "ar", climate: "moderate" };
+const RESISTENCIA: Region = {
+  id: "ar-res",
+  name: "Resistencia",
+  countryId: "ar",
+  climate: "moderate",
+};
 
 const THAILAND: Country = {
   _id: "th",
@@ -71,7 +109,12 @@ const INDONESIA: Country = {
   specializedItem: "iron",
   strategicResources: { bonuses: { productionPercent: 30 } },
 };
-const TIMOR_LESTE: Region = { id: "id-tl", name: "Timor-Leste", countryId: "id", climate: "tropical" };
+const TIMOR_LESTE: Region = {
+  id: "id-tl",
+  name: "Timor-Leste",
+  countryId: "id",
+  climate: "tropical",
+};
 
 const CHILE: Country = {
   _id: "cl",
@@ -198,7 +241,12 @@ test("an agrarian ruling party pays for what the land grows", () => {
 });
 
 test("a deposit pays the company standing on it", () => {
-  const deposit = { type: "grain", bonusPercent: 30, startsAt: "2026-08-21T01:02:51.290Z", endsAt: "2026-08-25T01:02:51.290Z" };
+  const deposit = {
+    type: "grain",
+    bonusPercent: 30,
+    startsAt: "2026-08-21T01:02:51.290Z",
+    endsAt: "2026-08-25T01:02:51.290Z",
+  };
   const region: Region = { ...RESISTENCIA, deposit };
 
   expect(bonusFor(GRAIN, region, ARGENTINA, -1, NOW)).toEqual({
@@ -214,7 +262,12 @@ test("a deposit pays the company standing on it", () => {
 });
 
 test("a deposit only counts while it is running", () => {
-  const deposit = { type: "grain", bonusPercent: 30, startsAt: "2026-08-21T01:02:51.290Z", endsAt: "2026-08-25T01:02:51.290Z" };
+  const deposit = {
+    type: "grain",
+    bonusPercent: 30,
+    startsAt: "2026-08-21T01:02:51.290Z",
+    endsAt: "2026-08-25T01:02:51.290Z",
+  };
 
   expect(depositActive(deposit, NOW)).toBe(true);
   expect(depositActive(deposit, Date.parse("2026-08-20T00:00:00.000Z"))).toBe(false);
@@ -232,30 +285,58 @@ test("climate says where a deposit may appear, not where a company may stand", (
 
 test("nothing a company can't be set to produce is costed", () => {
   expect(isProducible(KNIFE)).toBe(false);
-  expect(wageFor(KNIFE, RESISTENCIA, ARGENTINA, 0, { bids: { knife: 12 }, asks: {} }, NOW)).toBeNull();
+  expect(
+    wageFor(KNIFE, RESISTENCIA, ARGENTINA, 0, { bids: { knife: 12 }, asks: {} }, NOW),
+  ).toBeNull();
 });
 
 test("an unquoted item or input has no wage rather than a wage of zero", () => {
   expect(wageFor(GRAIN, RESISTENCIA, ARGENTINA, 0, { bids: {}, asks: {} }, NOW)).toBeNull();
-  expect(wageFor(STEEL, MARATHA, THAILAND, FANATIC_INDUSTRIALIST, { bids: { steel: 1.625 }, asks: {} }, NOW)).toBeNull();
+  expect(
+    wageFor(
+      STEEL,
+      MARATHA,
+      THAILAND,
+      FANATIC_INDUSTRIALIST,
+      { bids: { steel: 1.625 }, asks: {} },
+      NOW,
+    ),
+  ).toBeNull();
 });
 
 test("ranks by the wage that reaches the worker, not the one the company posts", () => {
-  const taxed: Country = { ...THAILAND, _id: "taxed", name: "Taxed", taxes: { income: 50, market: 1, selfWork: 1 } };
+  const taxed: Country = {
+    ...THAILAND,
+    _id: "taxed",
+    name: "Taxed",
+    taxes: { income: 50, market: 1, selfWork: 1 },
+  };
   const regions: Region[] = [
     { ...MARATHA, id: "a" },
     { ...MARATHA, id: "b", name: "Taxland", countryId: "taxed" },
   ];
 
-  const ranked = rankPlacements([STEEL], regions, [THAILAND, taxed], { th: 2, taxed: 2 }, PRICES, 10, NOW);
+  const ranked = rankPlacements(
+    [STEEL],
+    regions,
+    [THAILAND, taxed],
+    { th: 2, taxed: 2 },
+    PRICES,
+    10,
+    NOW,
+  );
 
-  expect(ranked.map(placement => placement.country.name)).toEqual(["Thailand", "Taxed"]);
+  expect(ranked.map((placement) => placement.country.name)).toEqual(["Thailand", "Taxed"]);
   expect(ranked[0]!.wage.incomeTax).toBe(8);
 });
 
 test("one country can't fill the table with its own provinces", () => {
   // Every Indonesian region shares Indonesia's bonuses, so only its best stands.
-  const regions: Region[] = ["a", "b", "c"].map(id => ({ ...TIMOR_LESTE, id, name: `Region ${id}` }));
+  const regions: Region[] = ["a", "b", "c"].map((id) => ({
+    ...TIMOR_LESTE,
+    id,
+    name: `Region ${id}`,
+  }));
   regions[1]!.deposit = { type: "iron", bonusPercent: 30 };
 
   const ranked = rankPlacements([IRON], regions, [INDONESIA], {}, PRICES, 10, NOW);

@@ -13,7 +13,10 @@ const GROUPS: { type: string; label: string; one: string }[] = [
 
 /** What one item of a type is called, in the words the picker's headings use. */
 export function typeName(type: string): string {
-  return GROUPS.find(group => group.type === type)?.one ?? type.replace(/^./, first => first.toUpperCase());
+  return (
+    GROUPS.find((group) => group.type === type)?.one ??
+    type.replace(/^./, (first) => first.toUpperCase())
+  );
 }
 
 export function ItemPicker({
@@ -28,11 +31,11 @@ export function ItemPicker({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const listed = GROUPS.map(group => ({
+  const listed = GROUPS.map((group) => ({
     ...group,
-    codes: items.filter(item => item.type === group.type).map(item => item.code),
-  })).filter(group => group.codes.length);
-  const ungrouped = items.filter(item => !GROUPS.some(group => group.type === item.type));
+    codes: items.filter((item) => item.type === group.type).map((item) => item.code),
+  })).filter((group) => group.codes.length);
+  const ungrouped = items.filter((item) => !GROUPS.some((group) => group.type === item.type));
 
   // A click anywhere outside the picker closes it, same as a native <select>.
   useEffect(() => {
@@ -63,14 +66,18 @@ export function ItemPicker({
           as every other control's text does. */}
       <button
         type="button"
-        onClick={() => setOpen(value => !value)}
+        onClick={() => setOpen((value) => !value)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Traded item"
         className="group flex h-10 max-w-[16rem] items-center gap-2 px-2 text-left"
       >
-        {selected && <img src={itemIcon(selected)} alt="" width={24} height={24} className="shrink-0" />}
-        <span className="truncate text-base font-semibold sm:text-lg">{itemLabel(selected) || "Select an item"}</span>
+        {selected && (
+          <img src={itemIcon(selected)} alt="" width={24} height={24} className="shrink-0" />
+        )}
+        <span className="truncate text-base font-semibold sm:text-lg">
+          {itemLabel(selected) || "Select an item"}
+        </span>
         <Caret className="group-hover:text-ink" />
       </button>
 
@@ -80,21 +87,26 @@ export function ItemPicker({
           aria-label="Traded item"
           className="absolute left-0 top-full z-30 mt-1 max-h-80 w-full min-w-[16rem] overflow-y-auto rounded border border-edge bg-panel py-1 shadow-lg"
         >
-          {listed.map(group => (
+          {listed.map((group) => (
             <li key={group.type}>
               <p className="px-2.5 pb-1 pt-2 text-sm font-semibold tracking-wide text-muted">
                 {group.label}
               </p>
               <ul>
-                {group.codes.map(code => (
-                  <ItemOption key={code} code={code} selected={code === selected} onSelect={choose} />
+                {group.codes.map((code) => (
+                  <ItemOption
+                    key={code}
+                    code={code}
+                    selected={code === selected}
+                    onSelect={choose}
+                  />
                 ))}
               </ul>
             </li>
           ))}
           {ungrouped.length > 0 && (
             <ul>
-              {ungrouped.map(item => (
+              {ungrouped.map((item) => (
                 <ItemOption
                   key={item.code}
                   code={item.code}

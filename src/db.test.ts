@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { legacyPollsUntil, openDatabase, readDailyTrading, readFirstSnapshotAt, readSnapshots, recordDailyTrading, recordSnapshots } from "./db";
+import {
+  legacyPollsUntil,
+  openDatabase,
+  readDailyTrading,
+  readFirstSnapshotAt,
+  readSnapshots,
+  recordDailyTrading,
+  recordSnapshots,
+} from "./db";
 
 const snapshot = (capturedAt: number, bestBid: number | null = 1) => ({
   itemCode: "lightAmmo",
@@ -25,7 +33,7 @@ test("keeps snapshots per item, in time order", () => {
   const db = openDatabase(":memory:");
   recordSnapshots(db, [snapshot(200), snapshot(100), { ...snapshot(150), itemCode: "ironOre" }]);
 
-  expect(readSnapshots(db, "lightAmmo").map(row => row.capturedAt)).toEqual([100, 200]);
+  expect(readSnapshots(db, "lightAmmo").map((row) => row.capturedAt)).toEqual([100, 200]);
   expect(readSnapshots(db, "ironOre")).toHaveLength(1);
   db.close();
 });
@@ -36,7 +44,15 @@ test("a repeated snapshot leaves the recorded one alone", () => {
   recordSnapshots(db, [snapshot(100, 9)]);
 
   expect(readSnapshots(db, "lightAmmo")).toEqual([
-    { capturedAt: 100, bestBid: 1, bestAsk: 2, bidDepth: 10, askDepth: 20, dayValue: 5, dayQuantity: 50 },
+    {
+      capturedAt: 100,
+      bestBid: 1,
+      bestAsk: 2,
+      bidDepth: 10,
+      askDepth: 20,
+      dayValue: 5,
+      dayQuantity: 50,
+    },
   ]);
   db.close();
 });
@@ -51,10 +67,12 @@ test("an empty side round-trips as null rather than zero", () => {
 test("only reads back the window asked for", () => {
   const db = openDatabase(":memory:");
   recordSnapshots(db, [snapshot(100), snapshot(200), snapshot(300)]);
-  expect(readSnapshots(db, "lightAmmo", 200).map(row => row.capturedAt)).toEqual([200, 300]);
+  expect(readSnapshots(db, "lightAmmo", 200).map((row) => row.capturedAt)).toEqual([200, 300]);
 
   recordDailyTrading(db, [day("2026-08-01", 1), day("2026-08-10", 2)]);
-  expect(readDailyTrading(db, "lightAmmo", "2026-08-05").map(row => row.valueAt)).toEqual(["2026-08-10"]);
+  expect(readDailyTrading(db, "lightAmmo", "2026-08-05").map((row) => row.valueAt)).toEqual([
+    "2026-08-10",
+  ]);
   db.close();
 });
 
@@ -64,7 +82,13 @@ test("a day still filling in is overwritten by its later reading", () => {
   recordDailyTrading(db, [{ ...day("2026-08-19", 2), totalQuantity: 900 }]);
 
   expect(readDailyTrading(db, "lightAmmo")).toEqual([
-    { valueAt: "2026-08-19", avgValue: 2, totalValue: 100, totalQuantity: 900, transactionsCount: 5 },
+    {
+      valueAt: "2026-08-19",
+      avgValue: 2,
+      totalValue: 100,
+      totalQuantity: 900,
+      transactionsCount: 5,
+    },
   ]);
   db.close();
 });
@@ -88,10 +112,32 @@ test("knows when an item was first polled, and that an unpolled one never was", 
 
 test("the end of the 15-minute record is pinned once and kept", () => {
   const db = openDatabase(":memory:");
-  recordSnapshots(db, [{ itemCode: "iron", capturedAt: 5_000, bestBid: 1, bestAsk: 2, bidDepth: 1, askDepth: 1, dayValue: 0, dayQuantity: 0 }]);
+  recordSnapshots(db, [
+    {
+      itemCode: "iron",
+      capturedAt: 5_000,
+      bestBid: 1,
+      bestAsk: 2,
+      bidDepth: 1,
+      askDepth: 1,
+      dayValue: 0,
+      dayQuantity: 0,
+    },
+  ]);
 
   expect(legacyPollsUntil(db)).toBe(5_000);
-  recordSnapshots(db, [{ itemCode: "iron", capturedAt: 9_000, bestBid: 1, bestAsk: 2, bidDepth: 1, askDepth: 1, dayValue: 0, dayQuantity: 0 }]);
+  recordSnapshots(db, [
+    {
+      itemCode: "iron",
+      capturedAt: 9_000,
+      bestBid: 1,
+      bestAsk: 2,
+      bidDepth: 1,
+      askDepth: 1,
+      dayValue: 0,
+      dayQuantity: 0,
+    },
+  ]);
   expect(legacyPollsUntil(db)).toBe(5_000);
   expect(legacyPollsUntil(openDatabase(":memory:"))).toBe(0);
 });

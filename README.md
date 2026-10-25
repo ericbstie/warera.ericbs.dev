@@ -80,9 +80,9 @@ totals are stored alongside each snapshot. The order book panel still reads the
 live book directly — a snapshot keeps the best prices and the depth behind them,
 not every price level, so it can't draw a ladder.
 
-| Variable | Default | |
-| --- | --- | --- |
-| `WARERA_DB_PATH` | `data/warera.sqlite` | where the history file lives |
-| `WARERA_TRPC_UPSTREAM` | `https://api2.warera.io/trpc` | the API to poll and proxy |
+| Variable               | Default                       |                              |
+| ---------------------- | ----------------------------- | ---------------------------- |
+| `WARERA_DB_PATH`       | `data/warera.sqlite`          | where the history file lives |
+| `WARERA_TRPC_UPSTREAM` | `https://api2.warera.io/trpc` | the API to poll and proxy    |
 
 This project was created using `bun init` in bun v1.3.11. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

@@ -17,7 +17,7 @@ const ITEMS: MarketItem[] = [
 ];
 
 const codes = (query: string, limit?: number) =>
-  searchItems(ITEMS, query, limit).map(item => item.code);
+  searchItems(ITEMS, query, limit).map((item) => item.code);
 
 test("an exact code match comes first", () => {
   expect(codes("iron")[0]).toBe("iron");
@@ -41,7 +41,7 @@ test("matching ignores case and surrounding whitespace", () => {
 });
 
 test("a blank query lists the head of the item list unchanged", () => {
-  expect(codes("   ")).toEqual(ITEMS.slice(0, 8).map(item => item.code));
+  expect(codes("   ")).toEqual(ITEMS.slice(0, 8).map((item) => item.code));
 });
 
 test("the limit caps the results", () => {
@@ -58,13 +58,13 @@ test("equally good matches stay in alphabetical order", () => {
     { code: "steel", type: "product" },
     { code: "steak", type: "product" },
   ];
-  expect(searchItems(shuffled, "ste").map(item => item.code)).toEqual(["steak", "steel"]);
+  expect(searchItems(shuffled, "ste").map((item) => item.code)).toEqual(["steak", "steel"]);
 });
 
 test("odd input is survivable", () => {
   expect(searchItems(null as unknown as MarketItem[], "iron")).toEqual([]);
   expect(searchItems(ITEMS, undefined as unknown as string, Number.NaN)).toHaveLength(8);
-  expect(searchItems([{ code: undefined } as unknown as MarketItem, ...ITEMS], "iron")[0]?.code).toBe(
-    "iron",
-  );
+  expect(
+    searchItems([{ code: undefined } as unknown as MarketItem, ...ITEMS], "iron")[0]?.code,
+  ).toBe("iron");
 });

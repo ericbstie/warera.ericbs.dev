@@ -15,7 +15,9 @@ afterEach(() => {
 });
 
 function stubFetch(payload: unknown) {
-  const fetchMock = mock(async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)));
+  const fetchMock = mock(
+    async (...args: Parameters<typeof fetch>) => (void args, Response.json(payload)),
+  );
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
@@ -74,7 +76,7 @@ test("groupOrdersByPrice sorts levels from highest price to lowest", () => {
     order({ _id: "3", price: 36.6, quantity: 1 }),
   ];
 
-  expect(groupOrdersByPrice(orders).map(l => l.price)).toEqual([36.7, 36.6, 36.5]);
+  expect(groupOrdersByPrice(orders).map((l) => l.price)).toEqual([36.7, 36.6, 36.5]);
 });
 
 test("groupOrdersByPrice returns an empty list for no orders", () => {
@@ -82,20 +84,26 @@ test("groupOrdersByPrice returns an empty list for no orders", () => {
 });
 
 test("bestPricesFromBatch takes the highest bid and the lowest ask per item", () => {
-  const prices = bestPricesFromBatch(["iron", "steel", "grain"], [
-    {
-      result: {
-        data: {
-          buyOrders: [order({ price: 0.08 }), order({ price: 0.081 }), order({ price: 0 })],
-          sellOrders: [order({ price: 0.085, type: "sell" }), order({ price: 0.083, type: "sell" })],
+  const prices = bestPricesFromBatch(
+    ["iron", "steel", "grain"],
+    [
+      {
+        result: {
+          data: {
+            buyOrders: [order({ price: 0.08 }), order({ price: 0.081 }), order({ price: 0 })],
+            sellOrders: [
+              order({ price: 0.085, type: "sell" }),
+              order({ price: 0.083, type: "sell" }),
+            ],
+          },
         },
       },
-    },
-    // A one-sided book prices only the side it has.
-    { result: { data: { buyOrders: [], sellOrders: [order({ price: 1.7, type: "sell" })] } } },
-    // A failed entry leaves the item unpriced rather than priced at zero.
-    { error: { message: "nope" } },
-  ]);
+      // A one-sided book prices only the side it has.
+      { result: { data: { buyOrders: [], sellOrders: [order({ price: 1.7, type: "sell" })] } } },
+      // A failed entry leaves the item unpriced rather than priced at zero.
+      { error: { message: "nope" } },
+    ],
+  );
 
   expect(prices).toEqual({ bids: { iron: 0.081 }, asks: { iron: 0.083, steel: 1.7 } });
 });
@@ -112,7 +120,9 @@ test("fetchBestPrices asks for every item, in batches", async () => {
     // One procedure name per item asked for, so the answer is one entry each.
     const count = (url.slice(0, url.indexOf("?")).match(/getTopOrders/g) ?? []).length;
     return Response.json(
-      Array.from({ length: count }, () => ({ result: { data: { buyOrders: [order({ price: 2 })], sellOrders: [] } } })),
+      Array.from({ length: count }, () => ({
+        result: { data: { buyOrders: [order({ price: 2 })], sellOrders: [] } },
+      })),
     );
   });
   globalThis.fetch = fetchMock as unknown as typeof fetch;

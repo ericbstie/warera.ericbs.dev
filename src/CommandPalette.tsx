@@ -100,7 +100,7 @@ export function CommandPalette({
       // page's own surface colour and let the theme decide what that is.
       style={{ background: "color-mix(in srgb, var(--surface) 84%, transparent)" }}
       className="fixed inset-0 z-30 flex items-start justify-center px-4 pt-20"
-      onMouseDown={event => {
+      onMouseDown={(event) => {
         if (event.target === event.currentTarget) onOpenChange(false);
       }}
     >
@@ -116,7 +116,7 @@ export function CommandPalette({
           ref={inputRef}
           type="text"
           value={query}
-          onChange={event => {
+          onChange={(event) => {
             setQuery(event.target.value);
             setActive(0);
           }}
@@ -144,16 +144,20 @@ export function CommandPalette({
                   role="option"
                   aria-selected={current}
                   // Keeps the caret in the input, so a click never blurs mid-select.
-                  onMouseDown={event => event.preventDefault()}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(index)}
                   className={`flex min-h-10 cursor-pointer items-center gap-2.5 px-3 py-2 ${
                     current ? "bg-edge/40 text-ink" : "text-ink"
                   }`}
                 >
-                  <img src={itemIcon(item.code)} alt="" width={24} height={24} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate text-base">
-                    {itemLabel(item.code)}
-                  </span>
+                  <img
+                    src={itemIcon(item.code)}
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="shrink-0"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-base">{itemLabel(item.code)}</span>
                   <span className="shrink-0 text-sm tracking-wide text-muted">
                     {typeName(item.type)}
                   </span>
