@@ -1,5 +1,4 @@
 import type { MouseEvent } from "react";
-import { PAGE_COLUMN } from "./layout";
 import { navigate, ROUTES, type PageId } from "./router";
 
 type Side = "left" | "right";
@@ -34,7 +33,11 @@ function Arrow({ side }: { side: Side }) {
   );
 }
 
-/** The way to the other page, as a plain label with an arrow, in the page column. */
+/**
+ * The way to the other page, as a plain label with an arrow floating in the
+ * top corner of the page it is on, over the gap above the page's content. The
+ * page it sits in has to be positioned and leave that gap open.
+ */
 export function PageLink({ page }: { page: PageId }) {
   const link = PAGE_LINKS[page];
 
@@ -49,7 +52,7 @@ export function PageLink({ page }: { page: PageId }) {
   return (
     <nav
       aria-label="Pages"
-      className={`${PAGE_COLUMN} flex ${link.side === "right" ? "justify-end" : "justify-start"}`}
+      className={`absolute top-2.5 ${link.side === "right" ? "right-6" : "left-6"}`}
     >
       <a
         href={link.href}
