@@ -13,6 +13,7 @@ import {
 } from "./db";
 import { intradayBars } from "./history";
 import { itemsFromConfig, weeklyChangePct, type Mover } from "./hooks";
+import { bucketBars, INTERVALS, type Interval } from "./indicators";
 import index from "./index.html";
 import { JOB_OFFERS_PATH, openOffers, toJobRow } from "./jobs";
 import { bestPricesFromBatch, ORDER_BOOK_BATCH_SIZE, type BestPrices } from "./orders";
@@ -549,10 +550,16 @@ function jsonResponse(req: Request, body: string, maxAgeSeconds: number): Respon
   return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
 }
 
+/** Anything the chart doesn't offer is read as the finest, which is the bars as polled. */
+function historyInterval(raw: string | null): Interval {
+  return INTERVALS.find((interval) => interval === raw) ?? "5m";
+}
+
 /**
  * Both resolutions answer with the same bar shape, so the chart draws them the
  * same way — an intraday bar just carries a timestamp where a daily one
- * carries a date.
+ * carries a date. The polls are grouped into the chart's candles here, so a
+ * wide interval sends a bar per candle rather than every poll on record.
  */
 function serveHistory(req: Request, db: Database): Response {
   const params = new URL(req.url).searchParams;
@@ -566,11 +573,14 @@ function serveHistory(req: Request, db: Database): Response {
 
   const since = historySince(params.get("days"));
   const bars = params.get("intraday")
-    ? intradayBars(
-        readSnapshots(db, itemCode, since),
-        readSnapshotBefore(db, itemCode, since),
-        since,
-        legacyUntil,
+    ? bucketBars(
+        intradayBars(
+          readSnapshots(db, itemCode, since),
+          readSnapshotBefore(db, itemCode, since),
+          since,
+          legacyUntil,
+        ),
+        historyInterval(params.get("interval")),
       )
     : readDailyTrading(db, itemCode, day(since));
 

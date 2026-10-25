@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  bucketBars,
-  isIntraday,
-  isIntradayInterval,
-  rangeDays,
-  type Interval,
-  type Range,
-} from "./indicators";
+import { isIntraday, isIntradayInterval, rangeDays, type Interval, type Range } from "./indicators";
 
 export type Transaction = {
   valueAt: string;
@@ -64,8 +57,11 @@ export function historyPath(itemCode: string, range: Range, interval: Interval =
   const params = new URLSearchParams({ itemCode });
   if (days !== null) params.set("days", String(days));
   // A candle narrower than a day has to be built out of the polled snapshots,
-  // whatever the range asks for.
-  if (isIntraday(range) || isIntradayInterval(interval)) params.set("intraday", "1");
+  // whatever the range asks for, and the server groups them into candles this wide.
+  if (isIntraday(range) || isIntradayInterval(interval)) {
+    params.set("intraday", "1");
+    params.set("interval", interval);
+  }
   return `/api/history?${params}`;
 }
 
@@ -84,7 +80,7 @@ export async function fetchHistory(
   // an empty chart and a broken API should not look the same.
   if (!Array.isArray(json?.bars)) throw new Error("Price history came back in an unexpected shape");
   return {
-    transactions: bucketBars(usableTransactions(json.bars), interval),
+    transactions: usableTransactions(json.bars),
     firstIntradayAt: isFiniteNumber(json.firstIntradayAt) ? json.firstIntradayAt : null,
   };
 }
