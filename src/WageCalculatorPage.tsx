@@ -104,7 +104,7 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
       {/* Fixed, so a long region name is cut rather than pushing the column the
           table is sorted by off the side of a phone. */}
       <table className="w-full table-fixed text-base">
-        <thead className="text-muted">
+        <thead className="text-sm text-muted">
           <tr className="border-b border-edge">
             <th className="w-14 pb-3 pr-3 text-right font-normal">#</th>
             <th className="w-24 pb-3 text-left font-normal sm:w-36">Item</th>
