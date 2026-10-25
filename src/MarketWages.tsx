@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Chip } from "./Chip";
 import { itemIcon, itemLabel } from "./hooks";
 import { companyUrl, useMarketWages, WORK_MARKET_URL, type JobRow } from "./jobs";
 import { formatPrice } from "./stats";
@@ -12,15 +13,9 @@ const REQUIREMENT_STYLES = {
 /** Coloured as the game colours them, so the number alone says what is asked for. */
 function Requirement({ kind, value, children }: { kind: keyof typeof REQUIREMENT_STYLES; value: number; children: ReactNode }) {
   return (
-    <span
-      title={`${kind[0]!.toUpperCase()}${kind.slice(1)} ${value} or more`}
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium tabular-nums ${REQUIREMENT_STYLES[kind]}`}
-    >
-      <svg aria-hidden viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round">
-        {children}
-      </svg>
+    <Chip tone={REQUIREMENT_STYLES[kind]} title={`${kind[0]!.toUpperCase()}${kind.slice(1)} ${value} or more`} icon={children}>
       {value}+
-    </span>
+    </Chip>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Chip } from "./Chip";
 import { Header } from "./Header";
 import { itemIcon, itemLabel } from "./hooks";
 import { PAGE_COLUMN } from "./layout";
@@ -37,10 +38,21 @@ export function timeLeft(ms: number): string {
 function DepositLabel({ row, now }: { row: PlacementRow; now: number }) {
   if (!row.deposit) return null;
   const ends = row.depositEndsAt ? Date.parse(row.depositEndsAt) : NaN;
+  // Drawn like the requirement chips on the wage market, in the lime the chart
+  // gives VWAP, so it reads as one of the same family rather than a box.
   return (
-    <span className="rounded border border-accent px-1.5 py-0.5 text-sm font-medium text-accent">
-      Deposit{Number.isFinite(ends) && <span className="tabular-nums"> · {timeLeft(ends - now)}</span>}
-    </span>
+    <Chip
+      tone="bg-mid/15 text-mid"
+      title="This region's deposit adds to the bonus until it runs out"
+      icon={
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </>
+      }
+    >
+      Deposit{Number.isFinite(ends) && <> · {timeLeft(ends - now)}</>}
+    </Chip>
   );
 }
 
