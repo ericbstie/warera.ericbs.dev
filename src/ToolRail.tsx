@@ -27,12 +27,13 @@ function Glyph({ children }: { children: ReactElement }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      width="15"
-      height="15"
+      width="18"
+      height="18"
       aria-hidden
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.3"
+      // 1.5px once drawn, the weight of every icon on the site.
+      strokeWidth="1.35"
       strokeLinecap="round"
     >
       {children}
