@@ -657,7 +657,10 @@ export function PriceChart({
                 role="img"
                 aria-label={`${itemCode} price history`}
                 tabIndex={0}
-                className="focus-visible:outline-2 focus-visible:outline-accent focus-visible:[outline-offset:-2px]"
+                // No focus ring: browsers drew it after a click or a drag too,
+                // and the crosshair the arrow keys move already shows where
+                // the keyboard is.
+                className="outline-none"
                 style={{ touchAction: "none" }}
                 onPointerMove={onPointerMove}
                 onPointerDown={onPointerDown}
