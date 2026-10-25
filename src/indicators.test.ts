@@ -139,8 +139,9 @@ test("pointOfControl returns null for an empty profile", () => {
 });
 
 test("INTERVALS lists the candle widths narrowest first", () => {
-  expect(INTERVALS).toEqual(["15m", "30m", "2h", "8h", "1d"]);
+  expect(INTERVALS).toEqual(["5m", "15m", "30m", "2h", "8h", "1d"]);
   expect(INTERVALS.map(intervalMs)).toEqual([
+    5 * 60_000,
     15 * 60_000,
     30 * 60_000,
     120 * 60_000,
@@ -150,7 +151,7 @@ test("INTERVALS lists the candle widths narrowest first", () => {
 });
 
 test("only a day-wide candle can be drawn from the daily records", () => {
-  expect(INTERVALS.filter(isIntradayInterval)).toEqual(["15m", "30m", "2h", "8h"]);
+  expect(INTERVALS.filter(isIntradayInterval)).toEqual(["5m", "15m", "30m", "2h", "8h"]);
 });
 
 test("bucketBars groups the polled bars into the chosen width and weights price by volume", () => {

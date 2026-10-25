@@ -126,17 +126,19 @@ export function pointOfControl(profile: VolumeBucket[]): VolumeBucket | null {
 
 /**
  * How wide a candle is, independent of how far back the chart looks. The poll
- * writes a snapshot every 15 minutes, so that is the finest bar there is; the
+ * writes a snapshot every 5 minutes, so that is the finest bar there is; the
  * rest are those bars grouped up.
  */
-export type Interval = "15m" | "30m" | "2h" | "8h" | "1d";
+export type Interval = "5m" | "15m" | "30m" | "2h" | "8h" | "1d";
 
-export const INTERVALS: Interval[] = ["15m", "30m", "2h", "8h", "1d"];
+export const INTERVALS: Interval[] = ["5m", "15m", "30m", "2h", "8h", "1d"];
 
 const MINUTE_MS = 60 * 1000;
 
 export function intervalMs(interval: Interval): number {
   switch (interval) {
+    case "5m":
+      return 5 * MINUTE_MS;
     case "15m":
       return 15 * MINUTE_MS;
     case "30m":
