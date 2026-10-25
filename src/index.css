@@ -23,11 +23,11 @@
 
 @layer base {
   :root {
-    --surface: #0d0d0d;
-    --panel: #1a1a1a;
-    --canvas: #050505;
-    --edge: #333333;
-    --grid: #262626;
+    --surface: #161616;
+    --panel: #232323;
+    --canvas: #0e0e0e;
+    --edge: #3d3d3d;
+    --grid: #2f2f2f;
     --ink: #f5efe2;
     --muted: #a8a29e;
     --accent: #f5efe2;
