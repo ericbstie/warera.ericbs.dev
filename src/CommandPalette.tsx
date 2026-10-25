@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { itemIcon, itemLabel, type MarketItem } from "./hooks";
+import { typeName } from "./ItemPicker";
 import { searchItems } from "./search";
 
 /** Ctrl+K is the terminal convention for symbol search; Cmd+K is its mac spelling. */
@@ -154,7 +155,7 @@ export function CommandPalette({
                     {itemLabel(item.code)}
                   </span>
                   <span className="shrink-0 text-sm tracking-wide text-muted">
-                    {item.type}
+                    {typeName(item.type)}
                   </span>
                 </li>
               );

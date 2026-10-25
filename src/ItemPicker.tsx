@@ -3,13 +3,18 @@ import { Caret } from "./Caret";
 import { itemIcon, itemLabel, type MarketItem } from "./hooks";
 
 /** The upstream config groups items by a bare `type`; the picker shows them under headings. */
-const GROUPS: { type: string; label: string }[] = [
-  { type: "raw", label: "Resources" },
-  { type: "product", label: "Products" },
-  { type: "weapon", label: "Weapons" },
-  { type: "equipment", label: "Equipment" },
-  { type: "case", label: "Cases" },
+const GROUPS: { type: string; label: string; one: string }[] = [
+  { type: "raw", label: "Resources", one: "Resource" },
+  { type: "product", label: "Products", one: "Product" },
+  { type: "weapon", label: "Weapons", one: "Weapon" },
+  { type: "equipment", label: "Equipment", one: "Equipment" },
+  { type: "case", label: "Cases", one: "Case" },
 ];
+
+/** What one item of a type is called, in the words the picker's headings use. */
+export function typeName(type: string): string {
+  return GROUPS.find(group => group.type === type)?.one ?? type.replace(/^./, first => first.toUpperCase());
+}
 
 export function ItemPicker({
   items,
