@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Chip } from "./Chip";
-import { Header } from "./Header";
-import { itemIcon, itemLabel, useItems } from "./hooks";
+import { itemIcon, itemLabel } from "./hooks";
 import { PAGE_COLUMN } from "./layout";
-import { graphOf, navigate } from "./router";
 import { MarketWages } from "./MarketWages";
 import { Panel } from "./Panel";
 import { formatPrice } from "./stats";
@@ -220,48 +218,42 @@ function LoadMore({ onVisible }: { onVisible: () => void }) {
 
 export function WageCalculatorPage() {
   const { rows, loading, error, done, loadMore } = usePlacements();
-  const { items } = useItems();
 
   return (
-    <>
-      {/* The ticker charts nothing here, so an entry opens it on the Graph page. */}
-      <Header items={items} onSelect={(code) => navigate(graphOf(code))} />
-
-      <main className={`${PAGE_COLUMN} pb-24 pt-10`}>
-        {/* Side by side where there is room for both lists, stacked on a phone. */}
-        <div className="grid gap-x-16 lg:grid-cols-2">
-          <MarketWages />
-          <TopItems />
-        </div>
-        <h2 className="text-2xl font-semibold">Best placements</h2>
-        <div className="pt-4">
-          <Panel label="placements">
-            {!rows.length && loading ? (
-              <p className="text-base text-muted">Ranking every item against every region…</p>
-            ) : !rows.length && error ? null : (
-              <PlacementTable placements={rows} />
-            )}
-            {error ? (
-              <p className="pt-4 text-base text-down">
-                Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
-                <button type="button" onClick={loadMore} className="underline">
-                  Try again
-                </button>
-              </p>
+    <main className={`${PAGE_COLUMN} pb-24 pt-10`}>
+      {/* Side by side where there is room for both lists, stacked on a phone. */}
+      <div className="grid gap-x-16 lg:grid-cols-2">
+        <MarketWages />
+        <TopItems />
+      </div>
+      <h2 className="text-2xl font-semibold">Best placements</h2>
+      <div className="pt-4">
+        <Panel label="placements">
+          {!rows.length && loading ? (
+            <p className="text-base text-muted">Ranking every item against every region…</p>
+          ) : !rows.length && error ? null : (
+            <PlacementTable placements={rows} />
+          )}
+          {error ? (
+            <p className="pt-4 text-base text-down">
+              Couldn't load {rows.length ? "more placements" : "the placements"}.{" "}
+              <button type="button" onClick={loadMore} className="underline">
+                Try again
+              </button>
+            </p>
+          ) : (
+            rows.length > 0 &&
+            !done &&
+            // Mounted afresh after every page, so a list still too short to
+            // reach the bottom of the screen keeps asking for more.
+            (loading ? (
+              <p className="pt-4 text-base text-muted">Loading more…</p>
             ) : (
-              rows.length > 0 &&
-              !done &&
-              // Mounted afresh after every page, so a list still too short to
-              // reach the bottom of the screen keeps asking for more.
-              (loading ? (
-                <p className="pt-4 text-base text-muted">Loading more…</p>
-              ) : (
-                <LoadMore onVisible={loadMore} />
-              ))
-            )}
-          </Panel>
-        </div>
-      </main>
-    </>
+              <LoadMore onVisible={loadMore} />
+            ))
+          )}
+        </Panel>
+      </div>
+    </main>
   );
 }

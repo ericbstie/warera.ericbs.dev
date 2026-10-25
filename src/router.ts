@@ -18,11 +18,6 @@ export function pageFor(path: string): PageId {
   return match ?? "wages";
 }
 
-/** The Graph page opened on one item, for a link from a page that can't chart it itself. */
-export function graphOf(itemCode: string): string {
-  return `${ROUTES.graph}?${new URLSearchParams({ item: itemCode })}`;
-}
-
 /**
  * The item a link asked the Graph page to open on, read once. The query is
  * dropped from the address straight after, since picking another item doesn't

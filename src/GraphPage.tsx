@@ -1,24 +1,47 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { CommandPalette } from "./CommandPalette";
-import { Header } from "./Header";
-import { useItems, useTransactionHistory } from "./hooks";
+import { useTransactionHistory, type MarketItem } from "./hooks";
 import { ItemPicker } from "./ItemPicker";
 import { PAGE_COLUMN } from "./layout";
 import { availableRanges, largestRange, type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
-import { takeLinkedItem } from "./router";
 import { ScrollFade } from "./ScrollFade";
 import { Divider, Toolbar } from "./Toolbar";
 import { FullscreenButton, ToolRail } from "./ToolRail";
 import { type Drawing, type ToolId } from "./tools";
 
-export function GraphPage() {
-  const { items, error, retry } = useItems();
-  // A ticker entry clicked on another page lands here with its item picked,
-  // once the list it has to be found in has arrived.
-  const [linked] = useState(takeLinkedItem);
-  const [selected, setSelected] = useState("");
+export function GraphPage({
+  items,
+  error,
+  retry,
+  item,
+  onItem,
+  full,
+  onFull,
+}: {
+  items: MarketItem[];
+  error: Error | null;
+  retry: () => void;
+  /** The item asked for, by the picker, the palette, a ticker entry or a link. */
+  item: string;
+  onItem: (code: string) => void;
+  /** Full screen fills the page under the header rather than taking the whole
+      display, so the ticker stays in reach. */
+  full: boolean;
+  onFull: Dispatch<SetStateAction<boolean>>;
+}) {
+  // A list that arrives, changes or empties must never leave the chart pointed
+  // at an item that is no longer in it. The item asked for is kept rather than
+  // overwritten, so a link that lands before the list does still finds it.
+  const selected = items.some((entry) => entry.code === item) ? item : (items[0]?.code ?? "");
 
   const [range, setRange] = useState<Range>("30D");
   const [interval, setInterval] = useState<Interval>("1d");
@@ -27,18 +50,6 @@ export function GraphPage() {
   const [searching, setSearching] = useState(false);
   // A reset returns the chart to its fit, which is the chart's own state to hold.
   const [resetAt, setResetAt] = useState(0);
-  // Full screen fills the page under the header rather than taking the whole
-  // display, so the page switch and the ticker stay in reach.
-  const [full, setFull] = useState(false);
-
-  // A list that arrives, changes or empties must never leave the chart pointed
-  // at an item that is no longer in it.
-  useEffect(() => {
-    setSelected((current) => {
-      const wanted = current || linked;
-      return items.some((item) => item.code === wanted) ? wanted : (items[0]?.code ?? "");
-    });
-  }, [items, linked]);
 
   // The range is part of the request rather than a slice of it — a short range is drawn from the 5-minute poll
   // and a long one from the daily records, so they aren't the same series.
@@ -72,7 +83,7 @@ export function GraphPage() {
     setInterval("1d");
   }, []);
 
-  const toggleFull = useCallback(() => setFull((current) => !current), []);
+  const toggleFull = useCallback(() => onFull((current) => !current), [onFull]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -88,92 +99,88 @@ export function GraphPage() {
       const key = event.key.toLowerCase();
       if (key === "r") reset();
       else if (key === "f") toggleFull();
-      else if (key === "escape" && full && !searching) setFull(false);
+      else if (key === "escape" && full && !searching) onFull(false);
       else return;
       event.preventDefault();
     };
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reset, toggleFull, full, searching]);
+  }, [reset, toggleFull, full, searching, onFull]);
 
+  // The chart shares the page column every page uses, and on a laptop or
+  // desktop keeps to 2:1 inside it.
   return (
-    <div className={full ? "flex h-dvh flex-col overflow-hidden" : "flex flex-col"}>
-      <Header items={items} onSelect={setSelected} />
+    <main
+      className={
+        full
+          ? "flex min-h-0 flex-1 flex-col p-3 sm:p-4"
+          : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-10`
+      }
+    >
+      {error && (
+        <div className="pb-6">
+          <ItemListError onRetry={retry} />
+        </div>
+      )}
 
-      {/* The chart shares the page column every page uses, and on a laptop or
-          desktop keeps to 2:1 inside it. */}
-      <main
-        className={
-          full
-            ? "flex min-h-0 flex-1 flex-col p-3 sm:p-4"
-            : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-10`
-        }
-      >
-        {error && (
-          <div className="pb-6">
-            <ItemListError onRetry={retry} />
-          </div>
-        )}
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          {/* One row over the chart: what is charted, then how it is cut, then
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* One row over the chart: what is charted, then how it is cut, then
               what to draw on it. The hairline under it is the one over every
               list on the Wages page, so it reads as the chart's own row
               without a box drawn round the pair. */}
-          <div className="flex flex-wrap items-center gap-x-3 border-b border-edge/60 py-1">
-            {/* Pulled out by its own padding, so the item's icon sits on the
+        <div className="flex flex-wrap items-center gap-x-3 border-b border-edge/60 py-1">
+          {/* Pulled out by its own padding, so the item's icon sits on the
                 page column's edge like the titles on the Wages page. */}
-            <div className="-ml-2 basis-full sm:basis-auto">
-              <ItemPicker items={items} selected={selected} onSelect={setSelected} />
-            </div>
-            <Divider className="hidden sm:block" />
-            {/* Only the controls scroll on a narrow screen; the picker's list
+          <div className="-ml-2 basis-full sm:basis-auto">
+            <ItemPicker items={items} selected={selected} onSelect={onItem} />
+          </div>
+          <Divider className="hidden sm:block" />
+          {/* Only the controls scroll on a narrow screen; the picker's list
                 would be clipped inside a scrolling box. */}
-            <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
-              <Toolbar
-                range={range}
-                ranges={ranges}
-                onRange={setRange}
-                interval={interval}
-                onInterval={setInterval}
-              />
-              <Divider />
-              <ToolRail
-                tool={tool}
-                onTool={setTool}
-                onClear={() => setDrawings([])}
-                hasDrawings={drawings.length > 0}
-              />
-            </ScrollFade>
-            <FullscreenButton full={full} onToggle={toggleFull} />
-          </div>
-
-          <div
-            className={`min-h-0 min-w-0 flex-1 pt-3 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}
-          >
-            <Panel label="price chart">
-              <PriceChart
-                itemCode={selected}
-                transactions={transactions}
-                loading={loading}
-                error={historyError}
-                tool={tool}
-                drawings={drawings}
-                onDraw={(drawing) => setDrawings((current) => [...current, drawing])}
-                resetAt={resetAt}
-              />
-            </Panel>
-          </div>
+          <ScrollFade className="flex min-w-0 flex-1 items-center gap-x-2 sm:gap-x-3">
+            <Toolbar
+              range={range}
+              ranges={ranges}
+              onRange={setRange}
+              interval={interval}
+              onInterval={setInterval}
+            />
+            <Divider />
+            <ToolRail
+              tool={tool}
+              onTool={setTool}
+              onClear={() => setDrawings([])}
+              hasDrawings={drawings.length > 0}
+            />
+          </ScrollFade>
+          <FullscreenButton full={full} onToggle={toggleFull} />
         </div>
 
-        <CommandPalette
-          items={items}
-          open={searching}
-          onOpenChange={setSearching}
-          onSelect={setSelected}
-        />
-      </main>
-    </div>
+        <div
+          className={`min-h-0 min-w-0 flex-1 pt-3 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}
+        >
+          <Panel label="price chart">
+            <PriceChart
+              itemCode={selected}
+              transactions={transactions}
+              loading={loading}
+              error={historyError}
+              tool={tool}
+              drawings={drawings}
+              onDraw={(drawing) => setDrawings((current) => [...current, drawing])}
+              resetAt={resetAt}
+            />
+          </Panel>
+        </div>
+      </div>
+
+      <CommandPalette
+        items={items}
+        open={searching}
+        onOpenChange={setSearching}
+        onSelect={onItem}
+      />
+    </main>
   );
 }
