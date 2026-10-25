@@ -128,13 +128,15 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
         <thead className="text-sm text-muted">
           <tr className="border-b border-edge/60">
             <th className="w-10 pb-3 pr-4 text-right font-normal">#</th>
-            <th className="w-24 pb-3 text-left font-normal sm:w-36">Item</th>
-            <th className="pb-3 text-left font-normal">Where</th>
+            {/* On a phone the place goes under the item, the way the market
+                lists stack name over detail, rather than two cut-off columns. */}
+            <th className="pb-3 text-left font-normal sm:w-36">Item</th>
+            <th className="hidden pb-3 text-left font-normal sm:table-cell">Where</th>
             {/* A phone has no room for the workings, only for the answer. */}
             <th className="hidden w-20 pb-3 text-right font-normal sm:table-cell">Bonus</th>
             <th className="hidden w-16 pb-3 text-right font-normal sm:table-cell">Tax</th>
             <th className="w-14 pb-3 text-right font-normal sm:w-20">Wage</th>
-            <th className="w-18 pb-3 pr-2 text-right font-normal sm:w-26">After tax</th>
+            <th className="w-20 whitespace-nowrap pb-3 pr-2 text-right font-normal sm:w-26">After tax</th>
           </tr>
         </thead>
         <tbody>
@@ -146,9 +148,12 @@ function PlacementTable({ placements }: { placements: PlacementRow[] }) {
                   <img src={itemIcon(placement.itemCode)} alt="" width={20} height={20} className="shrink-0" />
                   <span className="truncate">{itemLabel(placement.itemCode)}</span>
                 </span>
+                <span className="block truncate pl-[1.625rem] text-sm text-muted sm:hidden">
+                  {placement.regionName}, {placement.countryName}
+                </span>
               </td>
-              <td className="py-2.5 pr-2">
-                <span className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
+              <td className="hidden py-2.5 pr-2 sm:table-cell">
+                <span className="flex min-w-0 items-baseline gap-1.5">
                   <span className="truncate">{placement.regionName}</span>
                   <span className="truncate text-sm text-muted">{placement.countryName}</span>
                 </span>
