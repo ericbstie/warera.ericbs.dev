@@ -34,6 +34,31 @@ To run for production:
 bun start
 ```
 
+## Running on the VPS
+
+`mise.toml` declares the server as a systemd user service, so it starts on boot,
+comes back after a crash, and logs to the journal. Once, on the VPS:
+
+```bash
+cd ~/warera.ericbs.dev        # wherever the checkout lives
+mise trust                    # a project mise.toml has to be trusted first
+sudo loginctl enable-linger $USER   # keep user services running after you log out
+mise bootstrap --only tools,linux-systemd-units
+```
+
+That installs `dev.mise.warera`, which runs `bun run --watch src/index.ts` with
+`NODE_ENV=production` and `PORT=4000`. Running the same `mise bootstrap` again
+is safe: it only changes what differs from `mise.toml`.
+
+Deploying is still a `git pull`, since `--watch` restarts the server on the new
+code. Day to day:
+
+```bash
+journalctl --user -u dev.mise.warera -f     # follow the logs
+systemctl --user restart dev.mise.warera    # restart by hand
+systemctl --user status dev.mise.warera
+```
+
 ## Recorded market history
 
 Upstream's trading endpoint only answers with the last 30 days, one row per day,
