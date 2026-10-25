@@ -3,6 +3,7 @@ import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { useItems, useTransactionHistory } from "./hooks";
 import { ItemPicker } from "./ItemPicker";
+import { PAGE_COLUMN } from "./layout";
 import { availableRanges, largestRange, type Interval, type Range } from "./indicators";
 import { ItemListError, Panel } from "./Panel";
 import { PriceChart } from "./PriceChart";
@@ -92,14 +93,13 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* On a laptop or desktop the chart sits in the middle at 2:1, at most
-          1280px wide and never closer than a fifth of the screen to either
-          edge. */}
+      {/* The chart shares the page column every page uses, and on a laptop or
+          desktop keeps to 2:1 inside it. */}
       <main
         className={
           full
             ? "flex min-h-0 flex-1 flex-col p-3 sm:p-4"
-            : "flex min-h-0 flex-1 flex-col px-3 pb-3 pt-4 sm:px-4 lg:mx-auto lg:w-[min(1280px,60vw)] lg:px-0 lg:pt-14"
+            : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-10`
         }
       >
         {/* One faint outline holds the chart and the row that drives it, so
