@@ -102,13 +102,15 @@ export function GraphPage() {
             : `${PAGE_COLUMN} flex min-h-0 flex-1 flex-col pb-6 pt-10`
         }
       >
-        {/* One faint outline holds the chart and the row that drives it, so
-            they read as one thing without a filled card. */}
-        <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-edge/70 px-2 pb-2 sm:px-3">
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* One row over the chart: what is charted, then how it is cut, then
-              what to draw on it. */}
-          <div className="flex flex-wrap items-center gap-x-3 py-1">
-            <div className="basis-full sm:basis-auto">
+              what to draw on it. The hairline under it is the one over every
+              list on the Wages page, so it reads as the chart's own row
+              without a box drawn round the pair. */}
+          <div className="flex flex-wrap items-center gap-x-3 border-b border-edge/60 py-1">
+            {/* Pulled out by its own padding, so the item's icon sits on the
+                page column's edge like the titles on the Wages page. */}
+            <div className="-ml-2 basis-full sm:basis-auto">
               <ItemPicker items={items} selected={selected} onSelect={setSelected} />
             </div>
             <Divider className="hidden sm:block" />
@@ -127,7 +129,7 @@ export function GraphPage() {
             <FullscreenButton full={full} onToggle={toggleFull} />
           </div>
 
-          <div className={`min-h-0 min-w-0 flex-1 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
+          <div className={`min-h-0 min-w-0 flex-1 pt-3 ${full ? "" : "lg:aspect-[2/1] lg:flex-none"}`}>
             <Panel label="price chart">
               <PriceChart
                 itemCode={selected}
