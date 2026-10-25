@@ -53,7 +53,7 @@ test("fetchOrders returns empty arrays when a side is missing", async () => {
 test("fetchOrders throws on an api error", async () => {
   stubFetch({ error: { message: "Item not found." } });
 
-  expect(fetchOrders("helmet1")).rejects.toThrow("Item not found.");
+  await expect(fetchOrders("helmet1")).rejects.toThrow("Item not found.");
 });
 
 test("groupOrdersByPrice sums quantity across orders sharing a price", () => {

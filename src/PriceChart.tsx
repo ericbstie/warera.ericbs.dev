@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
-import { toPriceHistory, type PricePoint, type Transaction } from "./hooks";
+import { toPriceHistory, type Transaction } from "./hooks";
 import { sma, vwapSeries } from "./indicators";
 import {
   barDateAt,

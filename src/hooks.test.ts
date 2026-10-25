@@ -55,13 +55,15 @@ test("fetchTransactionHistory returns nothing when an item has never traded", as
 test("fetchTransactionHistory throws on an api error", async () => {
   stubFetch({ error: { message: "Itemtradings not found." } });
 
-  expect(fetchTransactionHistory("helmet1", "30D")).rejects.toThrow("Itemtradings not found.");
+  await expect(fetchTransactionHistory("helmet1", "30D")).rejects.toThrow(
+    "Itemtradings not found.",
+  );
 });
 
 test("fetchTransactionHistory refuses a shape it doesn't recognise", async () => {
   stubFetch({ result: { data: { values: [day] } } });
 
-  expect(fetchTransactionHistory("iron", "30D")).rejects.toThrow("unexpected shape");
+  await expect(fetchTransactionHistory("iron", "30D")).rejects.toThrow("unexpected shape");
 });
 
 test("the movers strip takes one request and shows only listed items", async () => {

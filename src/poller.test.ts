@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import { openDatabase, readDailyTrading, readSnapshots } from "./db";
 
 // TRPC_UPSTREAM is read when ./trpc is first evaluated, so the stub has to be
