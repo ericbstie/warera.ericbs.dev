@@ -55,7 +55,7 @@ code. Day to day:
 
 ```bash
 journalctl --user -u dev.mise.warera -f     # follow the logs
-systemctl --user restart dev.mise.warera    # restart by hand
+mise run restart                            # restart by hand
 systemctl --user status dev.mise.warera
 ```
 

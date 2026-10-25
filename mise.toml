@@ -22,3 +22,7 @@ run = ["bun check", "bunx bun@canary lint", "bun fmt --check"]
 [tasks.fix]
 description = "Fix lint problems and format the code"
 run = ["bunx bun@canary lint --fix", "bun fmt"]
+
+[tasks.restart]
+description = "Restart the production server's systemd unit"
+run = "systemctl --user restart dev.mise.warera"
