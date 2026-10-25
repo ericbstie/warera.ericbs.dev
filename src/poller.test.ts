@@ -3,11 +3,13 @@ import { openDatabase, readDailyTrading, readSnapshots } from "./db";
 
 // TRPC_UPSTREAM is read when ./trpc is first evaluated, so the stub has to be
 // listening and pointed at before the poller is imported.
+let configReads = 0;
 const upstream = Bun.serve({
   port: 0,
   fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === "/trpc/gameConfig.getGameConfig") {
+      configReads++;
       return Response.json({
         result: { data: { items: { lightAmmo: { isTradable: true }, medal: { isTradable: false } } } },
       });
@@ -64,5 +66,18 @@ test("polling again adds a point rather than replacing the last one", async () =
   expect(readSnapshots(db, "lightAmmo").map(row => row.capturedAt)).toEqual([1_000, 2_000]);
   // The day upstream keeps re-reporting stays one row, refreshed in place.
   expect(readDailyTrading(db, "lightAmmo")).toHaveLength(1);
+  db.close();
+});
+
+test("the item list is read once an hour rather than every poll", async () => {
+  const db = openDatabase(":memory:");
+  const hour = 60 * 60 * 1000;
+  // Later than any earlier test polled, so the first of these starts a fresh hour.
+  await pollOnce(db, 1_800_000_000_000);
+  const before = configReads;
+  await pollOnce(db, 1_800_000_000_000 + 5 * 60 * 1000);
+  expect(configReads).toBe(before);
+  await pollOnce(db, 1_800_000_000_000 + hour);
+  expect(configReads).toBe(before + 1);
   db.close();
 });

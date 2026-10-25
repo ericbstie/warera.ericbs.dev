@@ -29,6 +29,17 @@ async function batchFetch(procedure: string, itemCodes: string[]): Promise<unkno
   return entries.map(entry => entry?.result?.data);
 }
 
+// The game config is the largest thing a poll downloads and the item list in it
+// almost never changes, so it is read once an hour rather than every poll.
+const ITEM_LIST_TTL_MS = 60 * 60 * 1000;
+let itemList: { codes: string[]; fetchedAt: number } | null = null;
+
+async function tradableItems(now: number): Promise<string[]> {
+  if (itemList && now - itemList.fetchedAt < ITEM_LIST_TTL_MS) return itemList.codes;
+  itemList = { codes: await fetchTradableItems(), fetchedAt: now };
+  return itemList.codes;
+}
+
 export async function fetchTradableItems(): Promise<string[]> {
   const res = await fetch(`${TRPC_UPSTREAM}/gameConfig.getGameConfig`, {
     method: "POST",
@@ -50,7 +61,7 @@ export async function fetchTradableItems(): Promise<string[]> {
  * fails costs its own items this round and nothing else.
  */
 export async function pollOnce(db: Database, capturedAt = Date.now()): Promise<{ snapshots: number; days: number }> {
-  const itemCodes = await fetchTradableItems();
+  const itemCodes = await tradableItems(capturedAt);
   let snapshots = 0;
   let days = 0;
 
