@@ -22,7 +22,7 @@ import { formatCompact, formatPrice, formatTime, isTimestamp, parseBarDate } fro
 import { OVERLAYS, type Overlay } from "./Toolbar";
 import { measurementOf, type Drawing, type ToolId } from "./tools";
 
-const PADDING = { top: 12, right: 68, bottom: 26, left: 10 };
+const PADDING = { top: 12, right: 72, bottom: 26, left: 10 };
 const ROWS = 4;
 const GRID = "var(--grid)";
 const AXIS_TEXT = "var(--muted)";
@@ -43,8 +43,8 @@ const FLOOR_OPACITY = 0.6;
 const DRAWING_OPACITY = 0.6;
 const MEASURE_FILL_OPACITY = 0.14;
 const MEASURE_EDGE_OPACITY = 0.45;
-/** Rough advance of the 11px label face — enough to keep a tag inside the plot. */
-const LABEL_CHAR_WIDTH = 7.2;
+/** Rough advance of the 14px label face — enough to keep a tag inside the plot. */
+const LABEL_CHAR_WIDTH = 8;
 /** Below this, a measured box is a layout still settling rather than a chart. */
 const MIN_BOX_HEIGHT = 200;
 /** How hard a wheel bites. A trackpad pinch reports far smaller deltas than a mouse notch, so it needs a longer lever. */
@@ -615,7 +615,7 @@ export function PriceChart({
           y={labelY}
           textAnchor="middle"
           dominantBaseline="middle"
-          fontSize="13"
+          fontSize="14"
           fill={rising ? UP : DOWN}
         >
           {label}
@@ -705,7 +705,7 @@ export function PriceChart({
                           y={y(price)}
                           textAnchor="end"
                           dominantBaseline="middle"
-                          fontSize="13"
+                          fontSize="14"
                           fill={AXIS_TEXT}
                         >
                           {price.toFixed(decimals)}
@@ -749,7 +749,7 @@ export function PriceChart({
                         x={columnX}
                         y={volumeBottom + 18}
                         textAnchor={column === 0 ? "start" : column === columns - 1 ? "end" : "middle"}
-                        fontSize="13"
+                        fontSize="14"
                         fill={AXIS_TEXT}
                       >
                         {formatDate(barDateAt(dates, index), multiDay)}
@@ -855,7 +855,7 @@ export function PriceChart({
                       y={volumeTagY}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize="13"
+                      fontSize="14"
                       fill={LABEL_TEXT}
                     >
                       {volumeTag}
@@ -891,7 +891,7 @@ export function PriceChart({
                           y={tagY}
                           textAnchor="end"
                           dominantBaseline="middle"
-                          fontSize="13"
+                          fontSize="14"
                           fill={LABEL_TEXT}
                         >
                           {priceTag}
@@ -912,7 +912,7 @@ export function PriceChart({
                       y={volumeBottom + 14}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize="13"
+                      fontSize="14"
                       fill={LABEL_TEXT}
                     >
                       {dateTag}
