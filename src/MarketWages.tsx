@@ -56,7 +56,7 @@ function OfferRow({ job, rank }: { job: JobRow; rank: number }) {
         href={companyUrl(job.companyId)}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-3 rounded py-3 pr-2 transition-colors hover:bg-panel sm:gap-4"
+        className="flex items-center gap-3 py-3 pr-2 transition-colors hover:bg-panel sm:gap-4"
       >
         <span className="w-6 shrink-0 text-right text-base tabular-nums text-muted">{rank}</span>
         {job.itemCode ? (

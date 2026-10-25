@@ -53,18 +53,19 @@ export function ItemPicker({
   return (
     <div ref={rootRef} className="relative shrink-0">
       {/* No box around it: the icon, the weight of the name and the caret are
-          what say it opens, and a hover tint answers the pointer. */}
+          what say it opens, and the caret brightens to answer the pointer,
+          as every other control's text does. */}
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Traded item"
-        className="flex h-10 max-w-[16rem] items-center gap-2 rounded px-2 text-left hover:bg-panel"
+        className="group flex h-10 max-w-[16rem] items-center gap-2 px-2 text-left"
       >
         {selected && <img src={itemIcon(selected)} alt="" width={24} height={24} className="shrink-0" />}
         <span className="truncate text-base font-semibold sm:text-lg">{itemLabel(selected) || "Select an item"}</span>
-        <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden className="shrink-0 text-muted">
+        <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden className="shrink-0 text-muted group-hover:text-ink">
           <path d="M1 1.5 6 6.5 11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
         </svg>
       </button>

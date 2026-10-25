@@ -25,7 +25,7 @@ function Entry({
       onClick={() => onSelect(mover.code)}
       tabIndex={tabIndex}
       title={itemLabel(mover.code)}
-      className="flex shrink-0 items-center gap-1.5"
+      className="group flex shrink-0 items-center gap-1.5"
     >
       <img
         src={itemIcon(mover.code)}
@@ -34,7 +34,7 @@ function Entry({
         height={18}
         draggable={false} // a native image drag would otherwise hijack the pointer events driving the swipe
       />
-      <span className={`text-base tabular-nums sm:text-lg ${rising ? "text-up" : "text-down"}`}>
+      <span className={`text-base tabular-nums underline-offset-4 group-hover:underline sm:text-lg ${rising ? "text-up" : "text-down"}`}>
         {rising ? "+" : ""}
         {mover.changePct.toFixed(2)}%
       </span>
