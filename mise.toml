@@ -12,3 +12,13 @@ restart = "always"
 restart_sec = "5"
 standard_output = "journal"
 standard_error = "journal"
+
+# `bun lint` only ships in Bun canary builds so far, so it runs through bunx
+# until it reaches a stable release.
+[tasks.check]
+description = "Type check, lint and check formatting"
+run = ["bun check", "bunx bun@canary lint", "bun fmt --check"]
+
+[tasks.fix]
+description = "Fix lint problems and format the code"
+run = ["bunx bun@canary lint --fix", "bun fmt"]
