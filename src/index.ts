@@ -251,22 +251,33 @@ function upstreamFailure(err: unknown, context: string): Response {
   );
 }
 
+/**
+ * The calls the browser makes through the proxy, and exactly what each sends
+ * upstream. Forwarding whatever arrived would make this an open relay onto
+ * upstream from this server's address, and every new query or body a fresh
+ * upstream fetch that skips the cache, so the call is pinned rather than passed on.
+ */
+const PROXIED_CALLS: Record<string, { method: string; body: string }> = {
+  "gameConfig.getGameConfig": { method: "POST", body: "{}" },
+};
+
 async function proxyTrpc(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  const method = req.method;
-  const pathAndQuery = url.pathname.replace(/^\/api\/trpc\//, "") + url.search;
+  const procedure = new URL(req.url).pathname.replace(/^\/api\/trpc\//, "");
+  const call = PROXIED_CALLS[procedure];
+  if (call?.method !== req.method) {
+    return new Response(JSON.stringify({ error: { message: "Not found" } }), {
+      status: 404,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
 
   try {
-    // Reading the body belongs inside the try: a client that disconnects
-    // mid-upload throws here, and outside it that escapes the route handler
-    // entirely rather than becoming the 502 every other failure returns.
-    const body = method === "POST" ? await req.text() : "";
-    const { entry, status } = await cached(trpcCacheKey(method, pathAndQuery, body), () =>
-      fetchTrpc(pathAndQuery, method, body),
+    const { entry, status } = await cached(trpcCacheKey(call.method, procedure, call.body), () =>
+      fetchTrpc(procedure, call.method, call.body),
     );
     return trpcResponse(req, entry, status);
   } catch (err) {
-    return upstreamFailure(err, `${method} ${pathAndQuery}`);
+    return upstreamFailure(err, `${call.method} ${procedure}`);
   }
 }
 
