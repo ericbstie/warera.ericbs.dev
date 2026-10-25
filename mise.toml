@@ -1,0 +1,14 @@
+[tools]
+bun = "1.3"
+
+# `mise bootstrap` installs this as the systemd user unit dev.mise.warera:
+# it starts on boot, restarts on a crash, and logs to the journal.
+[bootstrap.linux.systemd.units.warera]
+description = "warera.ericbs.dev"
+exec_start = "{{ mise_bin }} exec -- bun run --watch src/index.ts"
+working_directory = "{{ config_root }}"
+environment = { NODE_ENV = "production", PORT = "4000" }
+restart = "always"
+restart_sec = "5"
+standard_output = "journal"
+standard_error = "journal"
